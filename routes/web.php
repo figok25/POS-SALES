@@ -47,8 +47,10 @@ Route::middleware(['auth', 'verified', 'role:admin'])
     ->group(function () {
         Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
 
-        // Placeholder group untuk modul-modul berikutnya (Fase 2+):
-        // Route::prefix('master')->name('master.')->group(...);
+        // Fase 2 - Master Data (Blueprint #32, #47)
+        Route::prefix('master')->name('master.')->group(base_path('routes/admin_master.php'));
+
+        // Placeholder group untuk modul-modul berikutnya (Fase 3+):
         // Route::prefix('inventory')->name('inventory.')->group(...);
         // Route::prefix('distribution')->name('distribution.')->group(...);
         // Route::prefix('finance')->name('finance.')->group(...);

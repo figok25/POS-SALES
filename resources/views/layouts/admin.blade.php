@@ -19,18 +19,18 @@
 
                 <div>
                     <p class="px-2 text-xs uppercase tracking-wide text-gray-500 mb-1">Master Data</p>
-                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Company</a>
-                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Branch</a>
-                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Warehouse</a>
-                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Product</a>
-                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Category</a>
-                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Unit</a>
-                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Price</a>
-                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Customer</a>
-                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Employee</a>
-                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Sales</a>
-                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Vehicle</a>
-                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Supplier</a>
+                    <a href="{{ route('admin.master.companies.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Company</a>
+                    <a href="{{ route('admin.master.branches.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Branch</a>
+                    <a href="{{ route('admin.master.warehouses.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Warehouse</a>
+                    <a href="{{ route('admin.master.products.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Product</a>
+                    <a href="{{ route('admin.master.categories.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Category</a>
+                    <a href="{{ route('admin.master.units.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Unit</a>
+                    <a href="{{ route('admin.master.prices.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Price</a>
+                    <a href="{{ route('admin.master.customers.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Customer</a>
+                    <a href="{{ route('admin.master.employees.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Employee</a>
+                    <a href="{{ route('admin.master.sales.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Sales</a>
+                    <a href="{{ route('admin.master.vehicles.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Vehicle</a>
+                    <a href="{{ route('admin.master.suppliers.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Supplier</a>
                 </div>
 
                 <div>
