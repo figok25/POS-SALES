@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>{{ config('app.name', 'POS & Sales') }} - Admin</title>
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+</head>
+<body class="font-sans antialiased bg-gray-100">
+    <div class="min-h-screen flex">
+        {{-- Sidebar: struktur menu mengikuti Blueprint #47 Admin Navigation --}}
+        <aside class="w-64 bg-gray-900 text-gray-200 flex-shrink-0 hidden md:block">
+            <div class="px-4 py-4 text-lg font-semibold text-white border-b border-gray-800">
+                {{ config('app.name', 'POS & Sales') }}
+            </div>
+            <nav class="px-2 py-4 space-y-4 text-sm">
+                <a href="{{ route('admin.dashboard') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Dashboard</a>
+
+                <div>
+                    <p class="px-2 text-xs uppercase tracking-wide text-gray-500 mb-1">Master Data</p>
+                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Company</a>
+                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Branch</a>
+                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Warehouse</a>
+                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Product</a>
+                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Category</a>
+                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Unit</a>
+                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Price</a>
+                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Customer</a>
+                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Employee</a>
+                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Sales</a>
+                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Vehicle</a>
+                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Supplier</a>
+                </div>
+
+                <div>
+                    <p class="px-2 text-xs uppercase tracking-wide text-gray-500 mb-1">Inventory</p>
+                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Stock</a>
+                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Stock Movement</a>
+                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Monitoring</a>
+                </div>
+
+                <div>
+                    <p class="px-2 text-xs uppercase tracking-wide text-gray-500 mb-1">Distribution</p>
+                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Permintaan Barang</a>
+                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">BKB Distribusi</a>
+                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">BTB Distribusi</a>
+                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">BKB Cabang</a>
+                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">BTB Cabang</a>
+                </div>
+
+                <div>
+                    <p class="px-2 text-xs uppercase tracking-wide text-gray-500 mb-1">Sales</p>
+                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Sales Management</a>
+                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Customer</a>
+                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Visit</a>
+                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Transaksi Penjualan</a>
+                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Invoice</a>
+                </div>
+
+                <div>
+                    <p class="px-2 text-xs uppercase tracking-wide text-gray-500 mb-1">Finance</p>
+                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Invoice</a>
+                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Payment</a>
+                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Settlement</a>
+                </div>
+
+                <div>
+                    <p class="px-2 text-xs uppercase tracking-wide text-gray-500 mb-1">Operations</p>
+                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Delivery Order</a>
+                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Route</a>
+                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Vehicle</a>
+                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Driver</a>
+                </div>
+
+                <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Reports</a>
+
+                <div>
+                    <p class="px-2 text-xs uppercase tracking-wide text-gray-500 mb-1">System</p>
+                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Users</a>
+                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Roles</a>
+                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Permissions</a>
+                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Audit Log</a>
+                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Settings</a>
+                </div>
+            </nav>
+        </aside>
+
+        <div class="flex-1 flex flex-col min-w-0">
+            <header class="bg-white shadow-sm">
+                <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+                    <div>
+                        @isset($header)
+                            <h2 class="font-semibold text-xl text-gray-800">{{ $header }}</h2>
+                        @endisset
+                    </div>
+                    <div class="flex items-center gap-4 text-sm">
+                        <span class="text-gray-600">{{ auth()->user()->name }} <span class="text-xs text-gray-400">(Admin)</span></span>
+                        <form method="POST" action="{{ route('logout') }}">
+                            @csrf
+                            <button type="submit" class="text-red-600 hover:underline">Logout</button>
+                        </form>
+                    </div>
+                </div>
+            </header>
+
+            <main class="flex-1 p-6">
+                <div class="max-w-7xl mx-auto">
+                    {{ $slot }}
+                </div>
+            </main>
+        </div>
+    </div>
+</body>
+</html>
