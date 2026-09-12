@@ -35,9 +35,9 @@
 
                 <div>
                     <p class="px-2 text-xs uppercase tracking-wide text-gray-500 mb-1">Inventory</p>
-                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Stock</a>
-                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Stock Movement</a>
-                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Monitoring</a>
+                    <a href="{{ route('admin.inventory.stock.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Stock</a>
+                    <a href="{{ route('admin.inventory.movements.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Stock Movement</a>
+                    <a href="{{ route('admin.inventory.adjustments.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Stock Adjustment</a>
                 </div>
 
                 <div>
