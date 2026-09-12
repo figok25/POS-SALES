@@ -42,11 +42,10 @@
 
                 <div>
                     <p class="px-2 text-xs uppercase tracking-wide text-gray-500 mb-1">Distribution</p>
-                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Permintaan Barang</a>
-                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">BKB Distribusi</a>
-                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">BTB Distribusi</a>
-                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">BKB Cabang</a>
-                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">BTB Cabang</a>
+                    <a href="{{ route('admin.distribution.stock-requests.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Permintaan Barang</a>
+                    <a href="{{ route('admin.distribution.bkb.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">BKB Distribusi</a>
+                    <a href="{{ route('admin.distribution.btb.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">BTB Distribusi</a>
+                    <a href="{{ route('admin.distribution.branch-transfer.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Branch Transfer (BKB/BTB Cabang)</a>
                 </div>
 
                 <div>

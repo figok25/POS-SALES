@@ -53,8 +53,10 @@ Route::middleware(['auth', 'verified', 'role:admin'])
         // Fase 3 - Warehouse & Inventory (Blueprint #33, #47)
         Route::prefix('inventory')->name('inventory.')->group(base_path('routes/admin_inventory.php'));
 
-        // Placeholder group untuk modul-modul berikutnya (Fase 4+):
-        // Route::prefix('distribution')->name('distribution.')->group(...);
+        // Fase 4 & 5 - Permintaan Barang, BKB & BTB (Blueprint #34, #35, #47)
+        Route::prefix('distribution')->name('distribution.')->group(base_path('routes/admin_distribution.php'));
+
+        // Placeholder group untuk modul-modul berikutnya (Fase 6+):
         // Route::prefix('finance')->name('finance.')->group(...);
         // Route::prefix('operations')->name('operations.')->group(...);
         // Route::prefix('system')->name('system.')->group(...);
