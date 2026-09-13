@@ -35,6 +35,22 @@ class CustomerController extends Controller
         return view('admin.master.customers.create', compact('saless'));
     }
 
+    /**
+     * Customer Detail (Blueprint #16): informasi dasar, riwayat
+     * penjualan, invoice, visit, dan tagging.
+     */
+    public function show(Customer $item)
+    {
+        $item->load(['sales']);
+
+        $transactions = $item->salesTransactions()->with('sales')->orderBy('id', 'desc')->limit(10)->get();
+        $invoices = $item->invoices()->orderBy('id', 'desc')->limit(10)->get();
+        $visits = $item->visits()->with('sales')->orderBy('id', 'desc')->limit(10)->get();
+        $taggings = $item->taggings()->with('sales')->orderBy('id', 'desc')->limit(10)->get();
+
+        return view('admin.master.customers.show', compact('item', 'transactions', 'invoices', 'visits', 'taggings'));
+    }
+
     public function store(CustomerRequest $request)
     {
         $item = Customer::create($request->validated());

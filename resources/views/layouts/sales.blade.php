@@ -27,19 +27,19 @@
 
     {{-- Bottom nav mobile-friendly, struktur sesuai Blueprint #48 Sales Navigation --}}
     <nav class="fixed bottom-0 inset-x-0 bg-white border-t flex justify-around text-xs text-gray-600 py-2">
-        <a href="{{ route('sales.dashboard') }}" class="flex flex-col items-center gap-0.5">
+        <a href="{{ route('sales.dashboard') }}" class="flex flex-col items-center gap-0.5 {{ request()->routeIs('sales.dashboard') ? 'text-indigo-600 font-semibold' : '' }}">
             <span>Dashboard</span>
         </a>
-        <a href="#" class="flex flex-col items-center gap-0.5">
-            <span>Customer</span>
+        <a href="{{ route('sales.visits.index') }}" class="flex flex-col items-center gap-0.5 {{ request()->routeIs('sales.visits.*') ? 'text-indigo-600 font-semibold' : '' }}">
+            <span>Kunjungan</span>
         </a>
-        <a href="#" class="flex flex-col items-center gap-0.5">
+        <a href="{{ route('sales.transactions.index') }}" class="flex flex-col items-center gap-0.5 {{ request()->routeIs('sales.transactions.*') ? 'text-indigo-600 font-semibold' : '' }}">
             <span>Transaksi</span>
         </a>
-        <a href="#" class="flex flex-col items-center gap-0.5">
+        <a href="{{ route('sales.stock.index') }}" class="flex flex-col items-center gap-0.5 {{ request()->routeIs('sales.stock.*') ? 'text-indigo-600 font-semibold' : '' }}">
             <span>Stock</span>
         </a>
-        <a href="{{ route('profile.edit') }}" class="flex flex-col items-center gap-0.5">
+        <a href="{{ route('profile.edit') }}" class="flex flex-col items-center gap-0.5 {{ request()->routeIs('profile.edit') ? 'text-indigo-600 font-semibold' : '' }}">
             <span>Profile</span>
         </a>
     </nav>

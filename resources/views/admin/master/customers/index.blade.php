@@ -31,6 +31,7 @@
                                 @endif
                             </td>
                             <td class="px-3 py-2 text-right space-x-2">
+                                <a href="{{ route('admin.master.customers.show', $item) }}" class="text-indigo-600 hover:underline">Detail</a>
                                 <a href="{{ route('admin.master.customers.edit', $item) }}" class="text-blue-600 hover:underline">Edit</a>
                                 <form action="{{ route('admin.master.customers.destroy', $item) }}" method="POST" class="inline" onsubmit="return confirm('Hapus data ini?')">
                                     @csrf

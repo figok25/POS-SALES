@@ -56,7 +56,11 @@ Route::middleware(['auth', 'verified', 'role:admin'])
         // Fase 4 & 5 - Permintaan Barang, BKB & BTB (Blueprint #34, #35, #47)
         Route::prefix('distribution')->name('distribution.')->group(base_path('routes/admin_distribution.php'));
 
-        // Placeholder group untuk modul-modul berikutnya (Fase 6+):
+        // Fase 6 - Sales Management: review Tagging Toko, Kunjungan,
+        // Sales Transaction, Invoice (Blueprint #14, #16, #22, #23, #47)
+        Route::prefix('sales')->name('sales.')->group(base_path('routes/admin_sales.php'));
+
+        // Placeholder group untuk modul-modul berikutnya (Fase 7+):
         // Route::prefix('finance')->name('finance.')->group(...);
         // Route::prefix('operations')->name('operations.')->group(...);
         // Route::prefix('system')->name('system.')->group(...);
@@ -73,9 +77,9 @@ Route::middleware(['auth', 'verified', 'role:sales'])
     ->group(function () {
         Route::get('/dashboard', [SalesDashboardController::class, 'index'])->name('dashboard');
 
-        // Placeholder untuk Fase 6 (Sales & Customer):
-        // Route::prefix('customer')->name('customer.')->group(...);
-        // Route::prefix('transaksi')->name('transaksi.')->group(...);
+        // Fase 6 - Tagging Toko, Kunjungan, Transaksi, Sales Stock
+        // (Blueprint #12, #48)
+        require base_path('routes/sales_app.php');
     });
 
 require __DIR__.'/auth.php';

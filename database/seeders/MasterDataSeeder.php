@@ -5,6 +5,8 @@ namespace Database\Seeders;
 use App\Models\Branch;
 use App\Models\Category;
 use App\Models\Company;
+use App\Models\Customer;
+use App\Models\Price;
 use App\Models\Product;
 use App\Models\Sales;
 use App\Models\Supplier;
@@ -15,7 +17,7 @@ use Illuminate\Database\Seeder;
 
 /**
  * Phase 2 - Master Data sample seed, cukup untuk mencoba alur end-to-end
- * pada Fase 3+ (Stock, BKB/BTB, Sales Transaction).
+ * pada Fase 3+ (Stock, BKB/BTB) dan Fase 6 (Sales Transaction, Invoice).
  */
 class MasterDataSeeder extends Seeder
 {
@@ -39,7 +41,7 @@ class MasterDataSeeder extends Seeder
         $category = Category::firstOrCreate(['code' => 'GEN'], ['name' => 'Umum']);
         $unit = Unit::firstOrCreate(['symbol' => 'PCS'], ['name' => 'Pieces']);
 
-        Product::firstOrCreate(
+        $product = Product::firstOrCreate(
             ['sku' => 'SKU-0001'],
             [
                 'name' => 'Produk Contoh',
@@ -48,9 +50,30 @@ class MasterDataSeeder extends Seeder
             ]
         );
 
-        Sales::firstOrCreate(
+        // Fase 6 - Harga aktif diperlukan agar Sales Transaction Service
+        // bisa memvalidasi harga (Blueprint #22 - Validate Price).
+        Price::firstOrCreate(
+            ['product_id' => $product->id, 'name' => 'Harga Umum'],
+            ['amount' => 15000, 'is_active' => true]
+        );
+
+        $sales = Sales::firstOrCreate(
             ['code' => 'SLS-0001'],
             ['branch_id' => $branch->id, 'name' => 'Sales Demo']
+        );
+
+        // Fase 6 - Customer contoh yang sudah ditugaskan ke Sales Demo,
+        // agar alur Kunjungan & Sales Transaction bisa langsung dicoba
+        // tanpa harus melalui Tagging Toko terlebih dahulu.
+        Customer::firstOrCreate(
+            ['code' => 'CUST-0001'],
+            [
+                'sales_id' => $sales->id,
+                'name' => 'Toko Sumber Rejeki',
+                'address' => 'Jl. Contoh No. 1',
+                'phone' => '081200000000',
+                'is_active' => true,
+            ]
         );
 
         Vehicle::firstOrCreate(

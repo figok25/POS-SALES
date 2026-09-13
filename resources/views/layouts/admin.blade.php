@@ -50,16 +50,17 @@
 
                 <div>
                     <p class="px-2 text-xs uppercase tracking-wide text-gray-500 mb-1">Sales</p>
-                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Sales Management</a>
-                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Customer</a>
-                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Visit</a>
-                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Transaksi Penjualan</a>
-                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Invoice</a>
+                    <a href="{{ route('admin.master.sales.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Sales Management</a>
+                    <a href="{{ route('admin.master.customers.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Customer</a>
+                    <a href="{{ route('admin.sales.customer-taggings.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Tagging Toko</a>
+                    <a href="{{ route('admin.sales.visits.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Visit</a>
+                    <a href="{{ route('admin.sales.transactions.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Transaksi Penjualan</a>
+                    <a href="{{ route('admin.sales.invoices.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Invoice</a>
                 </div>
 
                 <div>
                     <p class="px-2 text-xs uppercase tracking-wide text-gray-500 mb-1">Finance</p>
-                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Invoice</a>
+                    <a href="{{ route('admin.sales.invoices.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Invoice</a>
                     <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Payment</a>
                     <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Settlement</a>
                 </div>

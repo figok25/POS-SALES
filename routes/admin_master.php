@@ -20,7 +20,7 @@ Route::middleware('permission:master-data.manage')->group(function () {
         Route::resource('prices', \App\Http\Controllers\Admin\Master\PriceController::class)->parameters(['prices' => 'item'])->except(['show']);
         Route::resource('employees', \App\Http\Controllers\Admin\Master\EmployeeController::class)->parameters(['employees' => 'item'])->except(['show']);
         Route::resource('sales', \App\Http\Controllers\Admin\Master\SalesController::class)->parameters(['sales' => 'item'])->except(['show']);
-        Route::resource('customers', \App\Http\Controllers\Admin\Master\CustomerController::class)->parameters(['customers' => 'item'])->except(['show']);
+        Route::resource('customers', \App\Http\Controllers\Admin\Master\CustomerController::class)->parameters(['customers' => 'item']);
         Route::resource('vehicles', \App\Http\Controllers\Admin\Master\VehicleController::class)->parameters(['vehicles' => 'item'])->except(['show']);
         Route::resource('suppliers', \App\Http\Controllers\Admin\Master\SupplierController::class)->parameters(['suppliers' => 'item'])->except(['show']);
 });
