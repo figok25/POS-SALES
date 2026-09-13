@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Customer;
 use App\Models\CustomerTagging;
 use App\Support\DocumentCode;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -17,12 +18,14 @@ use Illuminate\Support\Facades\DB;
  */
 class CustomerTaggingService
 {
+    public function __construct(protected CustomerAssignmentService $assignmentService) {}
+
     /**
      * Sales mengirim data tagging dari lapangan.
      */
     public function submit(int $salesId, array $data): CustomerTagging
     {
-        return CustomerTagging::create([
+        $tagging = CustomerTagging::create([
             'sales_id' => $salesId,
             'name' => $data['name'],
             'phone' => $data['phone'] ?? null,
@@ -34,6 +37,10 @@ class CustomerTaggingService
             'status' => CustomerTagging::STATUS_PENDING,
             'tagged_at' => now(),
         ]);
+
+        AuditLogger::log('create', 'Sales', CustomerTagging::class, $tagging->id, null, $tagging->toArray());
+
+        return $tagging;
     }
 
     /**
@@ -41,7 +48,7 @@ class CustomerTaggingService
      * sama pada customer yang sudah ada. Dipakai untuk peringatan di UI
      * sebelum submit, bukan hard-block (validasi akhir tetap di Admin).
      */
-    public function findPossibleDuplicates(string $name, ?string $phone): \Illuminate\Support\Collection
+    public function findPossibleDuplicates(string $name, ?string $phone): Collection
     {
         return Customer::query()
             ->where(function ($q) use ($name, $phone) {
@@ -62,7 +69,6 @@ class CustomerTaggingService
         return DB::transaction(function () use ($tagging, $reviewerId, $reviewNotes) {
             if (! $tagging->customer_id) {
                 $customer = Customer::create([
-                    'sales_id' => $tagging->sales_id,
                     'code' => 'TEMP',
                     'name' => $tagging->name,
                     'address' => $tagging->address,
@@ -70,6 +76,15 @@ class CustomerTaggingService
                     'is_active' => true,
                 ]);
                 $customer->update(['code' => DocumentCode::make('CUST', $customer->id)]);
+
+                // Customer Assignment (Blueprint #729): tercatat sebagai
+                // assignment resmi pertama, bukan sekadar kolom sales_id.
+                $this->assignmentService->assign(
+                    $customer,
+                    $tagging->sales_id,
+                    $reviewerId,
+                    "Tagging Toko #{$tagging->id} disetujui",
+                );
 
                 $tagging->customer_id = $customer->id;
             }

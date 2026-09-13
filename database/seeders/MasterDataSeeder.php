@@ -13,6 +13,7 @@ use App\Models\Supplier;
 use App\Models\Unit;
 use App\Models\Vehicle;
 use App\Models\Warehouse;
+use App\Services\CustomerAssignmentService;
 use Illuminate\Database\Seeder;
 
 /**
@@ -65,16 +66,23 @@ class MasterDataSeeder extends Seeder
         // Fase 6 - Customer contoh yang sudah ditugaskan ke Sales Demo,
         // agar alur Kunjungan & Sales Transaction bisa langsung dicoba
         // tanpa harus melalui Tagging Toko terlebih dahulu.
-        Customer::firstOrCreate(
+        $customer = Customer::firstOrCreate(
             ['code' => 'CUST-0001'],
             [
-                'sales_id' => $sales->id,
                 'name' => 'Toko Sumber Rejeki',
                 'address' => 'Jl. Contoh No. 1',
                 'phone' => '081200000000',
                 'is_active' => true,
             ]
         );
+
+        // Assignment dicatat lewat CustomerAssignmentService (Fase 6
+        // Hardening) supaya riwayatnya konsisten sejak awal, bukan cuma
+        // pointer sales_id polos.
+        if (! $customer->sales_id) {
+            app(CustomerAssignmentService::class)
+                ->assign($customer, $sales->id, null, 'Seed data awal (MasterDataSeeder)');
+        }
 
         Vehicle::firstOrCreate(
             ['code' => 'VHC-0001'],

@@ -3,6 +3,7 @@
         <div class="flex items-center justify-between mb-4">
             <h1 class="text-xl font-semibold">{{ $item->name }}</h1>
             <div class="text-sm space-x-3">
+                <a href="{{ route('admin.sales.customer-assignments.edit', $item) }}" class="text-indigo-600 hover:underline">Assign / Reassign Sales</a>
                 <a href="{{ route('admin.master.customers.edit', $item) }}" class="text-blue-600 hover:underline">Edit</a>
                 <a href="{{ route('admin.master.customers.index') }}" class="text-gray-600 hover:underline">&larr; Kembali</a>
             </div>
@@ -64,6 +65,20 @@
                         </div>
                     @empty
                         <p class="px-3 py-4 text-gray-500">Belum ada kunjungan.</p>
+                    @endforelse
+                </div>
+            </div>
+
+            <div>
+                <h2 class="font-semibold text-sm mb-2">Riwayat Customer Assignment</h2>
+                <div class="bg-white rounded shadow divide-y text-sm">
+                    @forelse ($assignments as $row)
+                        <div class="flex justify-between px-3 py-2 {{ $row->isCurrent() ? 'bg-green-50' : '' }}">
+                            <span>{{ $row->sales->name ?? '-' }}</span>
+                            <span class="text-gray-500">{{ $row->assigned_at->format('d M Y') }}@if ($row->unassigned_at) &rarr; {{ $row->unassigned_at->format('d M Y') }}@endif</span>
+                        </div>
+                    @empty
+                        <p class="px-3 py-4 text-gray-500">Belum ada riwayat assignment.</p>
                     @endforelse
                 </div>
             </div>

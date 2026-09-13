@@ -7,6 +7,8 @@ use Illuminate\Validation\ValidationException;
 
 /**
  * Phase 6 - Kunjungan / Visit (Blueprint #12.4).
+ * Phase 6 Hardening - check-in/check-out diaudit (Blueprint #45: aktivitas
+ * lapangan Sales termasuk yang wajib tercatat di audit_logs).
  */
 class VisitService
 {
@@ -25,7 +27,7 @@ class VisitService
             ]);
         }
 
-        return Visit::create([
+        $visit = Visit::create([
             'sales_id' => $salesId,
             'customer_id' => $customerId,
             'check_in_at' => now(),
@@ -34,6 +36,10 @@ class VisitService
             'notes' => $data['notes'] ?? null,
             'status' => Visit::STATUS_ONGOING,
         ]);
+
+        AuditLogger::log('check_in', 'Sales', Visit::class, $visit->id, null, $visit->toArray());
+
+        return $visit;
     }
 
     public function checkOut(Visit $visit, array $data): Visit
@@ -44,6 +50,8 @@ class VisitService
             ]);
         }
 
+        $before = $visit->toArray();
+
         $visit->update([
             'check_out_at' => now(),
             'check_out_latitude' => $data['latitude'] ?? null,
@@ -51,6 +59,8 @@ class VisitService
             'notes' => $data['notes'] ?? $visit->notes,
             'status' => Visit::STATUS_COMPLETED,
         ]);
+
+        AuditLogger::log('check_out', 'Sales', Visit::class, $visit->id, $before, $visit->fresh()->toArray());
 
         return $visit;
     }

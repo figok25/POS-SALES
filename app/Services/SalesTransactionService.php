@@ -25,9 +25,7 @@ use Illuminate\Validation\ValidationException;
  */
 class SalesTransactionService
 {
-    public function __construct(protected StockService $stockService, protected InvoiceService $invoiceService)
-    {
-    }
+    public function __construct(protected StockService $stockService, protected InvoiceService $invoiceService) {}
 
     /**
      * @param  array{customer_id:int, notes?:string, items: array<int, array{product_id:int, quantity:float}>}  $data
@@ -142,7 +140,19 @@ class SalesTransactionService
                 // Sales -> Invoice).
                 $this->invoiceService->generateFromSalesTransaction($trx->fresh('items'));
 
-                return $trx->fresh(['items.product', 'customer', 'invoice']);
+                $result = $trx->fresh(['items.product', 'customer', 'invoice']);
+
+                // Sales Transaction wajib diaudit (Blueprint #45).
+                AuditLogger::log(
+                    action: 'create',
+                    module: 'Sales Transaction',
+                    documentType: SalesTransaction::class,
+                    documentId: $result->id,
+                    after: $result->toArray(),
+                    userId: $createdByUserId,
+                );
+
+                return $result;
             });
         } catch (InsufficientStockException $e) {
             throw ValidationException::withMessages([

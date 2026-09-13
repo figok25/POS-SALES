@@ -29,6 +29,8 @@ class RolePermissionSeeder extends Seeder
             'distribution.view', 'distribution.manage', 'distribution.apply',
             // Sales Management (sisi Admin)
             'sales-management.view', 'sales-management.manage',
+            // Customer Assignment (Fase 6 Hardening, Blueprint #729)
+            'customer-assignment.view', 'customer-assignment.manage',
             // Finance (Invoice, Payment, Settlement)
             'finance.view', 'finance.manage',
             // Operations (Delivery Order, Route, Vehicle, Driver)

@@ -10,6 +10,7 @@
 | Admin hanya melihat dan (khusus tagging) melakukan approve/reject.
 */
 
+use App\Http\Controllers\Admin\Sales\CustomerAssignmentController;
 use App\Http\Controllers\Admin\Sales\CustomerTaggingController;
 use App\Http\Controllers\Admin\Sales\InvoiceController;
 use App\Http\Controllers\Admin\Sales\SalesTransactionController;
@@ -33,4 +34,15 @@ Route::middleware('permission:sales-management.view')->group(function () {
 Route::middleware('permission:sales-management.manage')->group(function () {
     Route::post('customer-taggings/{tagging}/approve', [CustomerTaggingController::class, 'approve'])->name('customer-taggings.approve');
     Route::post('customer-taggings/{tagging}/reject', [CustomerTaggingController::class, 'reject'])->name('customer-taggings.reject');
+});
+
+// Fase 6 Hardening - Customer Assignment (Blueprint #729): siapa Sales
+// yang menangani Customer mana, lengkap riwayatnya. Terpisah dari CRUD
+// data Customer itu sendiri (lihat routes/admin_master.php).
+Route::middleware('permission:customer-assignment.view')->group(function () {
+    Route::get('customer-assignments', [CustomerAssignmentController::class, 'index'])->name('customer-assignments.index');
+});
+Route::middleware('permission:customer-assignment.manage')->group(function () {
+    Route::get('customer-assignments/{customer}/edit', [CustomerAssignmentController::class, 'edit'])->name('customer-assignments.edit');
+    Route::put('customer-assignments/{customer}', [CustomerAssignmentController::class, 'update'])->name('customer-assignments.update');
 });

@@ -41,6 +41,15 @@ class InvoiceService
             ]);
         }
 
+        AuditLogger::log(
+            action: 'create',
+            module: 'Finance',
+            documentType: Invoice::class,
+            documentId: $invoice->id,
+            after: $invoice->fresh('items')->toArray(),
+            userId: $trx->created_by,
+        );
+
         return $invoice;
     }
 }

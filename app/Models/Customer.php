@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * Phase 2 - Master Data: Customer (Blueprint #32).
@@ -45,5 +46,21 @@ class Customer extends Model
     public function invoices(): HasMany
     {
         return $this->hasMany(Invoice::class);
+    }
+
+    /**
+     * Riwayat lengkap Customer Assignment (Blueprint baris #729).
+     */
+    public function assignments(): HasMany
+    {
+        return $this->hasMany(CustomerAssignment::class)->latest('assigned_at');
+    }
+
+    /**
+     * Assignment yang sedang aktif (kalau ada).
+     */
+    public function currentAssignment(): HasOne
+    {
+        return $this->hasOne(CustomerAssignment::class)->whereNull('unassigned_at')->latestOfMany('assigned_at');
     }
 }
