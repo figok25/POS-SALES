@@ -14,7 +14,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Invoice extends Model
 {
     public const STATUS_UNPAID = 'unpaid';
+
     public const STATUS_PARTIAL = 'partial';
+
     public const STATUS_PAID = 'paid';
 
     protected $fillable = [
@@ -54,8 +56,21 @@ class Invoice extends Model
         return $this->hasMany(InvoiceItem::class);
     }
 
+    /**
+     * Phase 7 - Riwayat Payment terhadap invoice ini (Blueprint #15).
+     */
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class)->latest('paid_at');
+    }
+
     public function outstanding(): float
     {
         return (float) $this->grand_total - (float) $this->paid_amount;
+    }
+
+    public function isFullyPaid(): bool
+    {
+        return $this->status === self::STATUS_PAID;
     }
 }

@@ -67,8 +67,11 @@ Route::middleware(['auth', 'verified', 'role:admin'])
         // Fase 8 - Reports & Audit Report (Blueprint #38, #47)
         Route::prefix('reports')->name('reports.')->group(base_path('routes/admin_reports.php'));
 
+        // Fase 7 - Finance: Payment, Settlement, Income & Expense
+        // (Blueprint #15, #16, #37, #47)
+        Route::prefix('finance')->name('finance.')->group(base_path('routes/admin_finance.php'));
+
         // Placeholder group untuk modul-modul berikutnya:
-        // Route::prefix('finance')->name('finance.')->group(...); // Fase 7 - rekan
         // Route::prefix('system')->name('system.')->group(...);
     });
 

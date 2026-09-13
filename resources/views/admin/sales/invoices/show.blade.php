@@ -2,7 +2,12 @@
     <div class="p-6 max-w-3xl">
         <div class="flex items-center justify-between mb-4">
             <h1 class="text-xl font-semibold">Invoice {{ $invoice->code }}</h1>
-            <a href="{{ route('admin.sales.invoices.index') }}" class="text-sm text-gray-600 hover:underline">&larr; Kembali</a>
+            <div class="text-sm space-x-3">
+                @if (! $invoice->isFullyPaid())
+                    <a href="{{ route('admin.finance.payments.create', $invoice) }}" class="text-indigo-600 hover:underline">Catat Payment</a>
+                @endif
+                <a href="{{ route('admin.sales.invoices.index') }}" class="text-gray-600 hover:underline">&larr; Kembali</a>
+            </div>
         </div>
 
         <div class="bg-white rounded shadow p-4 space-y-2 text-sm mb-4">
@@ -57,6 +62,32 @@
             <div class="flex justify-between text-gray-500"><span>Terbayar</span><span>Rp {{ number_format($invoice->paid_amount, 0, ',', '.') }}</span></div>
         </div>
 
-        <p class="text-xs text-gray-400 mt-4">Pembayaran (Payment/Settlement) untuk invoice ini akan tersedia pada Fase 7.</p>
+        <div class="bg-white rounded shadow overflow-x-auto">
+            <div class="px-4 py-3 border-b font-medium text-sm">Riwayat Payment</div>
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50 border-b">
+                    <tr>
+                        <th class="px-3 py-2 text-left">Kode</th>
+                        <th class="px-3 py-2 text-left">Tanggal</th>
+                        <th class="px-3 py-2 text-left">Metode</th>
+                        <th class="px-3 py-2 text-right">Jumlah</th>
+                        <th class="px-3 py-2 text-left">Diterima Oleh</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse ($invoice->payments as $payment)
+                        <tr class="border-b">
+                            <td class="px-3 py-2">{{ $payment->code }}</td>
+                            <td class="px-3 py-2">{{ $payment->paid_at->format('d M Y') }}</td>
+                            <td class="px-3 py-2 capitalize">{{ $payment->method }}</td>
+                            <td class="px-3 py-2 text-right">Rp {{ number_format($payment->amount, 0, ',', '.') }}</td>
+                            <td class="px-3 py-2">{{ $payment->receivedBy->name ?? 'Sales (lapangan)' }}</td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="99" class="px-3 py-6 text-center text-gray-500">Belum ada payment.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
     </div>
 </x-admin-layout>

@@ -10,6 +10,7 @@
 */
 
 use App\Http\Controllers\Sales\CustomerTaggingController;
+use App\Http\Controllers\Sales\PaymentController;
 use App\Http\Controllers\Sales\StockController;
 use App\Http\Controllers\Sales\TransactionController;
 use App\Http\Controllers\Sales\VisitController;
@@ -43,4 +44,11 @@ Route::middleware('permission:sales-transaction.view')->prefix('transactions')->
 // Fase 6 - Sales Stock (Blueprint #12.6)
 Route::middleware('permission:sales-stock.view')->group(function () {
     Route::get('stock', [StockController::class, 'index'])->name('stock.index');
+});
+
+// Fase 7 - Payment yang diterima Sales langsung dari Customer di
+// lapangan, untuk invoice milik mereka sendiri (Blueprint #15).
+Route::middleware('permission:payment.create')->prefix('invoices/{invoice}/payments')->name('payments.')->group(function () {
+    Route::get('/create', [PaymentController::class, 'create'])->name('create');
+    Route::post('/', [PaymentController::class, 'store'])->name('store');
 });

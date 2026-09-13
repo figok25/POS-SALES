@@ -62,8 +62,9 @@
                 <div>
                     <p class="px-2 text-xs uppercase tracking-wide text-gray-500 mb-1">Finance</p>
                     <a href="{{ route('admin.sales.invoices.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Invoice</a>
-                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Payment</a>
-                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Settlement</a>
+                    <a href="{{ route('admin.finance.payments.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Payment</a>
+                    <a href="{{ route('admin.finance.settlements.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Settlement</a>
+                    <a href="{{ route('admin.finance.cash-ledgers.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Income & Expense</a>
                 </div>
 
                 <div>

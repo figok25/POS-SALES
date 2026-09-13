@@ -51,6 +51,7 @@ class RolePermissionSeeder extends Seeder
             'sales-transaction.create', 'sales-transaction.view',
             'sales-stock.view',
             'invoice.view-own',
+            'payment.create',
         ];
 
         foreach (array_unique(array_merge($adminPermissions, $salesPermissions)) as $permission) {
