@@ -60,9 +60,15 @@ Route::middleware(['auth', 'verified', 'role:admin'])
         // Sales Transaction, Invoice (Blueprint #14, #16, #22, #23, #47)
         Route::prefix('sales')->name('sales.')->group(base_path('routes/admin_sales.php'));
 
-        // Placeholder group untuk modul-modul berikutnya (Fase 7+):
-        // Route::prefix('finance')->name('finance.')->group(...);
-        // Route::prefix('operations')->name('operations.')->group(...);
+        // Fase 8 - Operations: Delivery Order, Route, Driver, Monitoring
+        // (Blueprint #38, #47)
+        Route::prefix('operations')->name('operations.')->group(base_path('routes/admin_operations.php'));
+
+        // Fase 8 - Reports & Audit Report (Blueprint #38, #47)
+        Route::prefix('reports')->name('reports.')->group(base_path('routes/admin_reports.php'));
+
+        // Placeholder group untuk modul-modul berikutnya:
+        // Route::prefix('finance')->name('finance.')->group(...); // Fase 7 - rekan
         // Route::prefix('system')->name('system.')->group(...);
     });
 

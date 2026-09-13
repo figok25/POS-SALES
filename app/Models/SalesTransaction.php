@@ -50,4 +50,12 @@ class SalesTransaction extends Model
     {
         return $this->hasOne(Invoice::class);
     }
+
+    /**
+     * Phase 8 - Delivery Order (Blueprint #38).
+     */
+    public function deliveryOrder(): HasOne
+    {
+        return $this->hasOne(DeliveryOrder::class);
+    }
 }
