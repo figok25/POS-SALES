@@ -36,13 +36,35 @@ return [
     ],
 
     /*
-     * Live Sales Field Operations (Blueprint #93 Final Decision Record):
-     * dipakai Maps JavaScript API untuk Customer Map & Basic Route pada
-     * WebView Sales (Fase 3). Wajib dibatasi (HTTP referrer restriction)
-     * di Google Cloud Console sesuai Blueprint #81.
+     * Live Sales Field Operations (Blueprint #64 Final Decision Record):
+     * MapLibre + OpenStreetMap menggantikan Google Maps Platform sebagai
+     * fondasi map/navigation proyek. MapLibre hanya merender peta -
+     * perhitungan rute dilakukan terpisah lewat 'routing' di bawah
+     * (Blueprint #67: "MapLibre bukan routing engine").
      */
-    'google_maps' => [
-        'key' => env('GOOGLE_MAPS_API_KEY'),
+    'maps' => [
+        'engine' => env('MAP_ENGINE', 'maplibre'),
+        // Default: OpenFreeMap - gratis penuh, tanpa API key/registrasi,
+        // cocok untuk development. Ganti MAP_STYLE_URL untuk provider lain
+        // (mis. MapTiler) atau tile self-hosted saat production.
+        'style_url' => env('MAP_STYLE_URL', 'https://tiles.openfreemap.org/styles/liberty'),
+        'tile_provider' => env('MAP_TILE_PROVIDER'),
+    ],
+
+    /*
+     * Routing Engine terpisah dari map rendering (Blueprint #67, #83
+     * Provider Abstraction). Default: OpenRouteService (hosted, gratis
+     * 2.000 request/hari, tidak perlu server sendiri) - cocok dipakai
+     * sebelum keputusan hosting production (Shared/VPS) final. Kalau
+     * nanti pindah ke VPS dan mau self-host OSRM, cukup tambah adapter
+     * baru (lihat App\Services\Routing) + ubah ROUTING_PROVIDER di sini,
+     * tanpa mengubah business logic Visit/Customer/Sales/Transaction.
+     */
+    'routing' => [
+        'provider' => env('ROUTING_PROVIDER', 'openrouteservice'),
+        'base_url' => env('ROUTING_BASE_URL', 'https://api.openrouteservice.org'),
+        'api_key' => env('ROUTING_API_KEY'),
+        'profile' => env('ROUTING_PROFILE', 'driving-car'),
     ],
 
 ];

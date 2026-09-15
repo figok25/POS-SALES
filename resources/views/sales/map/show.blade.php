@@ -12,15 +12,11 @@
         <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-xs text-yellow-800">
             Customer ini belum memiliki titik lokasi (latitude/longitude), sehingga Route belum bisa dihitung.
         </div>
-    @elseif (! $googleMapsKey)
-        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-xs text-yellow-800">
-            ⚠️ Peta/Route belum aktif (GOOGLE_MAPS_API_KEY belum dikonfigurasi Admin).
-        </div>
     @else
-        <div x-data="customerRoute()" x-init="init()">
+        <div x-data="customerRoute({{ $customer->id }}, {{ $customer->latitude }}, {{ $customer->longitude }})" x-init="init()">
             <div id="route-map" class="w-full h-64 rounded-lg shadow mb-3 bg-gray-200"></div>
 
-            <template x-if="!routeInfo && !errorMessage">
+            <template x-if="!routeInfo">
                 <button type="button" @click="calculateRoute()" :disabled="loading"
                         class="w-full py-3 bg-blue-600 text-white rounded-lg font-medium disabled:opacity-50">
                     <span x-text="loading ? 'Menghitung Route...' : '🧭 Hitung Route dari Lokasi Saya'"></span>
@@ -39,26 +35,36 @@
             </template>
         </div>
 
+        @push('styles')
+        <link href="https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.css" rel="stylesheet" />
+        @endpush
         @push('scripts')
+        <script src="https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.js"></script>
         <script>
-            const customerDestination = { lat: {{ $customer->latitude }}, lng: {{ $customer->longitude }} };
-            let salesRouteMap;
-
-            function initRouteMap() {
-                salesRouteMap = new google.maps.Map(document.getElementById('route-map'), {
-                    zoom: 14,
-                    center: customerDestination,
-                });
-                new google.maps.Marker({ position: customerDestination, map: salesRouteMap, label: 'C' });
-            }
-
-            function customerRoute() {
+            function customerRoute(customerId, destLat, destLng) {
                 return {
+                    map: null,
                     loading: false,
                     errorMessage: null,
                     routeInfo: null,
 
+                    csrfToken() {
+                        return document.querySelector('meta[name="csrf-token"]').content;
+                    },
+
                     init() {
+                        this.map = new maplibregl.Map({
+                            container: 'route-map',
+                            style: @js($mapStyleUrl),
+                            center: [destLng, destLat],
+                            zoom: 13,
+                        });
+                        this.map.addControl(new maplibregl.NavigationControl(), 'top-right');
+
+                        new maplibregl.Marker({ color: '#dc2626' })
+                            .setLngLat([destLng, destLat])
+                            .addTo(this.map);
+
                         if (!navigator.geolocation) {
                             this.errorMessage = 'Browser tidak mendukung Geolocation untuk menghitung route.';
                         }
@@ -68,25 +74,59 @@
                         this.loading = true;
                         this.errorMessage = null;
 
-                        navigator.geolocation.getCurrentPosition((position) => {
+                        navigator.geolocation.getCurrentPosition(async (position) => {
                             const origin = { lat: position.coords.latitude, lng: position.coords.longitude };
-                            const directionsService = new google.maps.DirectionsService();
-                            const directionsRenderer = new google.maps.DirectionsRenderer({ map: salesRouteMap });
 
-                            directionsService.route({
-                                origin,
-                                destination: customerDestination,
-                                travelMode: google.maps.TravelMode.DRIVING,
-                            }, (result, status) => {
+                            new maplibregl.Marker({ color: '#16a34a' })
+                                .setLngLat([origin.lng, origin.lat])
+                                .addTo(this.map);
+
+                            try {
+                                // Perhitungan rute dilakukan di Laravel (Routing Engine
+                                // terpisah dari MapLibre) - lihat Blueprint #67.
+                                const res = await fetch(`/api/sales/route/customer/${customerId}`, {
+                                    method: 'POST',
+                                    headers: {
+                                        'X-CSRF-TOKEN': this.csrfToken(),
+                                        'Content-Type': 'application/json',
+                                        'Accept': 'application/json',
+                                    },
+                                    body: JSON.stringify({ latitude: origin.lat, longitude: origin.lng }),
+                                });
+                                const json = await res.json();
                                 this.loading = false;
-                                if (status === 'OK') {
-                                    directionsRenderer.setDirections(result);
-                                    const leg = result.routes[0].legs[0];
-                                    this.routeInfo = { distance: leg.distance.text, duration: leg.duration.text };
-                                } else {
-                                    this.errorMessage = 'Gagal menghitung route: ' + status;
+
+                                if (!json.success) {
+                                    this.errorMessage = json.message;
+                                    return;
                                 }
-                            });
+
+                                const geometry = json.data.geometry;
+                                this.map.addSource('route', {
+                                    type: 'geojson',
+                                    data: { type: 'Feature', geometry: { type: 'LineString', coordinates: geometry } },
+                                });
+                                this.map.addLayer({
+                                    id: 'route',
+                                    type: 'line',
+                                    source: 'route',
+                                    paint: { 'line-color': '#4f46e5', 'line-width': 4 },
+                                });
+
+                                const bounds = geometry.reduce(
+                                    (b, coord) => b.extend(coord),
+                                    new maplibregl.LngLatBounds(geometry[0], geometry[0])
+                                );
+                                this.map.fitBounds(bounds, { padding: 40 });
+
+                                this.routeInfo = {
+                                    distance: (json.data.distance_meters / 1000).toFixed(1) + ' km',
+                                    duration: Math.round(json.data.duration_seconds / 60) + ' menit',
+                                };
+                            } catch (e) {
+                                this.loading = false;
+                                this.errorMessage = 'Gagal menghitung route. Coba lagi.';
+                            }
                         }, () => {
                             this.loading = false;
                             this.errorMessage = 'Gagal mengambil lokasi Anda. Pastikan izin lokasi browser diaktifkan.';
@@ -95,7 +135,6 @@
                 };
             }
         </script>
-        <script async defer src="https://maps.googleapis.com/maps/api/js?key={{ $googleMapsKey }}&libraries=routes&callback=initRouteMap"></script>
         @endpush
     @endif
 </x-sales-layout>

@@ -8,7 +8,8 @@ use Tests\TestCase;
 
 /**
  * Live Sales Field Operations - Test Customer Map & Customer Detail
- * (Blueprint #11, #12, #15, #16, Fase 3 WebView Sales).
+ * (Blueprint #11, #12, #15, #16, #64/#65 MapLibre + OSM, Fase 3 WebView
+ * Sales).
  */
 class CustomerMapPageTest extends TestCase
 {
@@ -29,21 +30,20 @@ class CustomerMapPageTest extends TestCase
             ->assertDontSee($otherCustomer->name);
     }
 
-    public function test_map_index_shows_fallback_notice_without_google_maps_key(): void
+    public function test_map_index_shows_no_map_notice_without_located_customers(): void
     {
-        config(['services.google_maps.key' => null]);
         [$user, $sales] = $this->makeSalesUser();
-        $this->makeCustomer($sales->id);
+        $this->makeCustomer($sales->id); // tanpa lat/lng
 
         $this->actingAs($user)
             ->get(route('sales.map.index'))
             ->assertOk()
-            ->assertSee('Peta belum aktif');
+            ->assertSee('Belum ada Customer dengan titik lokasi');
     }
 
-    public function test_map_shows_google_maps_script_when_key_configured(): void
+    public function test_map_shows_maplibre_script_and_configured_style_when_customer_located(): void
     {
-        config(['services.google_maps.key' => 'dummy-test-key']);
+        config(['services.maps.style_url' => 'https://tiles.openfreemap.org/styles/liberty']);
         [$user, $sales] = $this->makeSalesUser();
         $customer = $this->makeCustomer($sales->id);
         $customer->update(['latitude' => -7.98, 'longitude' => 112.63]);
@@ -51,8 +51,8 @@ class CustomerMapPageTest extends TestCase
         $this->actingAs($user)
             ->get(route('sales.map.index'))
             ->assertOk()
-            ->assertSee('maps.googleapis.com', false)
-            ->assertSee('dummy-test-key', false);
+            ->assertSee('maplibre-gl', false)
+            ->assertSee('tiles.openfreemap.org', false);
     }
 
     public function test_customer_detail_page_renders_for_own_customer(): void
@@ -77,17 +77,20 @@ class CustomerMapPageTest extends TestCase
             ->assertSee('belum memiliki titik lokasi');
     }
 
-    public function test_customer_detail_shows_route_button_when_located_and_key_configured(): void
+    public function test_customer_detail_shows_route_button_when_located(): void
     {
-        config(['services.google_maps.key' => 'dummy-test-key']);
         [$user, $sales] = $this->makeSalesUser();
         $customer = $this->makeCustomer($sales->id);
         $customer->update(['latitude' => -7.98, 'longitude' => 112.63]);
 
+        // Tombol Route selalu muncul kalau Customer punya lokasi - map
+        // (MapLibre) tidak butuh API key, hanya perhitungan rute
+        // aktualnya (saat tombol diklik) yang bergantung ROUTING_API_KEY.
         $this->actingAs($user)
             ->get(route('sales.map.show', $customer))
             ->assertOk()
-            ->assertSee('Hitung Route', false);
+            ->assertSee('Hitung Route', false)
+            ->assertSee('maplibre-gl', false);
     }
 
     public function test_sales_cannot_view_another_sales_customer_detail(): void

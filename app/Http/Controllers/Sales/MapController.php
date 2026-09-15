@@ -8,8 +8,8 @@ use App\Models\Customer;
 
 /**
  * Live Sales Field Operations - Customer Map & Customer Detail
- * (Blueprint #11 Customer Location, #12 Customer Assignment, #15 Sales
- * Map, #16 Basic Route, Fase 3 WebView Sales).
+ * (Blueprint #11 Customer Location, #12 Customer Assignment, #64/#65
+ * MapLibre + OpenStreetMap, #16 Basic Route, Fase 3 WebView Sales).
  *
  * Hanya menampilkan Customer yang di-assign ke Sales yang sedang login
  * (Blueprint #12: "Jangan menampilkan ribuan customer tanpa filter").
@@ -30,7 +30,7 @@ class MapController extends Controller
         return view('sales.map.index', [
             'customers' => $customers,
             'customersWithLocation' => $customers->filter->hasLocation()->values(),
-            'googleMapsKey' => config('services.google_maps.key'),
+            'mapStyleUrl' => config('services.maps.style_url'),
         ]);
     }
 
@@ -42,7 +42,7 @@ class MapController extends Controller
 
         return view('sales.map.show', [
             'customer' => $customer,
-            'googleMapsKey' => config('services.google_maps.key'),
+            'mapStyleUrl' => config('services.maps.style_url'),
         ]);
     }
 }

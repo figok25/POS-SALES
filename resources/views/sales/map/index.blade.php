@@ -1,11 +1,7 @@
 <x-sales-layout>
     <x-slot name="header">Peta Customer</x-slot>
 
-    @if (! $googleMapsKey)
-        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-xs text-yellow-800 mb-4">
-            ⚠️ Peta belum aktif (GOOGLE_MAPS_API_KEY belum dikonfigurasi Admin). Menampilkan daftar customer saja.
-        </div>
-    @elseif ($customersWithLocation->isEmpty())
+    @if ($customersWithLocation->isEmpty())
         <div class="bg-white rounded-lg shadow p-4 text-sm text-gray-500 mb-4">
             Belum ada Customer dengan titik lokasi yang tersimpan.
         </div>
@@ -33,7 +29,7 @@
         @endforelse
     </div>
 
-    @if ($googleMapsKey && $customersWithLocation->isNotEmpty())
+    @if ($customersWithLocation->isNotEmpty())
         @php
             $customerMarkersData = $customersWithLocation->map(fn ($c) => [
                 'id' => $c->id,
@@ -43,32 +39,50 @@
                 'url' => route('sales.map.show', $c),
             ])->values();
         @endphp
+        @push('styles')
+        <link href="https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.css" rel="stylesheet" />
+        @endpush
         @push('scripts')
+        <script src="https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.js"></script>
         <script>
             const customerMarkers = @json($customerMarkersData);
 
-            function initSalesMap() {
-                const map = new google.maps.Map(document.getElementById('map'), {
-                    zoom: 13,
-                    center: { lat: customerMarkers[0].lat, lng: customerMarkers[0].lng },
+            document.addEventListener('DOMContentLoaded', () => {
+                const map = new maplibregl.Map({
+                    container: 'map',
+                    style: @js($mapStyleUrl),
+                    center: [customerMarkers[0].lng, customerMarkers[0].lat],
+                    zoom: 12,
                 });
+                map.addControl(new maplibregl.NavigationControl(), 'top-right');
 
-                const bounds = new google.maps.LatLngBounds();
+                const bounds = new maplibregl.LngLatBounds();
 
                 customerMarkers.forEach((c) => {
-                    const position = { lat: c.lat, lng: c.lng };
-                    const marker = new google.maps.Marker({ position, map, title: c.name });
-                    const info = new google.maps.InfoWindow({
-                        content: `<a href="${c.url}" class="text-sm font-medium">${c.name}</a>`,
-                    });
-                    marker.addListener('click', () => info.open(map, marker));
-                    bounds.extend(position);
+                    const el = document.createElement('a');
+                    el.href = c.url;
+                    el.style.display = 'block';
+                    el.style.width = '14px';
+                    el.style.height = '14px';
+                    el.style.borderRadius = '50%';
+                    el.style.background = '#4f46e5';
+                    el.style.border = '2px solid white';
+
+                    new maplibregl.Marker({ element: el })
+                        .setLngLat([c.lng, c.lat])
+                        .setPopup(new maplibregl.Popup({ offset: 12 }).setHTML(
+                            `<a href="${c.url}" class="text-sm font-medium">${c.name}</a>`
+                        ))
+                        .addTo(map);
+
+                    bounds.extend([c.lng, c.lat]);
                 });
 
-                map.fitBounds(bounds);
-            }
+                if (customerMarkers.length > 1) {
+                    map.fitBounds(bounds, { padding: 40, maxZoom: 15 });
+                }
+            });
         </script>
-        <script async defer src="https://maps.googleapis.com/maps/api/js?key={{ $googleMapsKey }}&callback=initSalesMap"></script>
         @endpush
     @endif
 </x-sales-layout>
