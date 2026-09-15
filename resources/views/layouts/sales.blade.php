@@ -21,6 +21,8 @@
         @endisset
     </header>
 
+    <x-sales-task-banner />
+
     <main class="p-4 max-w-md mx-auto">
         {{ $slot }}
     </main>
@@ -39,9 +41,14 @@
         <a href="{{ route('sales.stock.index') }}" class="flex flex-col items-center gap-0.5 {{ request()->routeIs('sales.stock.*') ? 'text-indigo-600 font-semibold' : '' }}">
             <span>Stock</span>
         </a>
+        <a href="{{ route('sales.map.index') }}" class="flex flex-col items-center gap-0.5 {{ request()->routeIs('sales.map.*') ? 'text-indigo-600 font-semibold' : '' }}">
+            <span>Peta</span>
+        </a>
         <a href="{{ route('profile.edit') }}" class="flex flex-col items-center gap-0.5 {{ request()->routeIs('profile.edit') ? 'text-indigo-600 font-semibold' : '' }}">
             <span>Profile</span>
         </a>
     </nav>
+
+    @stack('scripts')
 </body>
 </html>

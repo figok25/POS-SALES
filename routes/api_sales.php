@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('permission:sales-task.view')->prefix('tasks')->name('tasks.')->group(function () {
     Route::get('current', [TaskController::class, 'current'])->name('current');
     Route::get('{task}/documents', [TaskController::class, 'documents'])->name('documents');
+    Route::post('{task}/documents/{document}/download', [TaskController::class, 'markDocumentDownloaded'])->name('documents.download');
     Route::get('{task}/stock', [TaskController::class, 'stock'])->name('stock');
     Route::post('{task}/verify-stock', [TaskController::class, 'verifyStock'])->name('verify-stock');
     Route::post('{task}/start-work', [TaskController::class, 'startWork'])->name('start-work');
