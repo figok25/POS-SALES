@@ -1,3 +1,50 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ==========================================================================
+   Root Design Theme
+   Centralized design tokens for the admin dashboard. Values are consumed via
+   Tailwind (see tailwind.config.js `theme.extend.colors`) and/or directly as
+   CSS variables, so the theme can be changed here without editing markup.
+   ========================================================================== */
+:root {
+    /* Primary brand color (#2a4474) and supporting shades */
+    --color-primary: #2a4474;
+    --color-primary-hover: #1e3358;
+    --color-primary-light: #3d5a8a;
+    --color-primary-subtle: #eef2f8;
+
+    /* Secondary / accent colors */
+    --color-secondary: #64748b;
+    --color-secondary-hover: #475569;
+    --color-accent: #3d6ea3;
+
+    /* App background */
+    --color-bg: #f4f5f7;
+    --color-bg-muted: #eceef1;
+
+    /* Surface colors (cards, panels, header bar) */
+    --color-surface: #ffffff;
+    --color-surface-hover: #f9fafb;
+
+    /* Text colors */
+    --color-text: #111827;
+    --color-text-secondary: #4b5563;
+    --color-text-muted: #9ca3af;
+
+    /* Border colors */
+    --color-border: #e5e7eb;
+    --color-border-strong: #d1d5db;
+
+    /* Shared focus/interactive state */
+    --color-focus-ring: #3d6ea3;
+
+    /* Sidebar (dark navy surface, distinct from the light app theme) */
+    --sidebar-bg: var(--color-primary);
+    --sidebar-bg-hover: #35507f;
+    --sidebar-bg-active: var(--color-primary-light);
+    --sidebar-foreground: #c3cee0;
+    --sidebar-heading: #8095b8;
+    --sidebar-border: rgba(255, 255, 255, 0.08);
+}

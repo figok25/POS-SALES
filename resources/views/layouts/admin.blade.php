@@ -10,82 +10,89 @@
 <body class="font-sans antialiased bg-gray-100">
     <div class="min-h-screen flex">
         {{-- Sidebar: struktur menu mengikuti Blueprint #47 Admin Navigation --}}
-        <aside class="w-64 bg-gray-900 text-gray-200 flex-shrink-0 hidden md:block">
-            <div class="px-4 py-4 text-lg font-semibold text-white border-b border-gray-800">
+        @php
+            // Shared nav-item classes driven by the sidebar theme tokens
+            // (see tailwind.config.js -> theme.extend.colors.sidebar).
+            $navLinkClass = fn (string|array $routes) => request()->routeIs($routes)
+                ? 'block px-2 py-1.5 rounded bg-sidebar-active text-white font-medium transition-colors'
+                : 'block px-2 py-1.5 rounded text-sidebar-foreground hover:bg-sidebar-hover hover:text-white transition-colors';
+        @endphp
+        <aside class="w-64 bg-sidebar text-sidebar-foreground flex-shrink-0 hidden md:block">
+            <div class="px-4 py-4 text-lg font-semibold text-white border-b border-sidebar-border">
                 {{ config('app.name', 'POS & Sales') }}
             </div>
             <nav class="px-2 py-4 space-y-4 text-sm">
-                <a href="{{ route('admin.dashboard') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Dashboard</a>
+                <a href="{{ route('admin.dashboard') }}" class="{{ $navLinkClass('admin.dashboard') }}">Dashboard</a>
 
                 <div>
-                    <p class="px-2 text-xs uppercase tracking-wide text-gray-500 mb-1">Master Data</p>
-                    <a href="{{ route('admin.master.companies.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Company</a>
-                    <a href="{{ route('admin.master.branches.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Branch</a>
-                    <a href="{{ route('admin.master.warehouses.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Warehouse</a>
-                    <a href="{{ route('admin.master.products.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Product</a>
-                    <a href="{{ route('admin.master.categories.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Category</a>
-                    <a href="{{ route('admin.master.units.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Unit</a>
-                    <a href="{{ route('admin.master.prices.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Price</a>
-                    <a href="{{ route('admin.master.customers.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Customer</a>
-                    <a href="{{ route('admin.master.employees.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Employee</a>
-                    <a href="{{ route('admin.master.sales.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Sales</a>
-                    <a href="{{ route('admin.master.vehicles.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Vehicle</a>
-                    <a href="{{ route('admin.master.suppliers.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Supplier</a>
+                    <p class="px-2 text-xs uppercase tracking-wide text-sidebar-heading mb-1">Master Data</p>
+                    <a href="{{ route('admin.master.companies.index') }}" class="{{ $navLinkClass('admin.master.companies.index') }}">Company</a>
+                    <a href="{{ route('admin.master.branches.index') }}" class="{{ $navLinkClass('admin.master.branches.index') }}">Branch</a>
+                    <a href="{{ route('admin.master.warehouses.index') }}" class="{{ $navLinkClass('admin.master.warehouses.index') }}">Warehouse</a>
+                    <a href="{{ route('admin.master.products.index') }}" class="{{ $navLinkClass('admin.master.products.index') }}">Product</a>
+                    <a href="{{ route('admin.master.categories.index') }}" class="{{ $navLinkClass('admin.master.categories.index') }}">Category</a>
+                    <a href="{{ route('admin.master.units.index') }}" class="{{ $navLinkClass('admin.master.units.index') }}">Unit</a>
+                    <a href="{{ route('admin.master.prices.index') }}" class="{{ $navLinkClass('admin.master.prices.index') }}">Price</a>
+                    <a href="{{ route('admin.master.customers.index') }}" class="{{ $navLinkClass('admin.master.customers.index') }}">Customer</a>
+                    <a href="{{ route('admin.master.employees.index') }}" class="{{ $navLinkClass('admin.master.employees.index') }}">Employee</a>
+                    <a href="{{ route('admin.master.sales.index') }}" class="{{ $navLinkClass('admin.master.sales.index') }}">Sales</a>
+                    <a href="{{ route('admin.master.vehicles.index') }}" class="{{ $navLinkClass('admin.master.vehicles.index') }}">Vehicle</a>
+                    <a href="{{ route('admin.master.suppliers.index') }}" class="{{ $navLinkClass('admin.master.suppliers.index') }}">Supplier</a>
                 </div>
 
                 <div>
-                    <p class="px-2 text-xs uppercase tracking-wide text-gray-500 mb-1">Inventory</p>
-                    <a href="{{ route('admin.inventory.stock.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Stock</a>
-                    <a href="{{ route('admin.inventory.movements.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Stock Movement</a>
-                    <a href="{{ route('admin.inventory.adjustments.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Stock Adjustment</a>
+                    <p class="px-2 text-xs uppercase tracking-wide text-sidebar-heading mb-1">Inventory</p>
+                    <a href="{{ route('admin.inventory.stock.index') }}" class="{{ $navLinkClass('admin.inventory.stock.index') }}">Stock</a>
+                    <a href="{{ route('admin.inventory.movements.index') }}" class="{{ $navLinkClass('admin.inventory.movements.index') }}">Stock Movement</a>
+                    <a href="{{ route('admin.inventory.adjustments.index') }}" class="{{ $navLinkClass('admin.inventory.adjustments.index') }}">Stock Adjustment</a>
                 </div>
 
                 <div>
-                    <p class="px-2 text-xs uppercase tracking-wide text-gray-500 mb-1">Distribution</p>
-                    <a href="{{ route('admin.distribution.stock-requests.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Permintaan Barang</a>
-                    <a href="{{ route('admin.distribution.bkb.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">BKB Distribusi</a>
-                    <a href="{{ route('admin.distribution.btb.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">BTB Distribusi</a>
-                    <a href="{{ route('admin.distribution.branch-transfer.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Branch Transfer (BKB/BTB Cabang)</a>
+                    <p class="px-2 text-xs uppercase tracking-wide text-sidebar-heading mb-1">Distribution</p>
+                    <a href="{{ route('admin.distribution.stock-requests.index') }}" class="{{ $navLinkClass('admin.distribution.stock-requests.index') }}">Permintaan Barang</a>
+                    <a href="{{ route('admin.distribution.bkb.index') }}" class="{{ $navLinkClass('admin.distribution.bkb.index') }}">BKB Distribusi</a>
+                    <a href="{{ route('admin.distribution.btb.index') }}" class="{{ $navLinkClass('admin.distribution.btb.index') }}">BTB Distribusi</a>
+                    <a href="{{ route('admin.distribution.branch-transfer.index') }}" class="{{ $navLinkClass('admin.distribution.branch-transfer.index') }}">Branch Transfer (BKB/BTB Cabang)</a>
                 </div>
 
                 <div>
-                    <p class="px-2 text-xs uppercase tracking-wide text-gray-500 mb-1">Sales</p>
-                    <a href="{{ route('admin.master.sales.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Sales Management</a>
-                    <a href="{{ route('admin.master.customers.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Customer</a>
-                    <a href="{{ route('admin.sales.customer-assignments.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Customer Assignment</a>
-                    <a href="{{ route('admin.sales.customer-taggings.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Tagging Toko</a>
-                    <a href="{{ route('admin.sales.visits.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Visit</a>
-                    <a href="{{ route('admin.sales.transactions.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Transaksi Penjualan</a>
-                    <a href="{{ route('admin.sales.invoices.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Invoice</a>
+                    <p class="px-2 text-xs uppercase tracking-wide text-sidebar-heading mb-1">Sales</p>
+                    <a href="{{ route('admin.master.sales.index') }}" class="{{ $navLinkClass('admin.master.sales.index') }}">Sales Management</a>
+                    <a href="{{ route('admin.master.customers.index') }}" class="{{ $navLinkClass('admin.master.customers.index') }}">Customer</a>
+                    <a href="{{ route('admin.sales.customer-assignments.index') }}" class="{{ $navLinkClass('admin.sales.customer-assignments.index') }}">Customer Assignment</a>
+                    <a href="{{ route('admin.sales.customer-taggings.index') }}" class="{{ $navLinkClass('admin.sales.customer-taggings.index') }}">Tagging Toko</a>
+                    <a href="{{ route('admin.sales.visits.index') }}" class="{{ $navLinkClass('admin.sales.visits.index') }}">Visit</a>
+                    <a href="{{ route('admin.sales.transactions.index') }}" class="{{ $navLinkClass('admin.sales.transactions.index') }}">Transaksi Penjualan</a>
+                    <a href="{{ route('admin.sales.invoices.index') }}" class="{{ $navLinkClass('admin.sales.invoices.index') }}">Invoice</a>
                 </div>
 
                 <div>
-                    <p class="px-2 text-xs uppercase tracking-wide text-gray-500 mb-1">Finance</p>
-                    <a href="{{ route('admin.sales.invoices.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Invoice</a>
-                    <a href="{{ route('admin.finance.payments.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Payment</a>
-                    <a href="{{ route('admin.finance.settlements.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Settlement</a>
-                    <a href="{{ route('admin.finance.cash-ledgers.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Income & Expense</a>
+                    <p class="px-2 text-xs uppercase tracking-wide text-sidebar-heading mb-1">Finance</p>
+                    <a href="{{ route('admin.sales.invoices.index') }}" class="{{ $navLinkClass('admin.sales.invoices.index') }}">Invoice</a>
+                    <a href="{{ route('admin.finance.payments.index') }}" class="{{ $navLinkClass('admin.finance.payments.index') }}">Payment</a>
+                    <a href="{{ route('admin.finance.settlements.index') }}" class="{{ $navLinkClass('admin.finance.settlements.index') }}">Settlement</a>
+                    <a href="{{ route('admin.finance.cash-ledgers.index') }}" class="{{ $navLinkClass('admin.finance.cash-ledgers.index') }}">Income & Expense</a>
                 </div>
 
                 <div>
-                    <p class="px-2 text-xs uppercase tracking-wide text-gray-500 mb-1">Operations</p>
-                    <a href="{{ route('admin.sales-tasks.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Sales Task</a>
-                    <a href="{{ route('admin.operations.delivery-orders.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Delivery Order</a>
-                    <a href="{{ route('admin.operations.routes.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Route</a>
-                    <a href="{{ route('admin.master.vehicles.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Vehicle</a>
-                    <a href="{{ route('admin.operations.drivers.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Driver</a>
-                    <a href="{{ route('admin.operations.monitoring.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Monitoring</a>
+                    <p class="px-2 text-xs uppercase tracking-wide text-sidebar-heading mb-1">Operations</p>
+                    <a href="{{ route('admin.sales-tasks.index') }}" class="{{ $navLinkClass('admin.sales-tasks.index') }}">Sales Task</a>
+                    <a href="{{ route('admin.operations.delivery-orders.index') }}" class="{{ $navLinkClass('admin.operations.delivery-orders.index') }}">Delivery Order</a>
+                    <a href="{{ route('admin.operations.routes.index') }}" class="{{ $navLinkClass('admin.operations.routes.index') }}">Route</a>
+                    <a href="{{ route('admin.master.vehicles.index') }}" class="{{ $navLinkClass('admin.master.vehicles.index') }}">Vehicle</a>
+                    <a href="{{ route('admin.operations.drivers.index') }}" class="{{ $navLinkClass('admin.operations.drivers.index') }}">Driver</a>
+                    <a href="{{ route('admin.operations.monitoring.index') }}" class="{{ $navLinkClass('admin.operations.monitoring.index') }}">Monitoring</a>
                 </div>
 
-                <a href="{{ route('admin.reports.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Reports</a>
+                <a href="{{ route('admin.reports.index') }}" class="{{ $navLinkClass('admin.reports.index') }}">Reports</a>
 
                 <div>
-                    <p class="px-2 text-xs uppercase tracking-wide text-gray-500 mb-1">System</p>
-                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Users</a>
-                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Roles</a>
-                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Permissions</a>
-                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Audit Log</a>
-                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Settings</a>
+                    <p class="px-2 text-xs uppercase tracking-wide text-sidebar-heading mb-1">System</p>
+                    <a href="#" class="block px-2 py-1.5 rounded text-sidebar-foreground hover:bg-sidebar-hover hover:text-white transition-colors">Users</a>
+                    <a href="#" class="block px-2 py-1.5 rounded text-sidebar-foreground hover:bg-sidebar-hover hover:text-white transition-colors">Roles</a>
+                    <a href="#" class="block px-2 py-1.5 rounded text-sidebar-foreground hover:bg-sidebar-hover hover:text-white transition-colors">Permissions</a>
+                    <a href="#" class="block px-2 py-1.5 rounded text-sidebar-foreground hover:bg-sidebar-hover hover:text-white transition-colors">Audit Log</a>
+                    <a href="#" class="block px-2 py-1.5 rounded text-sidebar-foreground hover:bg-sidebar-hover hover:text-white transition-colors">Settings</a>
                 </div>
             </nav>
         </aside>
