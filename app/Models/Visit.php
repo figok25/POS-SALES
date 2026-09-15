@@ -17,8 +17,8 @@ class Visit extends Model
 
     protected $fillable = [
         'sales_id', 'customer_id',
-        'check_in_at', 'check_in_latitude', 'check_in_longitude',
-        'check_out_at', 'check_out_latitude', 'check_out_longitude',
+        'check_in_at', 'check_in_latitude', 'check_in_longitude', 'check_in_accuracy',
+        'check_out_at', 'check_out_latitude', 'check_out_longitude', 'check_out_accuracy',
         'notes', 'status',
     ];
 
@@ -29,8 +29,10 @@ class Visit extends Model
             'check_out_at' => 'datetime',
             'check_in_latitude' => 'decimal:7',
             'check_in_longitude' => 'decimal:7',
+            'check_in_accuracy' => 'decimal:2',
             'check_out_latitude' => 'decimal:7',
             'check_out_longitude' => 'decimal:7',
+            'check_out_accuracy' => 'decimal:2',
         ];
     }
 

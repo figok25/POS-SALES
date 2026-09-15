@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * Phase 2 - Master Data: Sales (Blueprint #32).
@@ -53,6 +54,34 @@ class Sales extends Model
     public function salesTransactions(): HasMany
     {
         return $this->hasMany(SalesTransaction::class);
+    }
+
+    /**
+     * Live Sales Field Operations (Blueprint #14, #21, #22, #47).
+     */
+    public function tasks(): HasMany
+    {
+        return $this->hasMany(SalesTask::class);
+    }
+
+    public function devices(): HasMany
+    {
+        return $this->hasMany(SalesDevice::class);
+    }
+
+    public function trackingSessions(): HasMany
+    {
+        return $this->hasMany(SalesTrackingSession::class);
+    }
+
+    public function currentLocation(): HasOne
+    {
+        return $this->hasOne(SalesCurrentLocation::class);
+    }
+
+    public function locationHistories(): HasMany
+    {
+        return $this->hasMany(SalesLocationHistory::class);
     }
 
     /**

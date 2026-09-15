@@ -14,13 +14,28 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  */
 class Customer extends Model
 {
-    protected $fillable = ['sales_id', 'code', 'name', 'address', 'phone', 'npwp', 'is_active'];
+    protected $fillable = [
+        'sales_id', 'code', 'name', 'address', 'phone', 'npwp', 'is_active',
+        'latitude', 'longitude', 'location_accuracy', 'location_status',
+    ];
 
     protected function casts(): array
     {
         return [
             'is_active' => 'boolean',
+            'latitude' => 'decimal:7',
+            'longitude' => 'decimal:7',
+            'location_accuracy' => 'decimal:2',
         ];
+    }
+
+    /**
+     * Live Sales Field Operations (Blueprint #11): Customer punya lokasi
+     * (destination internal sistem) bila sudah pernah diisi.
+     */
+    public function hasLocation(): bool
+    {
+        return $this->latitude !== null && $this->longitude !== null;
     }
 
     public function sales(): BelongsTo
