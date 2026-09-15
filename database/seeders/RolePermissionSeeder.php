@@ -35,6 +35,10 @@ class RolePermissionSeeder extends Seeder
             'finance.view', 'finance.manage',
             // Operations (Delivery Order, Route, Vehicle, Driver)
             'operations.view', 'operations.manage',
+            // Sales Task / Penugasan & Live Monitoring (Live Sales Field
+            // Operations Blueprint #14, #28)
+            'sales-task.view', 'sales-task.manage',
+            'live-monitoring.view',
             // Reports & Dashboard
             'reports.view',
             'dashboard.admin.view',
@@ -52,6 +56,8 @@ class RolePermissionSeeder extends Seeder
             'sales-stock.view',
             'invoice.view-own',
             'payment.create',
+            // Live Sales Field Operations (Blueprint #14, #21)
+            'sales-task.view', 'tracking.manage',
         ];
 
         foreach (array_unique(array_merge($adminPermissions, $salesPermissions)) as $permission) {

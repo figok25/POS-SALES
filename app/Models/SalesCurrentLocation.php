@@ -12,9 +12,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class SalesCurrentLocation extends Model
 {
-    public const STATUS_ONLINE = 'online';
-    public const STATUS_OFFLINE = 'offline';
+    // Blueprint #27 - Location Status: minimal 6 status, bukan hanya online/offline.
+    public const STATUS_ACTIVE = 'active';
     public const STATUS_IDLE = 'idle';
+    public const STATUS_AT_CUSTOMER = 'at_customer';
+    public const STATUS_SIGNAL_LOST = 'signal_lost';
+    public const STATUS_OFFLINE = 'offline';
+    public const STATUS_OFF_DUTY = 'off_duty';
 
     protected $fillable = [
         'sales_id', 'branch_id', 'tracking_session_id',

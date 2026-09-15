@@ -1,0 +1,92 @@
+<x-admin-layout>
+    <div class="p-6 max-w-3xl">
+        <div class="flex items-center justify-between mb-4">
+            <h1 class="text-xl font-semibold">Sales Task {{ $salesTask->code }}</h1>
+            <a href="{{ route('admin.sales-tasks.index') }}" class="text-sm text-blue-700 hover:underline">&larr; Kembali</a>
+        </div>
+
+        @if (session('status'))
+            <div class="mb-4 p-3 bg-green-100 text-green-800 rounded text-sm">{{ session('status') }}</div>
+        @endif
+        @if (session('error'))
+            <div class="mb-4 p-3 bg-red-100 text-red-800 rounded text-sm">{{ session('error') }}</div>
+        @endif
+
+        <div class="bg-white p-4 rounded shadow mb-4">
+            <dl class="grid grid-cols-2 gap-3 text-sm">
+                <div><dt class="text-gray-500">Sales</dt><dd>{{ $salesTask->sales->name ?? '-' }}</dd></div>
+                <div><dt class="text-gray-500">Branch</dt><dd>{{ $salesTask->branch->name ?? '-' }}</dd></div>
+                <div><dt class="text-gray-500">Tanggal Tugas</dt><dd>{{ $salesTask->task_date?->format('d/m/Y') }}</dd></div>
+                <div><dt class="text-gray-500">Status</dt><dd class="capitalize">{{ str_replace('_', ' ', $salesTask->status) }}</dd></div>
+                <div class="col-span-2"><dt class="text-gray-500">Catatan</dt><dd>{{ $salesTask->notes ?: '-' }}</dd></div>
+            </dl>
+        </div>
+
+        <div class="bg-white rounded shadow overflow-x-auto mb-4">
+            <div class="px-3 py-2 border-b font-medium text-sm">Stock yang Ditugaskan</div>
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50 border-b">
+                    <tr>
+                        <th class="px-3 py-2 text-left">Product</th>
+                        <th class="px-3 py-2 text-right">Qty Ditugaskan</th>
+                        <th class="px-3 py-2 text-right">Qty Diverifikasi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($salesTask->taskStocks as $line)
+                        <tr class="border-b">
+                            <td class="px-3 py-2">{{ $line->product->name ?? '-' }} ({{ $line->product->sku ?? '-' }})</td>
+                            <td class="px-3 py-2 text-right">{{ number_format($line->quantity_assigned, 2) }}</td>
+                            <td class="px-3 py-2 text-right {{ $line->difference() != 0 ? 'text-red-600 font-semibold' : '' }}">
+                                {{ $line->quantity_verified !== null ? number_format($line->quantity_verified, 2) : '-' }}
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+
+        <div class="bg-white rounded shadow overflow-x-auto mb-4">
+            <div class="px-3 py-2 border-b font-medium text-sm">Dokumen Task</div>
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50 border-b">
+                    <tr>
+                        <th class="px-3 py-2 text-left">Judul</th>
+                        <th class="px-3 py-2 text-left">Tipe</th>
+                        <th class="px-3 py-2 text-left">Status Download</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($salesTask->documents as $doc)
+                        <tr class="border-b">
+                            <td class="px-3 py-2">{{ $doc->title }}</td>
+                            <td class="px-3 py-2">{{ $doc->type }}</td>
+                            <td class="px-3 py-2">{{ $doc->downloaded_at ? 'Downloaded' : 'Belum diunduh' }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+
+        @if ($salesTask->isDraft())
+            <div class="mb-4 p-3 bg-yellow-50 text-yellow-800 rounded text-sm">
+                Apply akan merilis dokumen &amp; stock ini ke Sales App (status berubah ke Document Available).
+            </div>
+        @endif
+
+        <div class="flex gap-2">
+            @can('sales-task.manage')
+                @if ($salesTask->isDraft())
+                    <form action="{{ route('admin.sales-tasks.apply', $salesTask) }}" method="POST" onsubmit="return confirm('Apply/Release Task ini ke Sales?')">
+                        @csrf
+                        <button class="bg-green-600 text-white px-3 py-2 rounded text-sm hover:bg-green-700">Apply / Release</button>
+                    </form>
+                    <form action="{{ route('admin.sales-tasks.cancel', $salesTask) }}" method="POST" onsubmit="return confirm('Batalkan Task ini?')">
+                        @csrf
+                        <button class="border px-3 py-2 rounded text-sm">Batalkan</button>
+                    </form>
+                @endif
+            @endcan
+        </div>
+    </div>
+</x-admin-layout>

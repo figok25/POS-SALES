@@ -71,9 +71,22 @@ Route::middleware(['auth', 'verified', 'role:admin'])
         // (Blueprint #15, #16, #37, #47)
         Route::prefix('finance')->name('finance.')->group(base_path('routes/admin_finance.php'));
 
+        // Live Sales Field Operations - Sales Task / Penugasan (Blueprint #14)
+        Route::prefix('sales-tasks')->name('sales-tasks.')->group(base_path('routes/admin_sales_tasks.php'));
+
         // Placeholder group untuk modul-modul berikutnya:
         // Route::prefix('system')->name('system.')->group(...);
     });
+
+/*
+|--------------------------------------------------------------------------
+| Admin API Routes - Live Sales Field Operations (Blueprint #38, Fase 2)
+|--------------------------------------------------------------------------
+*/
+Route::middleware(['auth', 'verified', 'role:admin'])
+    ->prefix('api/admin')
+    ->name('api.admin.')
+    ->group(base_path('routes/api_admin.php'));
 
 /*
 |--------------------------------------------------------------------------
@@ -90,5 +103,15 @@ Route::middleware(['auth', 'verified', 'role:sales'])
         // (Blueprint #12, #48)
         require base_path('routes/sales_app.php');
     });
+
+/*
+|--------------------------------------------------------------------------
+| Sales API Routes - Live Sales Field Operations (Blueprint #38, Fase 2)
+|--------------------------------------------------------------------------
+*/
+Route::middleware(['auth', 'verified', 'role:sales'])
+    ->prefix('api/sales')
+    ->name('api.sales.')
+    ->group(base_path('routes/api_sales.php'));
 
 require __DIR__.'/auth.php';

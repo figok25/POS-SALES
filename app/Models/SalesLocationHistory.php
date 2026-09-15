@@ -13,8 +13,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class SalesLocationHistory extends Model
 {
     protected $fillable = [
-        'sales_id', 'branch_id', 'tracking_session_id',
-        'latitude', 'longitude', 'accuracy', 'recorded_at',
+        'sales_id', 'location_event_id', 'branch_id', 'tracking_session_id',
+        'latitude', 'longitude', 'accuracy', 'recorded_at', 'received_at',
     ];
 
     protected function casts(): array
@@ -23,6 +23,7 @@ class SalesLocationHistory extends Model
             'latitude' => 'decimal:7',
             'longitude' => 'decimal:7',
             'recorded_at' => 'datetime',
+            'received_at' => 'datetime',
         ];
     }
 
