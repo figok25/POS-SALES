@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Sales\Concerns\ResolvesCurrentSales;
 use App\Http\Requests\Sales\VerifyStockRequest;
 use App\Models\SalesTask;
+use App\Models\SalesTaskDocument;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -57,6 +58,33 @@ class TaskController extends Controller
         }
 
         return response()->json(['success' => true, 'data' => $task->documents]);
+    }
+
+    /**
+     * Tandai satu dokumen sudah diunduh/diterima Sales (Blueprint
+     * #13.5). Murni informasional - tidak mengubah status Task,
+     * karena transisi status resmi ditentukan oleh Verifikasi Stock.
+     */
+    public function markDocumentDownloaded(SalesTask $task, SalesTaskDocument $document)
+    {
+        $this->authorizeOwnership($task);
+
+        if ((int) $document->sales_task_id !== (int) $task->id) {
+            abort(404);
+        }
+
+        if (in_array($task->status, [SalesTask::STATUS_DRAFT], true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Dokumen belum tersedia.',
+            ], 403);
+        }
+
+        if (! $document->isDownloaded()) {
+            $document->update(['downloaded_at' => now()]);
+        }
+
+        return response()->json(['success' => true, 'data' => $document->fresh()]);
     }
 
     public function stock(SalesTask $task)

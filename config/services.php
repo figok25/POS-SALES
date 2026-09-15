@@ -35,4 +35,14 @@ return [
         ],
     ],
 
+    /*
+     * Live Sales Field Operations (Blueprint #93 Final Decision Record):
+     * dipakai Maps JavaScript API untuk Customer Map & Basic Route pada
+     * WebView Sales (Fase 3). Wajib dibatasi (HTTP referrer restriction)
+     * di Google Cloud Console sesuai Blueprint #81.
+     */
+    'google_maps' => [
+        'key' => env('GOOGLE_MAPS_API_KEY'),
+    ],
+
 ];

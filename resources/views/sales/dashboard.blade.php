@@ -26,6 +26,8 @@
     </div>
 
     <div class="grid grid-cols-2 gap-3 mb-4 text-sm">
+        <a href="{{ route('sales.tracking.show') }}" class="bg-blue-600 text-white text-center px-3 py-3 rounded-lg">🛰️ Tracking</a>
+        <a href="{{ route('sales.map.index') }}" class="bg-white border text-gray-700 text-center px-3 py-3 rounded-lg">🗺️ Peta Customer</a>
         <a href="{{ route('sales.visits.create') }}" class="bg-indigo-600 text-white text-center px-3 py-3 rounded-lg">📍 Check-in Kunjungan</a>
         <a href="{{ route('sales.transactions.create') }}" class="bg-emerald-600 text-white text-center px-3 py-3 rounded-lg">🧾 Buat Transaksi</a>
         <a href="{{ route('sales.tagging.create') }}" class="bg-white border text-gray-700 text-center px-3 py-3 rounded-lg">🏪 Tagging Toko Baru</a>

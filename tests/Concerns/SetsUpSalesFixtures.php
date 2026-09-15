@@ -9,6 +9,7 @@ use App\Models\Customer;
 use App\Models\Price;
 use App\Models\Product;
 use App\Models\Sales;
+use App\Models\SalesTask;
 use App\Models\Unit;
 use App\Models\User;
 use App\Models\Warehouse;
@@ -125,5 +126,25 @@ trait SetsUpSalesFixtures
         $user->assignRole('admin');
 
         return $user;
+    }
+
+    /**
+     * Live Sales Field Operations (Blueprint #14) - buat SalesTask untuk
+     * hari ini dengan status tertentu. Default 'working' supaya gate
+     * middleware active_sales_task lolos di test yang tidak sedang
+     * menguji gate itu sendiri.
+     */
+    protected function makeSalesTask(Sales $sales, string $status = SalesTask::STATUS_WORKING): SalesTask
+    {
+        static $counter = 0;
+        $counter++;
+
+        return SalesTask::create([
+            'code' => "TASK-TEST-{$counter}",
+            'sales_id' => $sales->id,
+            'branch_id' => $sales->branch_id,
+            'task_date' => now()->toDateString(),
+            'status' => $status,
+        ]);
     }
 }

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureActiveSalesTask;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -21,6 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => RoleMiddleware::class,
             'permission' => PermissionMiddleware::class,
             'role_or_permission' => RoleOrPermissionMiddleware::class,
+            'active_sales_task' => EnsureActiveSalesTask::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
