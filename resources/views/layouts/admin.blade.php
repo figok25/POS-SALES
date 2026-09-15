@@ -16,83 +16,178 @@
             $navLinkClass = fn (string|array $routes) => request()->routeIs($routes)
                 ? 'block px-2 py-1.5 rounded bg-sidebar-active text-white font-medium transition-colors'
                 : 'block px-2 py-1.5 rounded text-sidebar-foreground hover:bg-sidebar-hover hover:text-white transition-colors';
+
+            // A collapsible section starts expanded when the current page
+            // belongs to it, so the active item is never hidden on load.
+            $sectionOpen = fn (array $routes) => request()->routeIs($routes) ? 'true' : 'false';
         @endphp
         <aside class="w-64 bg-sidebar text-sidebar-foreground flex-shrink-0 hidden md:block">
             <div class="px-4 py-4 text-lg font-semibold text-white border-b border-sidebar-border">
                 {{ config('app.name', 'POS & Sales') }}
             </div>
-            <nav class="px-2 py-4 space-y-4 text-sm">
+            <nav class="px-2 py-4 space-y-1 text-sm">
                 <a href="{{ route('admin.dashboard') }}" class="{{ $navLinkClass('admin.dashboard') }}">Dashboard</a>
 
-                <div>
-                    <p class="px-2 text-xs uppercase tracking-wide text-sidebar-heading mb-1">Master Data</p>
-                    <a href="{{ route('admin.master.companies.index') }}" class="{{ $navLinkClass('admin.master.companies.index') }}">Company</a>
-                    <a href="{{ route('admin.master.branches.index') }}" class="{{ $navLinkClass('admin.master.branches.index') }}">Branch</a>
-                    <a href="{{ route('admin.master.warehouses.index') }}" class="{{ $navLinkClass('admin.master.warehouses.index') }}">Warehouse</a>
-                    <a href="{{ route('admin.master.products.index') }}" class="{{ $navLinkClass('admin.master.products.index') }}">Product</a>
-                    <a href="{{ route('admin.master.categories.index') }}" class="{{ $navLinkClass('admin.master.categories.index') }}">Category</a>
-                    <a href="{{ route('admin.master.units.index') }}" class="{{ $navLinkClass('admin.master.units.index') }}">Unit</a>
-                    <a href="{{ route('admin.master.prices.index') }}" class="{{ $navLinkClass('admin.master.prices.index') }}">Price</a>
-                    <a href="{{ route('admin.master.customers.index') }}" class="{{ $navLinkClass('admin.master.customers.index') }}">Customer</a>
-                    <a href="{{ route('admin.master.employees.index') }}" class="{{ $navLinkClass('admin.master.employees.index') }}">Employee</a>
-                    <a href="{{ route('admin.master.sales.index') }}" class="{{ $navLinkClass('admin.master.sales.index') }}">Sales</a>
-                    <a href="{{ route('admin.master.vehicles.index') }}" class="{{ $navLinkClass('admin.master.vehicles.index') }}">Vehicle</a>
-                    <a href="{{ route('admin.master.suppliers.index') }}" class="{{ $navLinkClass('admin.master.suppliers.index') }}">Supplier</a>
+                <div x-data="{ open: {{ $sectionOpen([
+                    'admin.master.companies.index',
+                    'admin.master.branches.index',
+                    'admin.master.warehouses.index',
+                    'admin.master.products.index',
+                    'admin.master.categories.index',
+                    'admin.master.units.index',
+                    'admin.master.prices.index',
+                    'admin.master.customers.index',
+                    'admin.master.employees.index',
+                    'admin.master.sales.index',
+                    'admin.master.vehicles.index',
+                    'admin.master.suppliers.index',
+                ]) }} }" class="py-1">
+                    <button type="button" @click="open = ! open" :aria-expanded="open" class="w-full flex items-center justify-between px-2 py-1.5 rounded text-xs uppercase tracking-wide text-sidebar-heading hover:text-white transition-colors">
+                        <span>Master Data</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-3.5 w-3.5 shrink-0 transition-transform duration-150" :class="{ '-rotate-180': open }">
+                            <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.25a.75.75 0 01-1.06 0L5.21 8.27a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                    <div x-show="open" x-transition class="mt-1 space-y-0.5">
+                        <a href="{{ route('admin.master.companies.index') }}" class="{{ $navLinkClass('admin.master.companies.index') }}">Company</a>
+                        <a href="{{ route('admin.master.branches.index') }}" class="{{ $navLinkClass('admin.master.branches.index') }}">Branch</a>
+                        <a href="{{ route('admin.master.warehouses.index') }}" class="{{ $navLinkClass('admin.master.warehouses.index') }}">Warehouse</a>
+                        <a href="{{ route('admin.master.products.index') }}" class="{{ $navLinkClass('admin.master.products.index') }}">Product</a>
+                        <a href="{{ route('admin.master.categories.index') }}" class="{{ $navLinkClass('admin.master.categories.index') }}">Category</a>
+                        <a href="{{ route('admin.master.units.index') }}" class="{{ $navLinkClass('admin.master.units.index') }}">Unit</a>
+                        <a href="{{ route('admin.master.prices.index') }}" class="{{ $navLinkClass('admin.master.prices.index') }}">Price</a>
+                        <a href="{{ route('admin.master.customers.index') }}" class="{{ $navLinkClass('admin.master.customers.index') }}">Customer</a>
+                        <a href="{{ route('admin.master.employees.index') }}" class="{{ $navLinkClass('admin.master.employees.index') }}">Employee</a>
+                        <a href="{{ route('admin.master.sales.index') }}" class="{{ $navLinkClass('admin.master.sales.index') }}">Sales</a>
+                        <a href="{{ route('admin.master.vehicles.index') }}" class="{{ $navLinkClass('admin.master.vehicles.index') }}">Vehicle</a>
+                        <a href="{{ route('admin.master.suppliers.index') }}" class="{{ $navLinkClass('admin.master.suppliers.index') }}">Supplier</a>
+                    </div>
                 </div>
 
-                <div>
-                    <p class="px-2 text-xs uppercase tracking-wide text-sidebar-heading mb-1">Inventory</p>
-                    <a href="{{ route('admin.inventory.stock.index') }}" class="{{ $navLinkClass('admin.inventory.stock.index') }}">Stock</a>
-                    <a href="{{ route('admin.inventory.movements.index') }}" class="{{ $navLinkClass('admin.inventory.movements.index') }}">Stock Movement</a>
-                    <a href="{{ route('admin.inventory.adjustments.index') }}" class="{{ $navLinkClass('admin.inventory.adjustments.index') }}">Stock Adjustment</a>
+                <div x-data="{ open: {{ $sectionOpen([
+                    'admin.inventory.stock.index',
+                    'admin.inventory.movements.index',
+                    'admin.inventory.adjustments.index',
+                ]) }} }" class="py-1">
+                    <button type="button" @click="open = ! open" :aria-expanded="open" class="w-full flex items-center justify-between px-2 py-1.5 rounded text-xs uppercase tracking-wide text-sidebar-heading hover:text-white transition-colors">
+                        <span>Inventory</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-3.5 w-3.5 shrink-0 transition-transform duration-150" :class="{ '-rotate-180': open }">
+                            <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.25a.75.75 0 01-1.06 0L5.21 8.27a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                    <div x-show="open" x-transition class="mt-1 space-y-0.5">
+                        <a href="{{ route('admin.inventory.stock.index') }}" class="{{ $navLinkClass('admin.inventory.stock.index') }}">Stock</a>
+                        <a href="{{ route('admin.inventory.movements.index') }}" class="{{ $navLinkClass('admin.inventory.movements.index') }}">Stock Movement</a>
+                        <a href="{{ route('admin.inventory.adjustments.index') }}" class="{{ $navLinkClass('admin.inventory.adjustments.index') }}">Stock Adjustment</a>
+                    </div>
                 </div>
 
-                <div>
-                    <p class="px-2 text-xs uppercase tracking-wide text-sidebar-heading mb-1">Distribution</p>
-                    <a href="{{ route('admin.distribution.stock-requests.index') }}" class="{{ $navLinkClass('admin.distribution.stock-requests.index') }}">Permintaan Barang</a>
-                    <a href="{{ route('admin.distribution.bkb.index') }}" class="{{ $navLinkClass('admin.distribution.bkb.index') }}">BKB Distribusi</a>
-                    <a href="{{ route('admin.distribution.btb.index') }}" class="{{ $navLinkClass('admin.distribution.btb.index') }}">BTB Distribusi</a>
-                    <a href="{{ route('admin.distribution.branch-transfer.index') }}" class="{{ $navLinkClass('admin.distribution.branch-transfer.index') }}">Branch Transfer (BKB/BTB Cabang)</a>
+                <div x-data="{ open: {{ $sectionOpen([
+                    'admin.distribution.stock-requests.index',
+                    'admin.distribution.bkb.index',
+                    'admin.distribution.btb.index',
+                    'admin.distribution.branch-transfer.index',
+                ]) }} }" class="py-1">
+                    <button type="button" @click="open = ! open" :aria-expanded="open" class="w-full flex items-center justify-between px-2 py-1.5 rounded text-xs uppercase tracking-wide text-sidebar-heading hover:text-white transition-colors">
+                        <span>Distribution</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-3.5 w-3.5 shrink-0 transition-transform duration-150" :class="{ '-rotate-180': open }">
+                            <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.25a.75.75 0 01-1.06 0L5.21 8.27a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                    <div x-show="open" x-transition class="mt-1 space-y-0.5">
+                        <a href="{{ route('admin.distribution.stock-requests.index') }}" class="{{ $navLinkClass('admin.distribution.stock-requests.index') }}">Permintaan Barang</a>
+                        <a href="{{ route('admin.distribution.bkb.index') }}" class="{{ $navLinkClass('admin.distribution.bkb.index') }}">BKB Distribusi</a>
+                        <a href="{{ route('admin.distribution.btb.index') }}" class="{{ $navLinkClass('admin.distribution.btb.index') }}">BTB Distribusi</a>
+                        <a href="{{ route('admin.distribution.branch-transfer.index') }}" class="{{ $navLinkClass('admin.distribution.branch-transfer.index') }}">Branch Transfer (BKB/BTB Cabang)</a>
+                    </div>
                 </div>
 
-                <div>
-                    <p class="px-2 text-xs uppercase tracking-wide text-sidebar-heading mb-1">Sales</p>
-                    <a href="{{ route('admin.master.sales.index') }}" class="{{ $navLinkClass('admin.master.sales.index') }}">Sales Management</a>
-                    <a href="{{ route('admin.master.customers.index') }}" class="{{ $navLinkClass('admin.master.customers.index') }}">Customer</a>
-                    <a href="{{ route('admin.sales.customer-assignments.index') }}" class="{{ $navLinkClass('admin.sales.customer-assignments.index') }}">Customer Assignment</a>
-                    <a href="{{ route('admin.sales.customer-taggings.index') }}" class="{{ $navLinkClass('admin.sales.customer-taggings.index') }}">Tagging Toko</a>
-                    <a href="{{ route('admin.sales.visits.index') }}" class="{{ $navLinkClass('admin.sales.visits.index') }}">Visit</a>
-                    <a href="{{ route('admin.sales.transactions.index') }}" class="{{ $navLinkClass('admin.sales.transactions.index') }}">Transaksi Penjualan</a>
-                    <a href="{{ route('admin.sales.invoices.index') }}" class="{{ $navLinkClass('admin.sales.invoices.index') }}">Invoice</a>
+                <div x-data="{ open: {{ $sectionOpen([
+                    'admin.master.sales.index',
+                    'admin.master.customers.index',
+                    'admin.sales.customer-assignments.index',
+                    'admin.sales.customer-taggings.index',
+                    'admin.sales.visits.index',
+                    'admin.sales.transactions.index',
+                    'admin.sales.invoices.index',
+                ]) }} }" class="py-1">
+                    <button type="button" @click="open = ! open" :aria-expanded="open" class="w-full flex items-center justify-between px-2 py-1.5 rounded text-xs uppercase tracking-wide text-sidebar-heading hover:text-white transition-colors">
+                        <span>Sales</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-3.5 w-3.5 shrink-0 transition-transform duration-150" :class="{ '-rotate-180': open }">
+                            <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.25a.75.75 0 01-1.06 0L5.21 8.27a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                    <div x-show="open" x-transition class="mt-1 space-y-0.5">
+                        <a href="{{ route('admin.master.sales.index') }}" class="{{ $navLinkClass('admin.master.sales.index') }}">Sales Management</a>
+                        <a href="{{ route('admin.master.customers.index') }}" class="{{ $navLinkClass('admin.master.customers.index') }}">Customer</a>
+                        <a href="{{ route('admin.sales.customer-assignments.index') }}" class="{{ $navLinkClass('admin.sales.customer-assignments.index') }}">Customer Assignment</a>
+                        <a href="{{ route('admin.sales.customer-taggings.index') }}" class="{{ $navLinkClass('admin.sales.customer-taggings.index') }}">Tagging Toko</a>
+                        <a href="{{ route('admin.sales.visits.index') }}" class="{{ $navLinkClass('admin.sales.visits.index') }}">Visit</a>
+                        <a href="{{ route('admin.sales.transactions.index') }}" class="{{ $navLinkClass('admin.sales.transactions.index') }}">Transaksi Penjualan</a>
+                        <a href="{{ route('admin.sales.invoices.index') }}" class="{{ $navLinkClass('admin.sales.invoices.index') }}">Invoice</a>
+                    </div>
                 </div>
 
-                <div>
-                    <p class="px-2 text-xs uppercase tracking-wide text-sidebar-heading mb-1">Finance</p>
-                    <a href="{{ route('admin.sales.invoices.index') }}" class="{{ $navLinkClass('admin.sales.invoices.index') }}">Invoice</a>
-                    <a href="{{ route('admin.finance.payments.index') }}" class="{{ $navLinkClass('admin.finance.payments.index') }}">Payment</a>
-                    <a href="{{ route('admin.finance.settlements.index') }}" class="{{ $navLinkClass('admin.finance.settlements.index') }}">Settlement</a>
-                    <a href="{{ route('admin.finance.cash-ledgers.index') }}" class="{{ $navLinkClass('admin.finance.cash-ledgers.index') }}">Income & Expense</a>
+                <div x-data="{ open: {{ $sectionOpen([
+                    'admin.sales.invoices.index',
+                    'admin.finance.payments.index',
+                    'admin.finance.settlements.index',
+                    'admin.finance.cash-ledgers.index',
+                ]) }} }" class="py-1">
+                    <button type="button" @click="open = ! open" :aria-expanded="open" class="w-full flex items-center justify-between px-2 py-1.5 rounded text-xs uppercase tracking-wide text-sidebar-heading hover:text-white transition-colors">
+                        <span>Finance</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-3.5 w-3.5 shrink-0 transition-transform duration-150" :class="{ '-rotate-180': open }">
+                            <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.25a.75.75 0 01-1.06 0L5.21 8.27a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                    <div x-show="open" x-transition class="mt-1 space-y-0.5">
+                        <a href="{{ route('admin.sales.invoices.index') }}" class="{{ $navLinkClass('admin.sales.invoices.index') }}">Invoice</a>
+                        <a href="{{ route('admin.finance.payments.index') }}" class="{{ $navLinkClass('admin.finance.payments.index') }}">Payment</a>
+                        <a href="{{ route('admin.finance.settlements.index') }}" class="{{ $navLinkClass('admin.finance.settlements.index') }}">Settlement</a>
+                        <a href="{{ route('admin.finance.cash-ledgers.index') }}" class="{{ $navLinkClass('admin.finance.cash-ledgers.index') }}">Income & Expense</a>
+                    </div>
                 </div>
 
-                <div>
-                    <p class="px-2 text-xs uppercase tracking-wide text-sidebar-heading mb-1">Operations</p>
-                    <a href="{{ route('admin.sales-tasks.index') }}" class="{{ $navLinkClass('admin.sales-tasks.index') }}">Sales Task</a>
-                    <a href="{{ route('admin.operations.delivery-orders.index') }}" class="{{ $navLinkClass('admin.operations.delivery-orders.index') }}">Delivery Order</a>
-                    <a href="{{ route('admin.operations.routes.index') }}" class="{{ $navLinkClass('admin.operations.routes.index') }}">Route</a>
-                    <a href="{{ route('admin.master.vehicles.index') }}" class="{{ $navLinkClass('admin.master.vehicles.index') }}">Vehicle</a>
-                    <a href="{{ route('admin.operations.drivers.index') }}" class="{{ $navLinkClass('admin.operations.drivers.index') }}">Driver</a>
-                    <a href="{{ route('admin.operations.monitoring.index') }}" class="{{ $navLinkClass('admin.operations.monitoring.index') }}">Monitoring</a>
+                <div x-data="{ open: {{ $sectionOpen([
+                    'admin.sales-tasks.index',
+                    'admin.operations.delivery-orders.index',
+                    'admin.operations.routes.index',
+                    'admin.master.vehicles.index',
+                    'admin.operations.drivers.index',
+                    'admin.operations.monitoring.index',
+                ]) }} }" class="py-1">
+                    <button type="button" @click="open = ! open" :aria-expanded="open" class="w-full flex items-center justify-between px-2 py-1.5 rounded text-xs uppercase tracking-wide text-sidebar-heading hover:text-white transition-colors">
+                        <span>Operations</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-3.5 w-3.5 shrink-0 transition-transform duration-150" :class="{ '-rotate-180': open }">
+                            <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.25a.75.75 0 01-1.06 0L5.21 8.27a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                    <div x-show="open" x-transition class="mt-1 space-y-0.5">
+                        <a href="{{ route('admin.sales-tasks.index') }}" class="{{ $navLinkClass('admin.sales-tasks.index') }}">Sales Task</a>
+                        <a href="{{ route('admin.operations.delivery-orders.index') }}" class="{{ $navLinkClass('admin.operations.delivery-orders.index') }}">Delivery Order</a>
+                        <a href="{{ route('admin.operations.routes.index') }}" class="{{ $navLinkClass('admin.operations.routes.index') }}">Route</a>
+                        <a href="{{ route('admin.master.vehicles.index') }}" class="{{ $navLinkClass('admin.master.vehicles.index') }}">Vehicle</a>
+                        <a href="{{ route('admin.operations.drivers.index') }}" class="{{ $navLinkClass('admin.operations.drivers.index') }}">Driver</a>
+                        <a href="{{ route('admin.operations.monitoring.index') }}" class="{{ $navLinkClass('admin.operations.monitoring.index') }}">Monitoring</a>
+                    </div>
                 </div>
 
                 <a href="{{ route('admin.reports.index') }}" class="{{ $navLinkClass('admin.reports.index') }}">Reports</a>
 
-                <div>
-                    <p class="px-2 text-xs uppercase tracking-wide text-sidebar-heading mb-1">System</p>
-                    <a href="#" class="block px-2 py-1.5 rounded text-sidebar-foreground hover:bg-sidebar-hover hover:text-white transition-colors">Users</a>
-                    <a href="#" class="block px-2 py-1.5 rounded text-sidebar-foreground hover:bg-sidebar-hover hover:text-white transition-colors">Roles</a>
-                    <a href="#" class="block px-2 py-1.5 rounded text-sidebar-foreground hover:bg-sidebar-hover hover:text-white transition-colors">Permissions</a>
-                    <a href="#" class="block px-2 py-1.5 rounded text-sidebar-foreground hover:bg-sidebar-hover hover:text-white transition-colors">Audit Log</a>
-                    <a href="#" class="block px-2 py-1.5 rounded text-sidebar-foreground hover:bg-sidebar-hover hover:text-white transition-colors">Settings</a>
+                <div x-data="{ open: false }" class="py-1">
+                    <button type="button" @click="open = ! open" :aria-expanded="open" class="w-full flex items-center justify-between px-2 py-1.5 rounded text-xs uppercase tracking-wide text-sidebar-heading hover:text-white transition-colors">
+                        <span>System</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-3.5 w-3.5 shrink-0 transition-transform duration-150" :class="{ '-rotate-180': open }">
+                            <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.25a.75.75 0 01-1.06 0L5.21 8.27a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                    <div x-show="open" x-transition class="mt-1 space-y-0.5">
+                        <a href="#" class="block px-2 py-1.5 rounded text-sidebar-foreground hover:bg-sidebar-hover hover:text-white transition-colors">Users</a>
+                        <a href="#" class="block px-2 py-1.5 rounded text-sidebar-foreground hover:bg-sidebar-hover hover:text-white transition-colors">Roles</a>
+                        <a href="#" class="block px-2 py-1.5 rounded text-sidebar-foreground hover:bg-sidebar-hover hover:text-white transition-colors">Permissions</a>
+                        <a href="#" class="block px-2 py-1.5 rounded text-sidebar-foreground hover:bg-sidebar-hover hover:text-white transition-colors">Audit Log</a>
+                        <a href="#" class="block px-2 py-1.5 rounded text-sidebar-foreground hover:bg-sidebar-hover hover:text-white transition-colors">Settings</a>
+                    </div>
                 </div>
             </nav>
         </aside>
