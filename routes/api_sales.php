@@ -10,6 +10,7 @@
 | RolePermissionSeeder.
 */
 
+use App\Http\Controllers\Sales\RouteController;
 use App\Http\Controllers\Sales\TaskController;
 use App\Http\Controllers\Sales\TrackingController;
 use Illuminate\Support\Facades\Route;
@@ -30,3 +31,8 @@ Route::middleware('permission:tracking.manage')->prefix('tracking')->name('track
 });
 
 Route::middleware('permission:tracking.manage')->post('location', [TrackingController::class, 'location'])->name('location');
+
+// Live Sales Field Operations - Basic Route (Blueprint #16, #67):
+// perhitungan rute dilakukan server-side, MapLibre di client hanya
+// menerima geometry siap-render (lihat App\Contracts\RoutingEngine).
+Route::middleware('permission:customer.view')->post('route/customer/{customer}', [RouteController::class, 'calculate'])->name('route.customer');

@@ -2,7 +2,9 @@
 
 namespace App\Providers;
 
+use App\Contracts\RoutingEngine;
 use App\Services\AuditLogger;
+use App\Services\Routing\OpenRouteServiceAdapter;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\Logout;
 use Illuminate\Support\Facades\Event;
@@ -15,7 +17,23 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Live Sales Field Operations - Provider Abstraction (Blueprint
+        // #83): satu titik untuk mengganti Routing Engine. Kode lain
+        // (Controller, Service Visit/Customer/Sales) hanya bergantung ke
+        // interface RoutingEngine, tidak pernah ke provider tertentu.
+        $this->app->bind(RoutingEngine::class, function () {
+            $config = config('services.routing');
+
+            return match ($config['provider']) {
+                // Tambahkan case 'osrm' => new OsrmRoutingAdapter(...) di
+                // sini saat proyek pindah ke self-hosted OSRM (VPS).
+                default => new OpenRouteServiceAdapter(
+                    baseUrl: $config['base_url'],
+                    apiKey: $config['api_key'],
+                    profile: $config['profile'],
+                ),
+            };
+        });
     }
 
     /**
