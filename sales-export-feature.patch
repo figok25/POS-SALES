@@ -1,0 +1,191 @@
+diff --git a/app/Exports/SalesReportExport.php b/app/Exports/SalesReportExport.php
+new file mode 100644
+index 0000000..11cb0fd
+--- /dev/null
++++ b/app/Exports/SalesReportExport.php
+@@ -0,0 +1,55 @@
++<?php
++
++namespace App\Exports;
++
++use Illuminate\Support\Collection;
++use Maatwebsite\Excel\Concerns\ShouldAutoSize;
++use Maatwebsite\Excel\Concerns\WithHeadings;
++use Maatwebsite\Excel\Concerns\WithMapping;
++use Maatwebsite\Excel\Concerns\WithStyles;
++use Maatwebsite\Excel\Concerns\WithTitle;
++use Maatwebsite\Excel\Concerns\FromCollection;
++use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
++
++/**
++ * Phase 8 - Reports Export (Blueprint #38, #47).
++ * Wraps the same per-sales collection shown on admin.reports.sales so the
++ * exported file always matches what's on screen for the selected period.
++ */
++class SalesReportExport implements FromCollection, WithHeadings, WithMapping, ShouldAutoSize, WithStyles, WithTitle
++{
++    public function __construct(protected Collection $rows)
++    {
++    }
++
++    public function collection(): Collection
++    {
++        return $this->rows;
++    }
++
++    public function headings(): array
++    {
++        return ['Sales', 'Jumlah Transaksi', 'Total Penjualan'];
++    }
++
++    public function map($row): array
++    {
++        return [
++            $row->sales->name ?? '-',
++            (int) $row->total_transaksi,
++            (float) $row->total_penjualan,
++        ];
++    }
++
++    public function title(): string
++    {
++        return 'Sales Report';
++    }
++
++    public function styles(Worksheet $sheet): array
++    {
++        return [
++            1 => ['font' => ['bold' => true]],
++        ];
++    }
++}
+diff --git a/app/Http/Controllers/Admin/ReportController.php b/app/Http/Controllers/Admin/ReportController.php
+index 3bd4553..132660f 100644
+--- a/app/Http/Controllers/Admin/ReportController.php
++++ b/app/Http/Controllers/Admin/ReportController.php
+@@ -2,6 +2,7 @@
+ 
+ namespace App\Http\Controllers\Admin;
+ 
++use App\Exports\SalesReportExport;
+ use App\Http\Controllers\Controller;
+ use App\Models\AuditLog;
+ use App\Models\DeliveryOrder;
+@@ -10,6 +11,7 @@
+ use App\Models\Stock;
+ use Illuminate\Http\Request;
+ use Illuminate\Support\Facades\DB;
++use Maatwebsite\Excel\Facades\Excel;
+ 
+ /**
+  * Phase 8 - Reports & Audit Report (Blueprint #38, #47).
+@@ -24,6 +26,53 @@ public function index()
+     }
+ 
+     public function sales(Request $request)
++    {
++        ['from' => $from, 'to' => $to, 'perSales' => $perSales, 'summary' => $summary] = $this->buildSalesReport($request);
++
++        return view('admin.reports.sales', compact('perSales', 'summary', 'from', 'to'));
++    }
++
++    /**
++     * Export the sales report (same filtered data as the sales() view) to .xlsx.
++     */
++    public function salesExportExcel(Request $request)
++    {
++        ['from' => $from, 'to' => $to, 'perSales' => $perSales] = $this->buildSalesReport($request);
++
++        $filename = "sales-report_{$from}_to_{$to}.xlsx";
++
++        return Excel::download(new SalesReportExport($perSales), $filename);
++    }
++
++    /**
++     * Export the sales report (same filtered data as the sales() view) to .json.
++     */
++    public function salesExportJson(Request $request)
++    {
++        ['from' => $from, 'to' => $to, 'perSales' => $perSales, 'summary' => $summary] = $this->buildSalesReport($request);
++
++        $payload = [
++            'period' => ['from' => $from, 'to' => $to],
++            'summary' => $summary,
++            'data' => $perSales->map(fn ($row) => [
++                'sales' => $row->sales->name ?? '-',
++                'total_transaksi' => (int) $row->total_transaksi,
++                'total_penjualan' => (float) $row->total_penjualan,
++            ])->values(),
++        ];
++
++        $filename = "sales-report_{$from}_to_{$to}.json";
++
++        return response()->json($payload, 200, [
++            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
++        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
++    }
++
++    /**
++     * Shared query behind the sales report view and its exports, so all three
++     * always reflect the exact same filtered dataset.
++     */
++    private function buildSalesReport(Request $request): array
+     {
+         $from = $request->query('from', now()->startOfMonth()->toDateString());
+         $to = $request->query('to', now()->toDateString());
+@@ -42,7 +91,7 @@ public function sales(Request $request)
+             'total_penjualan' => $perSales->sum('total_penjualan'),
+         ];
+ 
+-        return view('admin.reports.sales', compact('perSales', 'summary', 'from', 'to'));
++        return compact('from', 'to', 'perSales', 'summary');
+     }
+ 
+     public function delivery(Request $request)
+diff --git a/composer.json b/composer.json
+index 5de6616..036d44a 100644
+--- a/composer.json
++++ b/composer.json
+@@ -9,6 +9,7 @@
+         "php": "^8.3",
+         "laravel/framework": "^13.17",
+         "laravel/tinker": "^3.0",
++        "maatwebsite/excel": "^3.1",
+         "spatie/laravel-permission": "^8.3"
+     },
+     "require-dev": {
+diff --git a/resources/views/admin/reports/sales.blade.php b/resources/views/admin/reports/sales.blade.php
+index 5e16b28..9ff0cd5 100644
+--- a/resources/views/admin/reports/sales.blade.php
++++ b/resources/views/admin/reports/sales.blade.php
+@@ -15,6 +15,17 @@
+                 <input type="date" name="to" value="{{ $to }}" class="border rounded px-3 py-2 text-sm">
+             </div>
+             <button class="bg-gray-200 px-3 py-2 rounded text-sm">Filter</button>
++
++            <div class="flex gap-2 ml-auto">
++                <a href="{{ route('admin.reports.sales.export.excel', ['from' => $from, 'to' => $to]) }}"
++                   class="bg-green-600 text-white px-3 py-2 rounded text-sm hover:bg-green-700">
++                    Export Excel
++                </a>
++                <a href="{{ route('admin.reports.sales.export.json', ['from' => $from, 'to' => $to]) }}"
++                   class="bg-gray-700 text-white px-3 py-2 rounded text-sm hover:bg-gray-800">
++                    Export JSON
++                </a>
++            </div>
+         </form>
+ 
+         <div class="grid grid-cols-2 gap-4 mb-4">
+diff --git a/routes/admin_reports.php b/routes/admin_reports.php
+index 249803a..6a89802 100644
+--- a/routes/admin_reports.php
++++ b/routes/admin_reports.php
+@@ -12,6 +12,8 @@
+ Route::middleware('permission:reports.view')->group(function () {
+     Route::get('/', [ReportController::class, 'index'])->name('index');
+     Route::get('sales', [ReportController::class, 'sales'])->name('sales');
++    Route::get('sales/export/excel', [ReportController::class, 'salesExportExcel'])->name('sales.export.excel');
++    Route::get('sales/export/json', [ReportController::class, 'salesExportJson'])->name('sales.export.json');
+     Route::get('delivery', [ReportController::class, 'delivery'])->name('delivery');
+     Route::get('stock', [ReportController::class, 'stock'])->name('stock');
+     Route::get('outstanding', [ReportController::class, 'outstanding'])->name('outstanding');

@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Exports\DeliveryReportExport;
+use App\Exports\SalesReportExport;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\DeliveryOrder;
@@ -10,6 +12,7 @@ use App\Models\SalesTransaction;
 use App\Models\Stock;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Maatwebsite\Excel\Facades\Excel;
 
 /**
  * Phase 8 - Reports & Audit Report (Blueprint #38, #47).
@@ -24,6 +27,53 @@ class ReportController extends Controller
     }
 
     public function sales(Request $request)
+    {
+        ['from' => $from, 'to' => $to, 'perSales' => $perSales, 'summary' => $summary] = $this->buildSalesReport($request);
+
+        return view('admin.reports.sales', compact('perSales', 'summary', 'from', 'to'));
+    }
+
+    /**
+     * Export the sales report (same filtered data as the sales() view) to .xlsx.
+     */
+    public function salesExportExcel(Request $request)
+    {
+        ['from' => $from, 'to' => $to, 'perSales' => $perSales] = $this->buildSalesReport($request);
+
+        $filename = "sales-report_{$from}_to_{$to}.xlsx";
+
+        return Excel::download(new SalesReportExport($perSales), $filename);
+    }
+
+    /**
+     * Export the sales report (same filtered data as the sales() view) to .json.
+     */
+    public function salesExportJson(Request $request)
+    {
+        ['from' => $from, 'to' => $to, 'perSales' => $perSales, 'summary' => $summary] = $this->buildSalesReport($request);
+
+        $payload = [
+            'period' => ['from' => $from, 'to' => $to],
+            'summary' => $summary,
+            'data' => $perSales->map(fn ($row) => [
+                'sales' => $row->sales->name ?? '-',
+                'total_transaksi' => (int) $row->total_transaksi,
+                'total_penjualan' => (float) $row->total_penjualan,
+            ])->values(),
+        ];
+
+        $filename = "sales-report_{$from}_to_{$to}.json";
+
+        return response()->json($payload, 200, [
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+    }
+
+    /**
+     * Shared query behind the sales report view and its exports, so all three
+     * always reflect the exact same filtered dataset.
+     */
+    private function buildSalesReport(Request $request): array
     {
         $from = $request->query('from', now()->startOfMonth()->toDateString());
         $to = $request->query('to', now()->toDateString());
@@ -42,10 +92,61 @@ class ReportController extends Controller
             'total_penjualan' => $perSales->sum('total_penjualan'),
         ];
 
-        return view('admin.reports.sales', compact('perSales', 'summary', 'from', 'to'));
+        return compact('from', 'to', 'perSales', 'summary');
     }
 
     public function delivery(Request $request)
+    {
+        ['counts' => $counts, 'recent' => $recent] = $this->buildDeliveryReport();
+
+        return view('admin.reports.delivery', compact('counts', 'recent'));
+    }
+
+    /**
+     * Export the delivery report (same recent-orders data as the delivery() view) to .xlsx.
+     */
+    public function deliveryExportExcel()
+    {
+        ['recent' => $recent] = $this->buildDeliveryReport();
+
+        $filename = 'delivery-report_'.now()->format('Y-m-d').'.xlsx';
+
+        return Excel::download(new DeliveryReportExport($recent), $filename);
+    }
+
+    /**
+     * Export the delivery report (same recent-orders data as the delivery() view) to .json.
+     */
+    public function deliveryExportJson()
+    {
+        ['counts' => $counts, 'recent' => $recent] = $this->buildDeliveryReport();
+
+        $payload = [
+            'generated_at' => now()->toDateTimeString(),
+            'counts' => $counts,
+            'data' => $recent->map(fn ($do) => [
+                'code' => $do->code,
+                'customer' => $do->salesTransaction->customer->name ?? '-',
+                'vehicle' => $do->vehicle->name ?? '-',
+                'driver' => $do->driver->name ?? '-',
+                'route' => $do->route->name ?? '-',
+                'status' => $do->status,
+            ])->values(),
+        ];
+
+        $filename = 'delivery-report_'.now()->format('Y-m-d').'.json';
+
+        return response()->json($payload, 200, [
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+    }
+
+    /**
+     * Shared query behind the delivery report view and its exports, so all
+     * three always reflect the exact same dataset (status counts + the most
+     * recent 30 delivery orders).
+     */
+    private function buildDeliveryReport(): array
     {
         $counts = DeliveryOrder::query()
             ->select('status', DB::raw('COUNT(*) as total'))
@@ -57,7 +158,7 @@ class ReportController extends Controller
             ->limit(30)
             ->get();
 
-        return view('admin.reports.delivery', compact('counts', 'recent'));
+        return compact('counts', 'recent');
     }
 
     public function stock()

@@ -15,6 +15,17 @@
                 <input type="date" name="to" value="{{ $to }}" class="border rounded px-3 py-2 text-sm">
             </div>
             <button class="bg-gray-200 px-3 py-2 rounded text-sm">Filter</button>
+
+            <div class="flex gap-2 ml-auto">
+                <a href="{{ route('admin.reports.sales.export.excel', ['from' => $from, 'to' => $to]) }}"
+                   class="bg-green-600 text-white px-3 py-2 rounded text-sm hover:bg-green-700">
+                    Export Excel
+                </a>
+                <a href="{{ route('admin.reports.sales.export.json', ['from' => $from, 'to' => $to]) }}"
+                   class="bg-gray-700 text-white px-3 py-2 rounded text-sm hover:bg-gray-800">
+                    Export JSON
+                </a>
+            </div>
         </form>
 
         <div class="grid grid-cols-2 gap-4 mb-4">

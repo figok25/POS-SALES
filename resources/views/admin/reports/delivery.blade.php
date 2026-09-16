@@ -2,7 +2,17 @@
     <div class="p-6">
         <div class="flex items-center justify-between mb-4">
             <h1 class="text-xl font-semibold">Delivery Report</h1>
-            <a href="{{ route('admin.reports.index') }}" class="text-sm text-blue-700 hover:underline">&larr; Reports</a>
+            <div class="flex items-center gap-2">
+                <a href="{{ route('admin.reports.delivery.export.excel') }}"
+                   class="bg-green-600 text-white px-3 py-2 rounded text-sm hover:bg-green-700">
+                    Export Excel
+                </a>
+                <a href="{{ route('admin.reports.delivery.export.json') }}"
+                   class="bg-gray-700 text-white px-3 py-2 rounded text-sm hover:bg-gray-800">
+                    Export JSON
+                </a>
+                <a href="{{ route('admin.reports.index') }}" class="text-sm text-blue-700 hover:underline">&larr; Reports</a>
+            </div>
         </div>
 
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
