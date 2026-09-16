@@ -11,20 +11,22 @@ use Tests\TestCase;
 
 /**
  * Live Sales Field Operations - Test Routing Engine abstraction
- * (Blueprint #67, #83 Provider Abstraction) & endpoint Basic Route.
+ * (Blueprint #64 Architecture Lock, #67, #76-77 caching/dedup, #83
+ * Provider Abstraction) & endpoint Basic Route. Default provider:
+ * TomTom Routing API Orbis v3.
  */
 class RoutingEngineTest extends TestCase
 {
     use RefreshDatabase;
     use SetsUpSalesFixtures;
 
-    protected function fakeOrsSuccess(): void
+    protected function fakeTomTomSuccess(): void
     {
         Http::fake([
-            'api.openrouteservice.org/*' => Http::response([
-                'features' => [[
-                    'geometry' => ['coordinates' => [[112.63, -7.98], [112.631, -7.981]]],
-                    'properties' => ['summary' => ['distance' => 4200.5, 'duration' => 780.2]],
+            'api.tomtom.com/*' => Http::response([
+                'routes' => [[
+                    'summary' => ['lengthInMeters' => 4200.5, 'travelDurationInSeconds' => 780.2],
+                    'path' => ['type' => 'LineString', 'coordinates' => [[112.63, -7.98], [112.631, -7.981]]],
                 ]],
             ], 200),
         ]);
@@ -32,7 +34,7 @@ class RoutingEngineTest extends TestCase
 
     public function test_routing_engine_returns_route_result_on_success(): void
     {
-        $this->fakeOrsSuccess();
+        $this->fakeTomTomSuccess();
         config(['services.routing.api_key' => 'dummy-key']);
 
         $result = app(RoutingEngine::class)->calculateRoute(-7.98, 112.63, -7.981, 112.631);
@@ -54,16 +56,50 @@ class RoutingEngineTest extends TestCase
     public function test_routing_engine_throws_when_provider_returns_error(): void
     {
         config(['services.routing.api_key' => 'dummy-key']);
-        Http::fake(['api.openrouteservice.org/*' => Http::response(['error' => 'no route found'], 404)]);
+        Http::fake(['api.tomtom.com/*' => Http::response(['error' => 'no route found'], 404)]);
 
         $this->expectException(RoutingUnavailableException::class);
 
         app(RoutingEngine::class)->calculateRoute(-7.98, 112.63, -7.981, 112.631);
     }
 
+    /**
+     * Blueprint #76-#77: request kedua untuk asal/tujuan yang sama TIDAK
+     * boleh memanggil provider kedua kalinya - harus kena cache.
+     */
+    public function test_repeated_request_for_same_route_hits_cache_not_provider_again(): void
+    {
+        $this->fakeTomTomSuccess();
+        config(['services.routing.api_key' => 'dummy-key']);
+        $engine = app(RoutingEngine::class);
+
+        $engine->calculateRoute(-7.98, 112.63, -7.981, 112.631);
+        $engine->calculateRoute(-7.98, 112.63, -7.981, 112.631);
+        $engine->calculateRoute(-7.98, 112.63, -7.981, 112.631);
+
+        Http::assertSentCount(1);
+    }
+
+    /**
+     * Lokasi yang beda (walau berdekatan lewat pembulatan cache key)
+     * tetap harus memanggil provider - cache tidak boleh "menyamaratakan"
+     * rute yang benar-benar berbeda.
+     */
+    public function test_different_destination_is_not_served_from_cache(): void
+    {
+        $this->fakeTomTomSuccess();
+        config(['services.routing.api_key' => 'dummy-key']);
+        $engine = app(RoutingEngine::class);
+
+        $engine->calculateRoute(-7.98, 112.63, -7.981, 112.631);
+        $engine->calculateRoute(-7.98, 112.63, -8.100, 112.700);
+
+        Http::assertSentCount(2);
+    }
+
     public function test_route_endpoint_returns_geometry_for_own_customer(): void
     {
-        $this->fakeOrsSuccess();
+        $this->fakeTomTomSuccess();
         config(['services.routing.api_key' => 'dummy-key']);
         [$user, $sales] = $this->makeSalesUser();
         $customer = $this->makeCustomer($sales->id);
