@@ -14,7 +14,7 @@ class SalesRoute extends Model
     protected $table = 'sales_routes';
 
     protected $fillable = [
-        'user_id', 'route_date', 'provider', 'source',
+        'sales_id', 'route_date', 'provider', 'source',
         'distance_meters', 'duration_seconds', 'geometry', 'raw_response', 'cache_key',
     ];
 
@@ -26,7 +26,7 @@ class SalesRoute extends Model
 
     public function sales(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\User::class, 'user_id');
+        return $this->belongsTo(Sales::class);
     }
 
     public function stops(): HasMany

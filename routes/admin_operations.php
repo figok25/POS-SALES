@@ -12,10 +12,16 @@ use App\Http\Controllers\Admin\Operations\DeliveryOrderController;
 use App\Http\Controllers\Admin\Operations\DeliveryRouteController;
 use App\Http\Controllers\Admin\Operations\DriverController;
 use App\Http\Controllers\Admin\Operations\MonitoringController;
+use App\Http\Controllers\Admin\RoutingQuotaController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('permission:operations.view')->group(function () {
     Route::get('monitoring', [MonitoringController::class, 'index'])->name('monitoring.index');
+
+    // PERBAIKAN AUDIT (item A.4): sebelumnya hanya terdaftar di
+    // routes/web_admin_salesapp.php yang sudah dihapus (dead file), jadi
+    // Admin tidak bisa melihat quota TomTom sama sekali.
+    Route::get('routing-quota', [RoutingQuotaController::class, 'index'])->name('routing-quota.index');
 
     Route::get('delivery-orders', [DeliveryOrderController::class, 'index'])->name('delivery-orders.index');
     Route::get('delivery-orders/{deliveryOrder}', [DeliveryOrderController::class, 'show'])->name('delivery-orders.show');

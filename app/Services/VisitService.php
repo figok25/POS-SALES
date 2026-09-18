@@ -2,7 +2,9 @@
 
 namespace App\Services;
 
+use App\Models\Customer;
 use App\Models\Visit;
+use App\Support\Geo;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -16,6 +18,11 @@ class VisitService
      * Sales melakukan check-in ke sebuah toko/customer. Sales tidak
      * boleh check-in ganda selagi kunjungan sebelumnya masih berjalan
      * (Blueprint #38 - satu aktivitas jelas per waktu).
+     *
+     * PERBAIKAN AUDIT (item B - BLOCKER BISNIS PALING PENTING): sebelumnya
+     * TIDAK ADA validasi jarak GPS sama sekali di sini, jadi Sales bisa
+     * check-in dari mana saja. Sekarang wajib dalam radius
+     * config('sales.check_in_radius_meters') dari titik lokasi Customer.
      */
     public function checkIn(int $salesId, int $customerId, array $data): Visit
     {
@@ -24,6 +31,33 @@ class VisitService
         if ($ongoing) {
             throw ValidationException::withMessages([
                 'customer_id' => 'Anda masih memiliki kunjungan yang berjalan. Selesaikan (Check-out) kunjungan sebelumnya terlebih dahulu.',
+            ]);
+        }
+
+        $customer = Customer::findOrFail($customerId);
+
+        if (! $customer->hasLocation()) {
+            throw ValidationException::withMessages([
+                'customer_id' => 'Customer belum punya titik lokasi, hubungi Admin.',
+            ]);
+        }
+
+        $distance = Geo::distanceMeters(
+            (float) $data['latitude'],
+            (float) $data['longitude'],
+            (float) $customer->latitude,
+            (float) $customer->longitude,
+        );
+
+        $radius = (int) config('sales.check_in_radius_meters', 150);
+
+        if ($distance > $radius) {
+            throw ValidationException::withMessages([
+                'latitude' => sprintf(
+                    'Lokasi Anda terlalu jauh dari Customer (%d meter, maksimal %d meter). Mendekatlah ke lokasi Customer untuk check-in.',
+                    round($distance),
+                    $radius,
+                ),
             ]);
         }
 

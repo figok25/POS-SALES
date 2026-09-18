@@ -22,9 +22,7 @@ class Visit extends Model
 
     protected $fillable = [
         'sales_id',
-        'user_id',
         'customer_id',
-        'customer_assignment_id',
 
         'check_in_at',
         'check_in_latitude',
@@ -65,33 +63,11 @@ class Visit extends Model
     }
 
     /**
-     * Relasi Visit ke User.
-     *
-     * Digunakan jika sistem menggunakan user_id
-     * sebagai pelaksana visit.
-     */
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'user_id');
-    }
-
-    /**
      * Customer yang dikunjungi.
      */
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
-    }
-
-    /**
-     * Assignment yang menjadi dasar visit.
-     */
-    public function assignment(): BelongsTo
-    {
-        return $this->belongsTo(
-            CustomerAssignment::class,
-            'customer_assignment_id'
-        );
     }
 
     /**

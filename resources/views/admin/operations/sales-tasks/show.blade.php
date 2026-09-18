@@ -74,6 +74,13 @@
             </div>
         @endif
 
+        @if ($salesTask->status === \App\Models\SalesTask::STATUS_STOCK_VARIANCE)
+            <div class="mb-4 p-3 bg-red-50 text-red-800 rounded text-sm">
+                Ada selisih antara Qty Ditugaskan dan Qty Diverifikasi (baris merah di tabel Stock).
+                Task ini tertahan dan Sales BELUM BISA mulai bekerja sampai Anda menyetujui selisihnya.
+            </div>
+        @endif
+
         <div class="flex gap-2">
             @can('sales-task.manage')
                 @if ($salesTask->isDraft())
@@ -84,6 +91,12 @@
                     <form action="{{ route('admin.sales-tasks.cancel', $salesTask) }}" method="POST" onsubmit="return confirm('Batalkan Task ini?')">
                         @csrf
                         <button class="border px-3 py-2 rounded text-sm">Batalkan</button>
+                    </form>
+                @endif
+                @if ($salesTask->status === \App\Models\SalesTask::STATUS_STOCK_VARIANCE)
+                    <form action="{{ route('admin.sales-tasks.approve-variance', $salesTask) }}" method="POST" onsubmit="return confirm('Setujui selisih stock ini? Task akan menjadi Ready to Work.')">
+                        @csrf
+                        <button class="bg-amber-600 text-white px-3 py-2 rounded text-sm hover:bg-amber-700">Setujui Selisih Stock</button>
                     </form>
                 @endif
             @endcan

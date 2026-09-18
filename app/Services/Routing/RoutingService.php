@@ -4,8 +4,8 @@ namespace App\Services\Routing;
 
 use App\Models\RouteStop;
 use App\Models\RoutingUsage;
+use App\Models\Sales;
 use App\Models\SalesRoute;
-use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -13,121 +13,151 @@ use Illuminate\Support\Facades\Log;
 /**
  * Section 92-97 & 100 (FINAL DECISION RECORD).
  *
- * Dua jalur pemakaian:
- *   1. calculateDailyRoute()  -> dipanggil saat Sales mulai kerja (Section 94 flow normal).
- *      Cache-first berdasarkan cache_key (urutan customer_id), TomTom cuma dipanggil
- *      kalau assignment hari itu berubah / belum pernah dihitung.
- *   2. reroute()              -> dipanggil saat GPS deviation detector Android mendeteksi
- *      Sales menyimpang jauh dari rute (Section 94 "Need reroute?"). SELALU mulai dari
- *      posisi GPS Sales SAAT INI + stop yang masih pending, dan diproteksi cooldown
- *      (Section 94 "Budget + cooldown") supaya tidak spam TomTom.
+ * PERBAIKAN AUDIT (2026-09-18):
+ *   - Identitas: user_id -> sales_id (Sales adalah domain entity final, lihat
+ *     app/Models/Sales.php). "sales_id ↔ user_id" adalah salah satu blocker utama.
+ *   - Provider: TomTomClient (Routing API v1 lama) -> TomTomRoutingAdapter
+ *     (Orbis v3), satu-satunya client TomTom yang boleh dipakai (Blueprint #100).
+ *   - Origin: SELALU posisi Sales saat ini (SalesCurrentLocation), bukan
+ *     dipercayakan ke urutan array yang dikirim caller (audit #16).
+ *   - Cache key: mencakup date + sales_id + origin (dibulatkan) + urutan
+ *     customer + route profile, bukan cuma hash urutan customer_id (audit #17).
+ *   - Quota: reservasi ATOMIC lewat conditional UPDATE (audit #19), bukan
+ *     check-then-act yang bisa race condition.
  *
- * PENTING (Section 102 - anti-miskomunikasi):
- *   Satu request TomTom mencakup SATU route multi-stop (banyak Customer sekaligus),
- *   BUKAN satu request per Customer. GPS TIDAK PERNAH langsung memanggil TomTom --
- *   GPS hanya jadi TRIGGER (via reroute()) yang tetap melalui quota + cooldown guard.
+ * Dua jalur pemakaian:
+ *   1. calculateDailyRoute() -> dipanggil saat Sales mulai kerja / buka Today's Route.
+ *      Cache-first berdasarkan cache_key. TomTom cuma dipanggil kalau assignment
+ *      hari itu (atau origin) berubah / belum pernah dihitung.
+ *   2. reroute()             -> dipanggil saat GPS deviation terdeteksi. SELALU
+ *      dari posisi GPS Sales SAAT INI + stop yang masih pending, diproteksi
+ *      cooldown supaya tidak spam TomTom (Blueprint #94 "Budget + cooldown").
+ *
+ * PENTING (Section 102 anti-miskomunikasi): SATU request TomTom mencakup SATU
+ * route multi-stop (banyak Customer sekaligus), BUKAN satu request per Customer.
+ * GPS TIDAK PERNAH langsung memanggil TomTom -- GPS hanya trigger (via reroute())
+ * yang tetap melalui quota + cooldown guard di atas.
  */
 class RoutingService implements RoutingServiceInterface
 {
     public function __construct(
-        private readonly TomTomClient $client,
+        private readonly TomTomRoutingAdapter $adapter,
         private readonly int $monthlyHardBudget,
         private readonly int $rerouteCooldownSeconds = 300,
     ) {
     }
 
     /**
-     * @param array<int, array{customer_id:int, latitude:float, longitude:float}> $stops
+     * Implementasi RoutingServiceInterface (dipakai jika ada pemanggil generik
+     * yang hanya butuh hasil mentah tanpa persistensi SalesRoute).
+     *
+     * @param  array<int, array{customer_id:int|null, latitude:float, longitude:float}>  $stops
+     *   Urutan stop TERMASUK titik awal (posisi Sales) di index 0.
      */
     public function calculateRoute(array $stops): array
     {
-        $waypoints = array_map(fn ($s) => ['latitude' => $s['latitude'], 'longitude' => $s['longitude']], $stops);
-        return $this->client->calculateRoute($waypoints);
+        if (count($stops) < 2) {
+            throw new \InvalidArgumentException('Minimal origin + 1 tujuan diperlukan.');
+        }
+
+        $origin = ['latitude' => $stops[0]['latitude'], 'longitude' => $stops[0]['longitude']];
+        $destinations = array_slice($stops, 1);
+
+        return $this->adapter->calculateMultiStopRoute($origin, $destinations);
     }
 
     /**
-     * @param array<int, array{customer_id:int, latitude:float, longitude:float}> $orderedStops
+     * @param  array{latitude:float, longitude:float}  $origin  posisi Sales SAAT INI (Blueprint #16 audit fix)
+     * @param  array<int, array{customer_id:int, latitude:float, longitude:float}>  $orderedStops
      */
-    public function calculateDailyRoute(User $sales, Carbon $date, array $orderedStops): SalesRoute
+    public function calculateDailyRoute(Sales $sales, Carbon $date, array $origin, array $orderedStops): SalesRoute
     {
-        $cacheKey = $this->buildCacheKey($orderedStops);
+        if (empty($orderedStops)) {
+            throw new \InvalidArgumentException('Tidak ada Customer untuk dihitung rutenya hari ini.');
+        }
 
-        $existing = SalesRoute::where('user_id', $sales->id)
+        $cacheKey = $this->buildCacheKey($date, $sales->id, $origin, $orderedStops);
+
+        $existing = SalesRoute::where('sales_id', $sales->id)
             ->whereDate('route_date', $date->toDateString())
             ->first();
 
         if ($existing && $existing->cache_key === $cacheKey) {
             $existing->source = 'cache';
             $existing->save();
+            $this->recordUsage(cacheHit: true);
+
             return $existing->load('stops.customer');
         }
 
-        if (!$this->hasQuotaAvailable()) {
-            Log::warning('[RoutingService] Monthly hard budget tercapai, fallback tanpa TomTom.');
+        $this->recordUsage(cacheMiss: true);
+
+        if (! $this->reserveQuota()) {
+            Log::warning('[RoutingService] Monthly hard budget tercapai, fallback tanpa TomTom.', ['sales_id' => $sales->id]);
+            $this->recordUsage(blocked: true);
+
             return $this->persistRoute($sales, $date, $orderedStops, $cacheKey, null, 'fallback', $existing);
         }
 
         try {
-            $waypoints = array_map(
-                fn ($s) => ['latitude' => $s['latitude'], 'longitude' => $s['longitude']],
-                $orderedStops
-            );
-            $result = $this->client->calculateRoute($waypoints);
-            $this->incrementQuota();
+            $result = $this->adapter->calculateMultiStopRoute($origin, $orderedStops);
+            $this->recordUsage(requestSuccess: true);
 
             return $this->persistRoute($sales, $date, $orderedStops, $cacheKey, $result, 'provider', $existing);
         } catch (\Throwable $e) {
-            Log::error('[RoutingService] TomTom gagal, fallback: ' . $e->getMessage());
+            Log::error('[RoutingService] TomTom gagal, fallback: ' . $e->getMessage(), ['sales_id' => $sales->id]);
+            $this->recordUsage(errorOccurred: true);
+
             return $this->persistRoute($sales, $date, $orderedStops, $cacheKey, null, 'fallback', $existing);
         }
     }
 
     /**
      * Section 94 "Need reroute? -> Budget + cooldown -> TomTom".
+     * Hemat kuota (audit #36): kirim origin -> HANYA tujuan aktif berikutnya
+     * kecuali memang ada banyak stop tersisa yang perlu dihitung ulang urutannya.
      *
-     * @param array{latitude:float, longitude:float} $currentPosition posisi GPS Sales SAAT INI
-     * @param array<int, array{customer_id:int, latitude:float, longitude:float}> $remainingStops
-     *   Stop yang statusnya masih pending, urut sesuai assignment.
+     * @param  array{latitude:float, longitude:float}  $currentPosition  posisi GPS Sales SAAT INI
+     * @param  array<int, array{customer_id:int, latitude:float, longitude:float}>  $remainingStops
      */
-    public function reroute(User $sales, Carbon $date, array $currentPosition, array $remainingStops): SalesRoute
+    public function reroute(Sales $sales, Carbon $date, array $currentPosition, array $remainingStops): SalesRoute
     {
-        $existing = SalesRoute::where('user_id', $sales->id)
+        $existing = SalesRoute::where('sales_id', $sales->id)
             ->whereDate('route_date', $date->toDateString())
             ->first();
 
-        if ($existing && !$this->cooldownElapsed($existing)) {
-            // Section 95: cooldown aktif -> JANGAN panggil TomTom, kembalikan route yang ada.
-            Log::info('[RoutingService] Reroute ditahan cooldown untuk user_id=' . $sales->id);
+        if ($existing && ! $this->cooldownElapsed($existing)) {
+            Log::info('[RoutingService] Reroute ditahan cooldown.', ['sales_id' => $sales->id]);
+
             return $existing->load('stops.customer');
         }
 
         if (empty($remainingStops)) {
-            // Semua customer sudah dikunjungi -> tidak ada yang perlu di-reroute.
-            return $existing?->load('stops.customer') ?? $this->calculateDailyRoute($sales, $date, [
-                ['customer_id' => null, 'latitude' => $currentPosition['latitude'], 'longitude' => $currentPosition['longitude']],
-            ]);
+            return $existing?->load('stops.customer')
+                ?? throw new \InvalidArgumentException('Tidak ada stop tersisa dan belum ada route existing.');
         }
 
-        $orderedStops = $remainingStops; // untuk cache_key, hanya stop customer yang dihitung
-        $cacheKey = $this->buildCacheKey($orderedStops) . '-reroute-' . now()->format('YmdHi');
+        $this->recordUsage(rerouteTriggered: true);
 
-        if (!$this->hasQuotaAvailable()) {
-            Log::warning('[RoutingService] Reroute gagal: monthly hard budget tercapai.');
-            return $this->persistRoute($sales, $date, $orderedStops, $cacheKey, null, 'fallback', $existing);
+        $cacheKey = $this->buildCacheKey($date, $sales->id, $currentPosition, $remainingStops) . '-reroute-' . now()->format('YmdHi');
+
+        if (! $this->reserveQuota()) {
+            Log::warning('[RoutingService] Reroute gagal: monthly hard budget tercapai.', ['sales_id' => $sales->id]);
+            $this->recordUsage(blocked: true);
+
+            return $this->persistRoute($sales, $date, $remainingStops, $cacheKey, null, 'fallback', $existing);
         }
 
         try {
-            $waypoints = array_merge(
-                [['latitude' => $currentPosition['latitude'], 'longitude' => $currentPosition['longitude']]],
-                array_map(fn ($s) => ['latitude' => $s['latitude'], 'longitude' => $s['longitude']], $remainingStops)
-            );
-            $result = $this->client->calculateRoute($waypoints);
-            $this->incrementQuota();
+            $result = $this->adapter->calculateMultiStopRoute($currentPosition, $remainingStops);
+            $this->recordUsage(requestSuccess: true);
 
-            return $this->persistRoute($sales, $date, $orderedStops, $cacheKey, $result, 'provider', $existing);
+            return $this->persistRoute($sales, $date, $remainingStops, $cacheKey, $result, 'provider', $existing);
         } catch (\Throwable $e) {
-            Log::error('[RoutingService] Reroute TomTom gagal, fallback: ' . $e->getMessage());
-            return $this->persistRoute($sales, $date, $orderedStops, $cacheKey, null, 'fallback', $existing);
+            Log::error('[RoutingService] Reroute TomTom gagal, fallback: ' . $e->getMessage(), ['sales_id' => $sales->id]);
+            $this->recordUsage(errorOccurred: true);
+
+            return $this->persistRoute($sales, $date, $remainingStops, $cacheKey, null, 'fallback', $existing);
         }
     }
 
@@ -137,7 +167,7 @@ class RoutingService implements RoutingServiceInterface
     }
 
     private function persistRoute(
-        User $sales,
+        Sales $sales,
         Carbon $date,
         array $orderedStops,
         string $cacheKey,
@@ -147,21 +177,26 @@ class RoutingService implements RoutingServiceInterface
     ): SalesRoute {
         return DB::transaction(function () use ($sales, $date, $orderedStops, $cacheKey, $result, $source, $existing) {
             $route = $existing ?? new SalesRoute();
-            $route->user_id = $sales->id;
+            $route->sales_id = $sales->id;
             $route->route_date = $date->toDateString();
             $route->provider = 'tomtom';
             $route->source = $source;
             $route->distance_meters = $result['distance_meters'] ?? null;
             $route->duration_seconds = $result['duration_seconds'] ?? null;
             $route->geometry = $result['geometry'] ?? null;
+            // PERBAIKAN AUDIT (item D - audit #34): simpan response mentah
+            // (termasuk 'steps' guidance turn-by-turn) supaya Android bisa
+            // baca raw_response.steps, dan untuk audit/debug (kolom ini
+            // sudah ada di migration tapi sebelumnya tidak pernah diisi).
+            $route->raw_response = $result;
             $route->cache_key = $cacheKey;
             $route->save();
 
             $route->stops()->delete();
             $legs = $result['legs'] ?? [];
-            foreach ($orderedStops as $i => $stop) {
+            foreach (array_values($orderedStops) as $i => $stop) {
                 if (empty($stop['customer_id'])) {
-                    continue; // titik posisi GPS saat reroute, bukan customer
+                    continue;
                 }
                 RouteStop::create([
                     'sales_route_id' => $route->id,
@@ -177,10 +212,22 @@ class RoutingService implements RoutingServiceInterface
         });
     }
 
-    private function buildCacheKey(array $orderedStops): string
+    /**
+     * Audit #17: cache key HARUS mencakup date + sales + origin + urutan
+     * customer + profile, bukan cuma hash urutan customer_id. Origin
+     * dibulatkan ke 4 desimal (~11m) supaya jitter GPS kecil tetap cache-hit.
+     */
+    private function buildCacheKey(Carbon $date, int $salesId, array $origin, array $orderedStops): string
     {
-        $ids = array_map(fn ($s) => $s['customer_id'], $orderedStops);
-        return md5(implode('-', $ids));
+        $ids = array_map(fn ($s) => $s['customer_id'] ?? 'gps', $orderedStops);
+
+        return md5(json_encode([
+            'date' => $date->toDateString(),
+            'sales_id' => $salesId,
+            'origin' => [round($origin['latitude'], 4), round($origin['longitude'], 4)],
+            'stops' => $ids,
+            'profile' => 'car-fastest-traffic',
+        ]));
     }
 
     private function currentPeriod(): string
@@ -188,21 +235,54 @@ class RoutingService implements RoutingServiceInterface
         return now()->format('Y-m');
     }
 
-    private function hasQuotaAvailable(): bool
+    /**
+     * Audit #19 FIX: reservasi kuota ATOMIC lewat satu conditional UPDATE
+     * (bukan check lalu increment terpisah yang rentan race condition saat
+     * banyak Sales request bersamaan mendekati hard limit).
+     *
+     * Mengembalikan true jika slot berhasil direservasi (request_count sudah
+     * naik), false jika hard budget sudah tercapai (TIDAK menaikkan counter).
+     */
+    private function reserveQuota(): bool
     {
-        $usage = RoutingUsage::firstOrCreate(
-            ['period_month' => $this->currentPeriod()],
-            ['request_count' => 0]
-        );
-        return $usage->request_count < $this->monthlyHardBudget;
+        RoutingUsage::firstOrCreate(['period_month' => $this->currentPeriod()], ['request_count' => 0]);
+
+        $affected = DB::table('routing_usage')
+            ->where('period_month', $this->currentPeriod())
+            ->where('request_count', '<', $this->monthlyHardBudget)
+            ->update([
+                'request_count' => DB::raw('request_count + 1'),
+                'last_request_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+        return $affected > 0;
     }
 
-    private function incrementQuota(): void
-    {
-        DB::transaction(function () {
-            $usage = RoutingUsage::lockForUpdate()
-                ->firstOrCreate(['period_month' => $this->currentPeriod()], ['request_count' => 0]);
-            $usage->increment('request_count');
-        });
+    private function recordUsage(
+        bool $cacheHit = false,
+        bool $cacheMiss = false,
+        bool $rerouteTriggered = false,
+        bool $requestSuccess = false,
+        bool $errorOccurred = false,
+        bool $blocked = false,
+    ): void {
+        $usage = RoutingUsage::firstOrCreate(['period_month' => $this->currentPeriod()], ['request_count' => 0]);
+
+        $increments = array_filter([
+            'cache_hit_count' => $cacheHit ? 1 : 0,
+            'cache_miss_count' => $cacheMiss ? 1 : 0,
+            'reroute_count' => $rerouteTriggered ? 1 : 0,
+            'error_count' => $errorOccurred ? 1 : 0,
+            'blocked_count' => $blocked ? 1 : 0,
+        ]);
+
+        foreach ($increments as $column => $amount) {
+            $usage->increment($column, $amount);
+        }
+
+        // requestSuccess sudah dihitung via reserveQuota() (request_count),
+        // parameter ini hanya dipertahankan untuk kejelasan pemanggilan.
+        unset($requestSuccess);
     }
 }

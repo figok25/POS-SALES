@@ -14,21 +14,16 @@ class CustomerAssignment extends Model
     protected $fillable = [
         'customer_id',
         'sales_id',
-        'user_id',
         'assigned_by',
         'assigned_at',
-        'assigned_date',
         'unassigned_at',
         'reason',
-        'sequence',
-        'status',
     ];
 
     protected function casts(): array
     {
         return [
             'assigned_at' => 'datetime',
-            'assigned_date' => 'date',
             'unassigned_at' => 'datetime',
         ];
     }
@@ -47,16 +42,6 @@ class CustomerAssignment extends Model
     public function sales(): BelongsTo
     {
         return $this->belongsTo(Sales::class);
-    }
-
-    /**
-     * User yang menerima assignment.
-     *
-     * Dipertahankan dari versi kedua yang menggunakan user_id.
-     */
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'user_id');
     }
 
     /**

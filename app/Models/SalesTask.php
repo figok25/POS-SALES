@@ -19,6 +19,12 @@ class SalesTask extends Model
     public const STATUS_APPLIED = 'applied';
     public const STATUS_DOCUMENT_AVAILABLE = 'document_available';
     public const STATUS_STOCK_VERIFICATION = 'stock_verification';
+    // PERBAIKAN AUDIT (item D - audit #13): status baru di antara
+    // verifikasi stock & ready_to_work, khusus dipakai kalau ada selisih
+    // (quantity_verified != quantity_assigned) pada minimal satu baris
+    // stock. Task TIDAK otomatis jadi ready_to_work sampai Admin
+    // menyetujui selisihnya (approveVariance()).
+    public const STATUS_STOCK_VARIANCE = 'stock_variance';
     public const STATUS_READY_TO_WORK = 'ready_to_work';
     public const STATUS_WORKING = 'working';
     public const STATUS_COMPLETED = 'completed';
@@ -66,6 +72,15 @@ class SalesTask extends Model
         return $this->hasMany(SalesTaskStock::class);
     }
 
+    /**
+     * PERBAIKAN AUDIT (item D - audit #14): Visit Plan harian, urutan
+     * kunjungan yang dikontrol eksplisit oleh Admin (opsional per Task).
+     */
+    public function planCustomers(): HasMany
+    {
+        return $this->hasMany(SalesTaskCustomer::class)->orderBy('sequence');
+    }
+
     public function trackingSessions(): HasMany
     {
         return $this->hasMany(SalesTrackingSession::class);
@@ -83,5 +98,15 @@ class SalesTask extends Model
     public function isReadyOrWorking(): bool
     {
         return in_array($this->status, [self::STATUS_READY_TO_WORK, self::STATUS_WORKING], true);
+    }
+
+    /**
+     * PERBAIKAN AUDIT (item D - audit #13): benar ada selisih antara
+     * quantity_assigned vs quantity_verified pada minimal satu baris stock
+     * yang sudah diverifikasi.
+     */
+    public function hasStockVariance(): bool
+    {
+        return $this->taskStocks->contains(fn (SalesTaskStock $line) => $line->difference() !== 0.0);
     }
 }

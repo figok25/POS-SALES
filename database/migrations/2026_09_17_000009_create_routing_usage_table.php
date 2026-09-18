@@ -23,6 +23,13 @@ return new class extends Migration
             $table->id();
             $table->string('period_month')->unique(); // format: YYYY-MM
             $table->unsignedInteger('request_count')->default(0);
+            // Audit #22: metrik minimal untuk audit penggunaan TomTom, bukan hanya request_count.
+            $table->unsignedInteger('cache_hit_count')->default(0);
+            $table->unsignedInteger('cache_miss_count')->default(0);
+            $table->unsignedInteger('reroute_count')->default(0);
+            $table->unsignedInteger('error_count')->default(0);
+            $table->unsignedInteger('blocked_count')->default(0); // ditolak oleh free-only guard
+            $table->timestamp('last_request_at')->nullable();
             $table->timestamps();
         });
     }

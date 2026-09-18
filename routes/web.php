@@ -3,7 +3,9 @@
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Sales\DashboardController as SalesDashboardController;
+use App\Http\Controllers\Sales\NativeTokenController;
 use Illuminate\Support\Facades\Route;
+use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
 
 Route::get('/', function () {
     return view('welcome');
@@ -102,14 +104,27 @@ Route::middleware(['auth', 'verified', 'role:sales'])
         // Fase 6 - Tagging Toko, Kunjungan, Transaksi, Sales Stock
         // (Blueprint #12, #48)
         require base_path('routes/sales_app.php');
+
+        // PERBAIKAN AUDIT (item C - P0): dipanggil oleh WebView (session
+        // masih hidup di sini) untuk mendapatkan Bearer token Sanctum yang
+        // lalu dikirim ke Android native lewat WebView bridge.
+        Route::post('/native-token', [NativeTokenController::class, 'store'])->name('native-token');
     });
 
 /*
 |--------------------------------------------------------------------------
 | Sales API Routes - Live Sales Field Operations (Blueprint #38, Fase 2)
 |--------------------------------------------------------------------------
+| PERBAIKAN AUDIT (item C - P0): guard diubah dari 'auth' (session-only,
+| jalan untuk WebView tapi TIDAK untuk Android native/OkHttp-Retrofit yang
+| kirim Bearer token) -> 'auth:sanctum', yang menerima BAIK session
+| (WebView, lewat EnsureFrontendRequestsAreStateful untuk domain di
+| SANCTUM_STATEFUL_DOMAINS) MAUPUN Bearer token (Android native), tanpa
+| duplikasi endpoint. Syarat: `composer require laravel/sanctum` sudah
+| dijalankan (lihat CHANGELOG item C).
+|--------------------------------------------------------------------------
 */
-Route::middleware(['auth', 'verified', 'role:sales'])
+Route::middleware([EnsureFrontendRequestsAreStateful::class, 'auth:sanctum', 'verified', 'role:sales'])
     ->prefix('api/sales')
     ->name('api.sales.')
     ->group(base_path('routes/api_sales.php'));
