@@ -31,7 +31,7 @@ class SalesTask extends Model
     public const STATUS_CANCELLED = 'cancelled';
 
     protected $fillable = [
-        'code', 'sales_id', 'branch_id', 'task_date', 'status', 'notes',
+        'code', 'sales_id', 'bkb_distribusi_id', 'branch_id', 'task_date', 'status', 'notes',
         'created_by', 'applied_by', 'applied_at', 'started_at', 'completed_at',
         'cancelled_by', 'cancelled_at',
     ];
@@ -50,6 +50,19 @@ class SalesTask extends Model
     public function sales(): BelongsTo
     {
         return $this->belongsTo(Sales::class);
+    }
+
+    /**
+     * Business Flow Update v3.1 (Blueprint #13.7): BKB yang sudah Applied
+     * dan menjadi satu-satunya sumber dokumen + stock untuk Task ini.
+     * Sales Task TIDAK menyimpan ulang item BKB -- daftar stock dibaca
+     * lewat bkbDistribusi->items (lihat SalesTaskController::store()
+     * yang hanya menyalin item ini ke sales_task_stocks sebagai snapshot
+     * verifikasi, bukan dokumen barang keluar baru).
+     */
+    public function bkbDistribusi(): BelongsTo
+    {
+        return $this->belongsTo(BkbDistribusi::class);
     }
 
     public function branch(): BelongsTo

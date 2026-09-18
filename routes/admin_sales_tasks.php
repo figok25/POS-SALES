@@ -11,9 +11,11 @@ use Illuminate\Support\Facades\Route;
 
 Route::middleware('permission:sales-task.view')->group(function () {
     Route::get('/', [SalesTaskController::class, 'index'])->name('index');
-    Route::get('{salesTask}', [SalesTaskController::class, 'show'])->name('show');
 });
 
+// PERBAIKAN: route statis 'create' harus didaftarkan sebelum route dinamis
+// '{salesTask}' agar Laravel tidak salah mencocokkan "create" sebagai nilai
+// parameter {salesTask} (menyebabkan error bigint saat query by id).
 Route::middleware('permission:sales-task.manage')->group(function () {
     Route::get('create', [SalesTaskController::class, 'create'])->name('create');
     Route::post('/', [SalesTaskController::class, 'store'])->name('store');
@@ -21,4 +23,11 @@ Route::middleware('permission:sales-task.manage')->group(function () {
     Route::post('{salesTask}/cancel', [SalesTaskController::class, 'cancel'])->name('cancel');
     // PERBAIKAN AUDIT (item D - audit #13): approval selisih stock.
     Route::post('{salesTask}/approve-variance', [SalesTaskController::class, 'approveVariance'])->name('approve-variance');
+    // Business Flow Update v3.1 (Blueprint #13.8, #14.4): edit penugasan,
+    // memindahkan Sales Stock lewat StockService, bukan Apply ulang.
+    Route::post('{salesTask}/reassign', [SalesTaskController::class, 'reassignSales'])->name('reassign');
+});
+
+Route::middleware('permission:sales-task.view')->group(function () {
+    Route::get('{salesTask}', [SalesTaskController::class, 'show'])->name('show');
 });

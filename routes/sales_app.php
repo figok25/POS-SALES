@@ -12,6 +12,7 @@
 use App\Http\Controllers\Sales\CustomerTaggingController;
 use App\Http\Controllers\Sales\MapController;
 use App\Http\Controllers\Sales\PaymentController;
+use App\Http\Controllers\Sales\ReturnStockController;
 use App\Http\Controllers\Sales\StockController;
 use App\Http\Controllers\Sales\TaskPageController;
 use App\Http\Controllers\Sales\TrackingPageController;
@@ -62,6 +63,21 @@ Route::middleware('permission:sales-transaction.view')->prefix('transactions')->
 // Fase 6 - Sales Stock (Blueprint #12.6)
 Route::middleware(['permission:sales-stock.view', 'active_sales_task'])->group(function () {
     Route::get('stock', [StockController::class, 'index'])->name('stock.index');
+});
+
+// Business Flow Update v3.1 (Blueprint #13.11, #13.12) - Return Stock:
+// Sales submit stock sisa, otomatis membuat BTB Distribusi (WAITING_CHECK)
+// untuk diperiksa Admin. Stock TIDAK berpindah di titik ini.
+//
+// TIDAK memakai middleware active_sales_task di sini: submit Return Stock
+// menutup Task (WORKING -> COMPLETED, lihat ReturnStockController), jadi
+// begitu berhasil submit, gate itu otomatis tidak lagi terpenuhi dan akan
+// men-redirect-loop halaman sukses/riwayat ini. Validasi "ada Task yang
+// sah untuk diretur" tetap dilakukan di controller (activeReturnableTask())
+// supaya halaman riwayat & hasil submit tetap bisa dilihat kapan saja.
+Route::middleware('permission:sales-stock.return')->prefix('return-stock')->name('return-stock.')->group(function () {
+    Route::get('/', [ReturnStockController::class, 'index'])->name('index');
+    Route::post('/', [ReturnStockController::class, 'store'])->name('store');
 });
 
 // Fase 7 - Payment yang diterima Sales langsung dari Customer di

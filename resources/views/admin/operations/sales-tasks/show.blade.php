@@ -14,6 +14,13 @@
 
         <div class="bg-white p-4 rounded shadow mb-4">
             <dl class="grid grid-cols-2 gap-3 text-sm">
+                <div><dt class="text-gray-500">BKB Distribusi (sumber stock)</dt><dd>
+                    @if ($salesTask->bkbDistribusi)
+                        <a href="{{ route('admin.distribution.bkb.show', $salesTask->bkbDistribusi) }}" class="text-blue-700 hover:underline">{{ $salesTask->bkbDistribusi->code }}</a>
+                    @else
+                        -
+                    @endif
+                </dd></div>
                 <div><dt class="text-gray-500">Sales</dt><dd>{{ $salesTask->sales->name ?? '-' }}</dd></div>
                 <div><dt class="text-gray-500">Branch</dt><dd>{{ $salesTask->branch->name ?? '-' }}</dd></div>
                 <div><dt class="text-gray-500">Tanggal Tugas</dt><dd>{{ $salesTask->task_date?->format('d/m/Y') }}</dd></div>
@@ -81,7 +88,7 @@
             </div>
         @endif
 
-        <div class="flex gap-2">
+        <div class="flex gap-2 mb-4">
             @can('sales-task.manage')
                 @if ($salesTask->isDraft())
                     <form action="{{ route('admin.sales-tasks.apply', $salesTask) }}" method="POST" onsubmit="return confirm('Apply/Release Task ini ke Sales?')">
@@ -101,5 +108,26 @@
                 @endif
             @endcan
         </div>
+
+        @can('sales-task.manage')
+            @if (in_array($salesTask->status, [\App\Models\SalesTask::STATUS_DRAFT, \App\Models\SalesTask::STATUS_DOCUMENT_AVAILABLE], true))
+                <div class="bg-white p-4 rounded shadow">
+                    <div class="font-medium text-sm mb-2">Edit Penugasan (Ganti Sales)</div>
+                    <p class="text-xs text-gray-500 mb-3">Mengganti Sales akan memindahkan Sales Stock BKB ini dari Sales lama ke Sales baru (bukan Apply ulang). Hanya bisa dilakukan sebelum Sales memulai Verifikasi Stock/Start Work.</p>
+                    <form action="{{ route('admin.sales-tasks.reassign', $salesTask) }}" method="POST" class="flex gap-2" onsubmit="return confirm('Pindahkan penugasan & Sales Stock ke Sales terpilih?')">
+                        @csrf
+                        <select name="sales_id" class="border rounded px-3 py-2 text-sm flex-1" required>
+                            <option value="">-- Pilih Sales Baru --</option>
+                            @foreach ($salesList as $s)
+                                @if ($s->id !== $salesTask->sales_id)
+                                    <option value="{{ $s->id }}">{{ $s->name }}</option>
+                                @endif
+                            @endforeach
+                        </select>
+                        <button class="bg-gray-700 text-white px-3 py-2 rounded text-sm hover:bg-gray-800">Pindahkan</button>
+                    </form>
+                </div>
+            @endif
+        @endcan
     </div>
 </x-admin-layout>

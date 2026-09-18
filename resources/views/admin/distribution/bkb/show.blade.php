@@ -73,6 +73,13 @@
             @endif
 
             @if ($bkb->status === 'applied')
+                @can('sales-task.manage')
+                    @if ($bkb->isReadyForAssignment())
+                        <a href="{{ route('admin.sales-tasks.create', ['bkb_distribusi_id' => $bkb->id]) }}" class="bg-blue-600 text-white px-3 py-2 rounded text-sm hover:bg-blue-700">Buat Sales Task (Tugaskan)</a>
+                    @else
+                        <span class="text-xs text-gray-500 self-center">Sudah ditugaskan lewat Sales Task {{ $bkb->salesTask->code ?? '' }}</span>
+                    @endif
+                @endcan
                 @can('distribution.manage')
                     <a href="{{ route('admin.distribution.btb.create', ['bkb_distribusi_id' => $bkb->id]) }}" class="bg-gray-700 text-white px-3 py-2 rounded text-sm hover:bg-gray-800">Buat BTB (Pengembalian)</a>
                 @endcan

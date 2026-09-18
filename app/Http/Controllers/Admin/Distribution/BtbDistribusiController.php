@@ -125,15 +125,55 @@ class BtbDistribusiController extends Controller
             });
 
             $before = $btb->toArray();
-            $btb->update(['status' => BtbDistribusi::STATUS_APPLIED, 'applied_by' => auth()->id(), 'applied_at' => now()]);
+            $btb->update([
+                'status' => BtbDistribusi::STATUS_APPLIED,
+                'applied_by' => auth()->id(),
+                'applied_at' => now(),
+                'checked_by' => $btb->checked_by ?? auth()->id(),
+                'checked_at' => $btb->checked_at ?? now(),
+            ]);
 
             AuditLogger::log('apply', 'Distribution', BtbDistribusi::class, $btb->id, $before, $btb->toArray());
 
             return redirect()->route('admin.distribution.btb.show', $btb)
-                ->with('status', 'BTB Distribusi berhasil di-Apply. Sales Stock berkurang, Warehouse Stock bertambah.');
+                ->with('status', 'BTB Distribusi berhasil di-Apply (Approve). Sales Stock berkurang, Warehouse Stock bertambah.');
         } catch (InsufficientStockException $e) {
             return back()->with('error', $e->getMessage());
         }
+    }
+
+    /**
+     * Business Flow Update v3.1 (Blueprint #13.13): Admin Check bisa
+     * menemukan selisih antara fisik dan yang disubmit Sales pada Return
+     * Stock. Discrepancy TIDAK memindahkan stock apa pun -- dokumen ini
+     * berhenti sebagai catatan/flag, penyelesaiannya (mis. investigasi,
+     * revisi retur, atau adjustment manual terpisah) adalah keputusan
+     * bisnis lanjutan di luar cakupan otomatisasi Apply.
+     */
+    public function discrepancy(Request $request, BtbDistribusi $btb)
+    {
+        if (! $btb->isWaitingCheck()) {
+            return back()->with('error', 'Hanya dokumen yang masih menunggu Check yang dapat ditandai Discrepancy.');
+        }
+
+        $request->validate([
+            'discrepancy_notes' => ['required', 'string'],
+        ]);
+
+        $before = $btb->toArray();
+
+        $btb->update([
+            'status' => BtbDistribusi::STATUS_DISCREPANCY,
+            'checked_by' => auth()->id(),
+            'checked_at' => now(),
+            'notes' => trim(($btb->notes ? $btb->notes."\n" : '')
+                .'[Discrepancy oleh '.(auth()->user()->name ?? 'Admin').' pada '.now()->format('d/m/Y H:i').'] '
+                .$request->input('discrepancy_notes')),
+        ]);
+
+        AuditLogger::log('discrepancy', 'Distribution', BtbDistribusi::class, $btb->id, $before, $btb->fresh()->toArray());
+
+        return back()->with('status', 'BTB ditandai Discrepancy. Stock TIDAK berpindah -- tindak lanjuti selisih ini secara manual.');
     }
 
     public function cancel(BtbDistribusi $btb)
