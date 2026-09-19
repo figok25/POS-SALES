@@ -78,6 +78,8 @@ return [
         // Blueprint #76: cache hasil rute supaya tidak boros quota untuk
         // lokasi yang sama/nyaris sama dalam rentang waktu singkat.
         'cache_ttl_seconds' => env('ROUTING_CACHE_TTL_SECONDS', 900),
+        // Blueprint #95-97: Free-Only Guard, hard stop sebelum tembus batas gratis provider.
+        'monthly_hard_budget' => env('ROUTING_MONTHLY_HARD_BUDGET', 18000),
     ],
 
 ];
