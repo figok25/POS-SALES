@@ -66,6 +66,13 @@ class CustomerController extends Controller
         $salesId = $data['sales_id'] ?? null;
         unset($data['sales_id']);
 
+        // Koordinat yang diisi manual oleh Admin dianggap sudah diverifikasi
+        // (Admin yang bertanggung jawab memastikan titiknya benar), sama
+        // seperti koordinat yang lolos approve Tagging Toko.
+        if (! empty($data['latitude']) && ! empty($data['longitude'])) {
+            $data['location_status'] = 'verified';
+        }
+
         $item = Customer::create($data);
 
         if ($salesId) {
@@ -95,6 +102,10 @@ class CustomerController extends Controller
         $data = $request->validated();
         $newSalesId = $data['sales_id'] ?? null;
         unset($data['sales_id']);
+
+        if (! empty($data['latitude']) && ! empty($data['longitude'])) {
+            $data['location_status'] = 'verified';
+        }
 
         $item->update($data);
 

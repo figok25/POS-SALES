@@ -73,6 +73,19 @@ class CustomerTaggingService
                     'name' => $tagging->name,
                     'address' => $tagging->address,
                     'phone' => $tagging->phone,
+                    // Business Flow fix: koordinat hasil GPS Sales di lapangan
+                    // WAJIB ikut disalin ke Customer, bukan cuma tersimpan di
+                    // customer_taggings. Tanpa ini, Customer::hasLocation()
+                    // selalu false dan Customer TIDAK PERNAH muncul di Peta
+                    // Customer (Sales\MapController::index() memfilter hanya
+                    // customer yang punya latitude/longitude), walau tagging-nya
+                    // sendiri sudah Approved dan koordinatnya valid.
+                    'latitude' => $tagging->latitude,
+                    'longitude' => $tagging->longitude,
+                    // 'verified' karena koordinat ini sudah melalui proses
+                    // review Admin (approve tagging), bukan sekadar submit
+                    // mentah dari Sales yang belum divalidasi siapa pun.
+                    'location_status' => $tagging->latitude !== null ? 'verified' : null,
                     'is_active' => true,
                 ]);
                 $customer->update(['code' => DocumentCode::make('CUST', $customer->id)]);
