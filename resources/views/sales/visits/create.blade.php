@@ -42,21 +42,45 @@
             const status = document.getElementById('lokasi-status');
             const done = () => form.submit();
 
-            // PERBAIKAN AUDIT #15: di dalam Sales APK, GPS HARUS dari Native
-            // Bridge (Fused Location), bukan navigator.geolocation browser -
-            // supaya konsisten dengan sumber lokasi yang dipakai tracking &
-            // tidak kena blokir secure-context saat dibuka lewat http://IP.
+            // PERBAIKAN: getCurrentLocation() sinkron (JSON string {available,...}),
+            // requestCurrentLocation() ASYNC - hasil lewat window.onNativeLocationResult(json).
             const bridge = window.Android || window.SalesNative;
-            if (bridge && (bridge.getCurrentLocation || bridge.requestCurrentLocation)) {
+            if (bridge) {
                 status.textContent = 'Mengambil lokasi dari GPS Native...';
-                try {
-                    const raw = bridge.getCurrentLocation ? bridge.getCurrentLocation() : bridge.requestCurrentLocation();
-                    const loc = typeof raw === 'string' ? JSON.parse(raw) : raw;
-                    document.getElementById('latitude').value = loc.latitude;
-                    document.getElementById('longitude').value = loc.longitude;
-                } catch (err) {
-                    status.textContent = 'Gagal mengambil lokasi Native, mengirim tanpa koordinat.';
+
+                if (bridge.getCurrentLocation) {
+                    try {
+                        const loc = JSON.parse(bridge.getCurrentLocation());
+                        if (loc.available) {
+                            document.getElementById('latitude').value = loc.latitude;
+                            document.getElementById('longitude').value = loc.longitude;
+                            return done();
+                        }
+                    } catch (err) { /* lanjut ke requestCurrentLocation() di bawah */ }
                 }
+
+                if (bridge.requestCurrentLocation) {
+                    window.onNativeLocationResult = function (loc) {
+                        window.onNativeLocationResult = null;
+                        if (loc && loc.available) {
+                            document.getElementById('latitude').value = loc.latitude;
+                            document.getElementById('longitude').value = loc.longitude;
+                        } else {
+                            status.textContent = 'Gagal mengambil lokasi Native, mengirim tanpa koordinat.';
+                        }
+                        done();
+                    };
+                    bridge.requestCurrentLocation();
+                    setTimeout(function () {
+                        if (window.onNativeLocationResult) {
+                            window.onNativeLocationResult = null;
+                            status.textContent = 'Timeout GPS Native, mengirim tanpa koordinat.';
+                            done();
+                        }
+                    }, 12000);
+                    return false;
+                }
+
                 return done();
             }
 

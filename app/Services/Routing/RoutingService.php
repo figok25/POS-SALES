@@ -7,6 +7,7 @@ use App\Models\RoutingUsage;
 use App\Models\Sales;
 use App\Models\SalesRoute;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -76,6 +77,18 @@ class RoutingService implements RoutingServiceInterface
             throw new \InvalidArgumentException('Tidak ada Customer untuk dihitung rutenya hari ini.');
         }
 
+        // PERBAIKAN AUDIT (dedup/lock, pengganti tabel sales_route_requests
+        // yang tadinya diusulkan): pakai Cache::lock() bawaan Laravel supaya
+        // dua request bersamaan dari sesi/tab yang sama (mis. double-tap
+        // "muat ulang rute") tidak memicu 2 request TomTom untuk cache-key
+        // yang identik. Tidak butuh migration baru - lock ini otomatis
+        // kedaluwarsa (TTL) walau proses crash di tengah jalan.
+        return Cache::lock("route_generation_lock:daily:{$sales->id}:{$date->toDateString()}", 15)
+            ->block(10, fn () => $this->doCalculateDailyRoute($sales, $date, $origin, $orderedStops));
+    }
+
+    private function doCalculateDailyRoute(Sales $sales, Carbon $date, array $origin, array $orderedStops): SalesRoute
+    {
         $cacheKey = $this->buildCacheKey($date, $sales->id, $origin, $orderedStops);
 
         $existing = SalesRoute::where('sales_id', $sales->id)
@@ -121,6 +134,13 @@ class RoutingService implements RoutingServiceInterface
      * @param  array<int, array{customer_id:int, latitude:float, longitude:float}>  $remainingStops
      */
     public function reroute(Sales $sales, Carbon $date, array $currentPosition, array $remainingStops): SalesRoute
+    {
+        // Dedup/lock yang sama seperti calculateDailyRoute() - lihat catatan di sana.
+        return Cache::lock("route_generation_lock:reroute:{$sales->id}:{$date->toDateString()}", 15)
+            ->block(10, fn () => $this->doReroute($sales, $date, $currentPosition, $remainingStops));
+    }
+
+    private function doReroute(Sales $sales, Carbon $date, array $currentPosition, array $remainingStops): SalesRoute
     {
         $existing = SalesRoute::where('sales_id', $sales->id)
             ->whereDate('route_date', $date->toDateString())

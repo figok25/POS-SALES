@@ -42,6 +42,11 @@
                 📍 Mode Aplikasi Native aktif — GPS dan tracking latar belakang ditangani oleh Sales APK.
             </div>
         </template>
+        <template x-if="active && signalLost">
+            <div class="bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-800">
+                ⚠️ Sinyal GPS hilang. Pastikan Anda berada di area terbuka; tracking akan pulih otomatis begitu sinyal kembali.
+            </div>
+        </template>
     </div>
 
     @push('scripts')
@@ -49,6 +54,7 @@
         function salesTracking() {
             return {
                 active: false,
+                signalLost: false,
                 sessionId: null,
                 loading: false,
                 errorMessage: null,
@@ -76,6 +82,27 @@
 
                 async init() {
                     if (this.isNative) {
+                        // PERBAIKAN: dengarkan status realtime dari LocationService
+                        // Android (ACTIVE/STOPPED/SIGNAL_LOST/PERMISSION_DENIED/
+                        // BACKGROUND_PERMISSION_DENIED) supaya UI langsung bereaksi,
+                        // bukan cuma bergantung pada response start()/stop() sesaat.
+                        window.onNativeTrackingStatus = (status) => {
+                            if (status === 'PERMISSION_DENIED') {
+                                this.active = false;
+                                this.errorMessage = 'Izin lokasi ditolak. Aktifkan izin Lokasi untuk aplikasi ini di Pengaturan HP.';
+                            } else if (status === 'BACKGROUND_PERMISSION_DENIED') {
+                                this.active = false;
+                                this.errorMessage = 'Izin lokasi "Selalu Izinkan" (background) diperlukan agar tracking tetap jalan saat layar mati. Aktifkan lewat Pengaturan HP > Aplikasi > Sales App > Izin > Lokasi > Izinkan sepanjang waktu.';
+                            } else if (status === 'PAUSED_SIGNAL_LOST') {
+                                this.signalLost = true;
+                            } else if (status === 'ACTIVE') {
+                                this.signalLost = false;
+                                this.errorMessage = null;
+                            } else if (status === 'STOPPED') {
+                                this.active = false;
+                                this.signalLost = false;
+                            }
+                        };
                         // Mode APK: cukup tanya status ke Laravel; GPS & foreground
                         // service dikendalikan native, bukan halaman ini.
                         await this.refreshStatusFromServer();
@@ -119,17 +146,43 @@
                 // Membungkus posisi supaya kode start()/stop() sama untuk kedua mode:
                 // native mengembalikan {latitude, longitude} langsung lewat bridge
                 // (JSON string), browser lewat Geolocation Position object.
-                async getCurrentCoords() {
-                    if (this.isNative) {
-                        const raw = this.nativeBridge.getCurrentLocation
-                            ? this.nativeBridge.getCurrentLocation()
-                            : this.nativeBridge.requestCurrentLocation();
-                        const loc = typeof raw === 'string' ? JSON.parse(raw) : raw;
-                        return { latitude: loc.latitude, longitude: loc.longitude };
+                // PERBAIKAN (cocokkan dengan WebViewBridge.kt Android asli):
+                // - getCurrentLocation() SINKRON, balikan JSON string {available, latitude, longitude, ...}.
+                //   Kalau available:false (belum ada fix GPS sejak app dibuka), fallback ke requestCurrentLocation().
+                // - requestCurrentLocation() ASYNC (void), hasil dikirim lewat callback global
+                //   window.onNativeLocationResult(json) - BUKAN return value langsung seperti dugaan sebelumnya.
+                getCurrentCoords() {
+                    if (!this.isNative) {
+                        return this.getPosition().then((position) => ({
+                            latitude: position.coords.latitude,
+                            longitude: position.coords.longitude,
+                        }));
                     }
 
-                    const position = await this.getPosition();
-                    return { latitude: position.coords.latitude, longitude: position.coords.longitude };
+                    if (this.nativeBridge.getCurrentLocation) {
+                        const loc = JSON.parse(this.nativeBridge.getCurrentLocation());
+                        if (loc.available) {
+                            return Promise.resolve({ latitude: loc.latitude, longitude: loc.longitude });
+                        }
+                    }
+
+                    return new Promise((resolve, reject) => {
+                        window.onNativeLocationResult = (loc) => {
+                            window.onNativeLocationResult = null;
+                            if (loc && loc.available) {
+                                resolve({ latitude: loc.latitude, longitude: loc.longitude });
+                            } else {
+                                reject(new Error(loc?.reason || 'NO_FIX'));
+                            }
+                        };
+                        this.nativeBridge.requestCurrentLocation();
+                        setTimeout(() => {
+                            if (window.onNativeLocationResult) {
+                                window.onNativeLocationResult = null;
+                                reject(new Error('TIMEOUT'));
+                            }
+                        }, 12000);
+                    });
                 },
 
                 async start() {
@@ -162,7 +215,7 @@
                                 // PERBAIKAN AUDIT #3/#4: sesi server ACTIVE HARUS diikuti
                                 // Native Foreground Location Service menyala, jangan
                                 // sampai server ACTIVE tapi native service tetap STOPPED.
-                                this.nativeBridge.startTracking(String(this.sessionId));
+                                this.nativeBridge.startTracking(Number(this.sessionId));
                             } else {
                                 this.watchPosition();
                             }

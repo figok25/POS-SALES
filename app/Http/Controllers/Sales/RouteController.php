@@ -109,7 +109,7 @@ class RouteController extends Controller
             return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
         }
 
-        return response()->json(['success' => true, 'data' => $route]);
+        return response()->json($this->toRouteResponse($route));
     }
 
     /**
@@ -151,7 +151,69 @@ class RouteController extends Controller
             return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
         }
 
-        return response()->json(['success' => true, 'data' => $route]);
+        return response()->json($this->toRouteResponse($route));
+    }
+
+    /**
+     * PERBAIKAN AUDIT (Android build.zip): Android `RouteResponse`/`RouteStopDto`/
+     * `GeoPointDto` (network/ApiModels.kt) mengharapkan field FLAT di level atas
+     * (`source`, `route_id`, `distance_meters`, `duration_seconds`, `stops`,
+     * `geometry`), dan tiap stop mengharapkan `customer_id`, `name`, `latitude`,
+     * `longitude` langsung (bukan nested di `customer.*`). Sebelumnya endpoint
+     * ini mengembalikan Eloquent model SalesRoute mentah di dalam `data` -
+     * praktis semua field penting akan null saat di-parse Gson di Android.
+     * `geometry` juga dikonversi dari [lng, lat] (raw TomTom) ke {lat, lng}
+     * sesuai GeoPointDto.
+     */
+    private function toRouteResponse(SalesRoute $route): array
+    {
+        $stops = $route->stops
+            ->map(fn ($stop) => [
+                'customer_id' => $stop->customer_id,
+                'name' => $stop->customer?->name,
+                'latitude' => $stop->customer ? (float) $stop->customer->latitude : null,
+                'longitude' => $stop->customer ? (float) $stop->customer->longitude : null,
+                'sequence' => $stop->sequence,
+                'status' => $stop->status,
+            ])
+            ->values()
+            ->all();
+
+        $geometry = collect($route->geometry ?? [])
+            ->map(function ($point) {
+                // TomTom Orbis v3 mengembalikan [lng, lat]; toleransi juga bentuk
+                // {lat,lng}/{latitude,longitude} kalau sumbernya sudah diubah nanti.
+                if (is_array($point) && array_is_list($point) && count($point) >= 2) {
+                    return ['lat' => (float) $point[1], 'lng' => (float) $point[0]];
+                }
+                if (is_array($point) && isset($point['lat'], $point['lng'])) {
+                    return ['lat' => (float) $point['lat'], 'lng' => (float) $point['lng']];
+                }
+                if (is_array($point) && isset($point['latitude'], $point['longitude'])) {
+                    return ['lat' => (float) $point['latitude'], 'lng' => (float) $point['longitude']];
+                }
+
+                return null;
+            })
+            ->filter()
+            ->values()
+            ->all();
+
+        return [
+            'success' => true,
+            'source' => $route->source,
+            'route_id' => $route->id,
+            'distance_meters' => $route->distance_meters,
+            'duration_seconds' => $route->duration_seconds,
+            'stops' => $stops,
+            'geometry' => $geometry,
+            // PERBAIKAN AUDIT (item D - #16/#34 turn-by-turn): instruksi
+            // guidance tersimpan di raw_response.steps (lihat
+            // RoutingService::persistRoute() & TomTomRoutingAdapter::
+            // extractGuidanceMessages()), baru sekarang benar-benar
+            // dikeluarkan ke response API untuk dipakai NavigationManager Android.
+            'steps' => $route->raw_response['steps'] ?? [],
+        ];
     }
 
     /**

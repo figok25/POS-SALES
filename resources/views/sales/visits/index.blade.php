@@ -52,16 +52,40 @@
             const form = e.target;
             const done = () => form.submit();
 
-            // PERBAIKAN AUDIT #15: sama seperti check-in, checkout di APK harus
-            // ambil koordinat dari Native Bridge, bukan navigator.geolocation.
+            // PERBAIKAN: sama seperti check-in - getCurrentLocation() sinkron,
+            // requestCurrentLocation() ASYNC lewat window.onNativeLocationResult.
             const bridge = window.Android || window.SalesNative;
-            if (bridge && (bridge.getCurrentLocation || bridge.requestCurrentLocation)) {
-                try {
-                    const raw = bridge.getCurrentLocation ? bridge.getCurrentLocation() : bridge.requestCurrentLocation();
-                    const loc = typeof raw === 'string' ? JSON.parse(raw) : raw;
-                    document.getElementById('co-latitude').value = loc.latitude;
-                    document.getElementById('co-longitude').value = loc.longitude;
-                } catch (err) { /* kirim tanpa koordinat akhir, tetap boleh checkout */ }
+            if (bridge) {
+                if (bridge.getCurrentLocation) {
+                    try {
+                        const loc = JSON.parse(bridge.getCurrentLocation());
+                        if (loc.available) {
+                            document.getElementById('co-latitude').value = loc.latitude;
+                            document.getElementById('co-longitude').value = loc.longitude;
+                            return done();
+                        }
+                    } catch (err) { /* lanjut ke requestCurrentLocation() */ }
+                }
+
+                if (bridge.requestCurrentLocation) {
+                    window.onNativeLocationResult = function (loc) {
+                        window.onNativeLocationResult = null;
+                        if (loc && loc.available) {
+                            document.getElementById('co-latitude').value = loc.latitude;
+                            document.getElementById('co-longitude').value = loc.longitude;
+                        }
+                        done();
+                    };
+                    bridge.requestCurrentLocation();
+                    setTimeout(function () {
+                        if (window.onNativeLocationResult) {
+                            window.onNativeLocationResult = null;
+                            done();
+                        }
+                    }, 12000);
+                    return false;
+                }
+
                 return done();
             }
 

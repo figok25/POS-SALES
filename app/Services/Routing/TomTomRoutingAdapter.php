@@ -172,7 +172,14 @@ class TomTomRoutingAdapter implements RoutingEngine
      * dokumentasi resmi TomTom sendiri tidak konsisten antara tabel field
      * (`message`) dan contoh JSON-nya (`instructionMessage`).
      *
-     * @return array<int, string>
+     * PERBAIKAN (turn-by-turn, audit #16/#34): sebelumnya hanya teks pesan
+     * yang diambil, sehingga Android tidak bisa tahu KAPAN harus menampilkan
+     * instruksi berikutnya (butuh titik + jarak). Sekarang ikut diekstrak
+     * `point` (lat/lng lokasi maneuver) dan `routeOffsetInMeters` (jarak
+     * kumulatif dari awal rute), supaya NavigationManager Android bisa
+     * membandingkan posisi GPS terkini terhadap titik maneuver berikutnya.
+     *
+     * @return array<int, array{message:string|null, maneuver:string|null, latitude:float|null, longitude:float|null, route_offset_meters:int|null}>
      */
     private function extractGuidanceMessages(array $route): array
     {
@@ -186,10 +193,19 @@ class TomTomRoutingAdapter implements RoutingEngine
             return [];
         }
 
-        return array_values(array_filter(array_map(
-            fn ($instruction) => $instruction['message'] ?? $instruction['instructionMessage'] ?? null,
-            $instructions
-        )));
+        return array_values(array_map(function ($instruction) {
+            $coords = $instruction['point']['coordinates'] ?? null;
+
+            return [
+                'message' => $instruction['message'] ?? $instruction['instructionMessage'] ?? null,
+                'maneuver' => $instruction['maneuver'] ?? null,
+                'latitude' => is_array($coords) ? (float) ($coords[1] ?? null) : null,
+                'longitude' => is_array($coords) ? (float) ($coords[0] ?? null) : null,
+                'route_offset_meters' => isset($instruction['routeOffsetInMeters'])
+                    ? (int) $instruction['routeOffsetInMeters']
+                    : null,
+            ];
+        }, $instructions));
     }
 
     /**

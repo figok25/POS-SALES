@@ -155,3 +155,148 @@ sesi ini (hanya file Laravel yang di-upload):
 5. Test alur: Login (WebView) → buka halaman Sales apapun (token terkirim
    otomatis ke Android) → buka Tracking → Start (cek Foreground Service
    Android benar-benar menyala) → Check-in Customer → Stop.
+
+---
+
+# LANJUTAN — Setelah cek app Android asli (build.zip)
+
+Setelah membandingkan langsung dengan kode Android (`WebViewBridge.kt`,
+`ApiModels.kt`, `SyncWorker.kt`), ditemukan & diperbaiki bug tambahan:
+
+1. **Kontrak `RouteResponse` tidak cocok (BUG BARU, kritis)** — endpoint
+   `routes/today`/`routes/reroute` sebelumnya mengembalikan Eloquent model
+   `SalesRoute` mentah di dalam `data`. Android (`RouteResponse`/`RouteStopDto`/
+   `GeoPointDto`) mengharapkan field FLAT (`source`, `route_id`,
+   `distance_meters`, `duration_seconds`, `stops`, `geometry`) langsung di
+   root JSON, dan tiap stop `{customer_id, name, latitude, longitude,
+   sequence, status}` bukan nested `customer.*`. Kalau tidak diperbaiki,
+   Android akan mem-parse hampir semua field jadi `null`. Sudah diperbaiki
+   di `RouteController::toRouteResponse()`, termasuk konversi geometry dari
+   `[lng, lat]` (raw TomTom) ke `{lat, lng}`.
+
+2. **`startTracking()` dikirim sebagai String, Android minta `Long`** —
+   `WebViewBridge.startTracking(trackingSessionId: Long)` akan gagal/exception
+   kalau dipanggil dengan JS string. Diperbaiki di
+   `sales/tracking/show.blade.php`: `Number(this.sessionId)`, bukan `String(...)`.
+
+3. **`requestCurrentLocation()` dikira sinkron, padahal ASYNC** — method ini
+   `void`, hasilnya dikirim lewat callback global `window.onNativeLocationResult(json)`,
+   BUKAN return value langsung. Kode saya sesi sebelumnya salah asumsi
+   sinkron. Diperbaiki di 3 tempat: `tracking/show.blade.php`,
+   `visits/create.blade.php` (check-in), `visits/index.blade.php` (check-out) —
+   sekarang coba `getCurrentLocation()` (sinkron) dulu, baru fallback ke
+   `requestCurrentLocation()` + listener `window.onNativeLocationResult` kalau
+   belum ada fix GPS.
+
+4. **SyncWorker Android: retry policy 4xx vs 5xx** — sebelumnya SEMUA
+   kegagalan (401/403/422/timeout) ditandai `FAILED` dan di-retry
+   WorkManager tanpa henti. Ditambahkan status `SyncStatus.REJECTED` untuk
+   401/403/400/422 (permanen, TIDAK di-retry lagi), `FAILED` dipertahankan
+   hanya untuk error transient (5xx/network/timeout). File yang diubah:
+   `database/LocationEventEntity.kt`, `database/LocationEventDao.kt`,
+   `sync/SyncWorker.kt`.
+
+## Dikonfirmasi SUDAH BENAR (tidak perlu diubah)
+- `WebViewBridge` sudah register alias `Android` DAN `SalesNative` (WebViewManager.kt).
+- `TrackingStartResponse`/`TrackingStatusResponse` Android sekarang cocok
+  dengan response Laravel yang sudah diperbaiki sesi lalu.
+- `startTracking()`/`stopTracking()` Retrofit tidak kirim body sama sekali —
+  ini aman karena `TrackingStartRequest`/`TrackingStopRequest` Laravel
+  sudah `nullable` untuk latitude/longitude.
+
+## Masih belum dikerjakan (di luar 2 file ini / butuh keputusan produk)
+- `LocationService` Android: SIGNAL_LOST watchdog masih TODO, lifecycle
+  langsung "ACTIVE" walau belum ada fix GPS (audit #9) — belum disentuh
+  sesi ini, butuh refactor lifecycle state machine yang lebih dalam.
+- Background location permission belum jadi syarat keras sebelum
+  `startTracking()` (baru cek fine-location, bukan background).
+- Movement/heartbeat filter (`LocationProcessor`) belum diselaraskan ke
+  baseline blueprint (20-50m/30-60s) — belum dicek nilainya sesi ini.
+- Turn-by-turn navigation (`NavigationManager`) masih placeholder (`openNavigation()` cuma buka `MapActivity` yang sama).
+- `.gitignore` Android belum dicek/dibuat (arsip masih bawa `.gradle/`, `.idea/`).
+
+---
+
+# LANJUTAN #2 — Menuntaskan semua item "belum dikerjakan"
+
+## ✅ Selesai sesi ini
+
+1. **SIGNAL_LOST watchdog** (`LocationService.kt`) — sebelumnya lifecycle
+   langsung diklaim ACTIVE begitu `startUpdates()` didaftarkan, dan tidak
+   ada mekanisme mendeteksi GPS benar-benar diam. Sekarang: lifecycle
+   TETAP `STARTING` sampai callback GPS mentah PERTAMA diterima, dan ada
+   watchdog `Handler` yang di-reset setiap callback masuk — kalau tidak ada
+   callback sama sekali dalam `AppConfig.SIGNAL_LOST_TIMEOUT_MS` (45 detik),
+   state pindah ke `PAUSED_SIGNAL_LOST` dan notifikasi berubah teks.
+
+2. **Background location permission jadi syarat keras** (`WebViewBridge.kt`) —
+   `startTracking()` sekarang cek `hasBackgroundLocationPermission()` juga
+   (bukan cuma fine-location), dan mengirim status baru
+   `BACKGROUND_PERMISSION_DENIED` ke WebView kalau ditolak. Ditambahkan juga
+   method `hasBackgroundLocationPermission()` yang bisa dipanggil dari JS.
+   Blade tracking (`show.blade.php`) sekarang mendengarkan
+   `window.onNativeTrackingStatus` untuk menampilkan pesan yang jelas ke
+   Sales, termasuk kondisi `PAUSED_SIGNAL_LOST` (banner "sinyal GPS hilang").
+
+3. **Movement/heartbeat & reroute threshold diselaraskan ke baseline**
+   (`AppConfig.kt` + `config/routing.php`) — `MIN_INTERVAL_MS` dinaikkan dari
+   7 detik ke 45 detik (baseline blueprint 30-60s heartbeat saat Sales diam),
+   `REROUTE_DEVIATION_THRESHOLD_METERS` diturunkan dari 300m ke 200m
+   (ujung atas rentang contoh blueprint 100-200m), selaras dengan default
+   Laravel.
+
+4. **Turn-by-turn navigation dasar** (P0 lama yang paling besar) —
+   dikerjakan end-to-end:
+   - Laravel `TomTomRoutingAdapter::extractGuidanceMessages()` sekarang
+     mengekstrak instruksi LENGKAP dengan titik maneuver (`latitude`/
+     `longitude`) dan jarak kumulatif (`route_offset_meters`), bukan cuma
+     teks pesan.
+   - `RouteController::toRouteResponse()` sekarang ikut mengirim field
+     `steps` ke API (sebelumnya tersimpan di `raw_response` tapi tidak
+     pernah dikeluarkan ke response).
+   - Android: `RouteStepDto` baru + field `steps` di `RouteResponse`
+     (`ApiModels.kt`).
+   - `NavigationManager` diubah dari `object` (stateless) jadi `class`
+     ber-instance yang melacak instruksi aktif berdasarkan jarak GPS Sales
+     SEKARANG ke titik maneuver berikutnya (`AppConfig.MANEUVER_ARRIVAL_RADIUS_METERS`
+     = 40m), TANPA memanggil TomTom ulang. Method lama (`guidanceText`,
+     `formatDistance`, `formatDuration`) dipertahankan sebagai companion
+     function supaya code lama yang sudah memanggilnya tidak perlu diubah.
+   - `MapActivity` memakai instance ini kalau `steps` tersedia, fallback ke
+     guidance garis lurus (perilaku lama) kalau tidak ada (mis. mode fallback
+     tanpa TomTom).
+   - **Batas jujur yang TETAP ada**: tidak ada voice guidance, tidak ada
+     map-matching/snap-to-road — instruksi berganti murni berdasar jarak
+     garis lurus ke titik maneuver, bukan progress di sepanjang jalan.
+
+5. **Dedup/lock generasi rute** (pengganti rencana tabel
+   `sales_route_requests`) — `RoutingService::calculateDailyRoute()` dan
+   `::reroute()` sekarang dibungkus `Cache::lock()` bawaan Laravel per
+   `sales_id + tanggal`, jadi dua request bersamaan (mis. double-tap
+   reload) tidak memicu 2 request TomTom untuk cache-key yang sama. Tidak
+   perlu tabel/migration baru.
+
+6. **Room destructive migration diganti Migration resmi** (`AppDatabase.kt`) —
+   `fallbackToDestructiveMigration()` DIHAPUS (sebelumnya setiap kenaikan
+   versi DB Android akan MENGHAPUS SELURUH antrian lokasi offline Sales
+   yang belum ter-sync — bertentangan langsung dengan tujuan Local Queue).
+   Diganti `MIGRATION_1_2` eksplisit yang hanya menambah tabel `route_cache`.
+
+## ⚠️ SENGAJA TIDAK dikerjakan (butuh keputusan produk, bukan sekadar bug fix)
+
+- **Branch authorization scope untuk Admin Live Monitoring** — dicek
+  langsung ke kode: `users` TIDAK punya kolom `branch_id` sama sekali, dan
+  TIDAK ADA satu pun controller admin lain di aplikasi ini yang menerapkan
+  branch-scoping (semua otorisasi murni permission-based via Spatie,
+  `permission:live-monitoring.view`, bukan branch-based). Menambahkan
+  branch-scoping HANYA di `LiveSalesController` berarti mengarang skema
+  otorisasi baru (kolom `users.branch_id` + pola scoping) yang tidak
+  konsisten dengan sisa aplikasi. Ini keputusan produk ("apakah Branch
+  Manager harus dibatasi hanya lihat cabangnya sendiri?") yang perlu
+  dijawab dulu sebelum diimplementasikan menyeluruh, bukan bug yang bisa
+  ditambal sepihak di satu file.
+
+## Sudah confirmed OK sebelumnya (tidak diulang)
+Kiosk/MDM Device Owner penuh dan voice guidance TIDAK dikerjakan karena
+keduanya kebijakan perangkat perusahaan / fitur besar di luar cakupan
+"perbaikan bug", bukan tertinggal karena lupa.
