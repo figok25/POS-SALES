@@ -51,6 +51,20 @@
             e.preventDefault();
             const form = e.target;
             const done = () => form.submit();
+
+            // PERBAIKAN AUDIT #15: sama seperti check-in, checkout di APK harus
+            // ambil koordinat dari Native Bridge, bukan navigator.geolocation.
+            const bridge = window.Android || window.SalesNative;
+            if (bridge && (bridge.getCurrentLocation || bridge.requestCurrentLocation)) {
+                try {
+                    const raw = bridge.getCurrentLocation ? bridge.getCurrentLocation() : bridge.requestCurrentLocation();
+                    const loc = typeof raw === 'string' ? JSON.parse(raw) : raw;
+                    document.getElementById('co-latitude').value = loc.latitude;
+                    document.getElementById('co-longitude').value = loc.longitude;
+                } catch (err) { /* kirim tanpa koordinat akhir, tetap boleh checkout */ }
+                return done();
+            }
+
             if (! navigator.geolocation) return done();
             navigator.geolocation.getCurrentPosition(function (pos) {
                 document.getElementById('co-latitude').value = pos.coords.latitude;

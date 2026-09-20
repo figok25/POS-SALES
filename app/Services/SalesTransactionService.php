@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Exceptions\InsufficientStockException;
+use App\Services\AuditLogger;
 use App\Models\Customer;
 use App\Models\DeliveryOrder;
 use App\Models\Price;

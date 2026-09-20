@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Customer;
+use App\Services\AuditLogger;
 use App\Models\CustomerAssignment;
 use Illuminate\Support\Facades\DB;
 

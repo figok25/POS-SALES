@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Invoice;
+use App\Services\AuditLogger;
 use App\Models\Payment;
 use App\Support\DocumentCode;
 use Illuminate\Support\Facades\DB;

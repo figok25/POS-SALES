@@ -41,6 +41,25 @@
             const form = e.target;
             const status = document.getElementById('lokasi-status');
             const done = () => form.submit();
+
+            // PERBAIKAN AUDIT #15: di dalam Sales APK, GPS HARUS dari Native
+            // Bridge (Fused Location), bukan navigator.geolocation browser -
+            // supaya konsisten dengan sumber lokasi yang dipakai tracking &
+            // tidak kena blokir secure-context saat dibuka lewat http://IP.
+            const bridge = window.Android || window.SalesNative;
+            if (bridge && (bridge.getCurrentLocation || bridge.requestCurrentLocation)) {
+                status.textContent = 'Mengambil lokasi dari GPS Native...';
+                try {
+                    const raw = bridge.getCurrentLocation ? bridge.getCurrentLocation() : bridge.requestCurrentLocation();
+                    const loc = typeof raw === 'string' ? JSON.parse(raw) : raw;
+                    document.getElementById('latitude').value = loc.latitude;
+                    document.getElementById('longitude').value = loc.longitude;
+                } catch (err) {
+                    status.textContent = 'Gagal mengambil lokasi Native, mengirim tanpa koordinat.';
+                }
+                return done();
+            }
+
             if (! navigator.geolocation) return done();
             status.textContent = 'Mengambil lokasi...';
             navigator.geolocation.getCurrentPosition(function (pos) {
