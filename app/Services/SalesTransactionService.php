@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Exceptions\InsufficientStockException;
 use App\Models\Customer;
+use App\Models\DeliveryOrder;
 use App\Models\Price;
 use App\Models\Product;
 use App\Models\SalesTransaction;
@@ -139,6 +140,26 @@ class SalesTransactionService
                 // dokumen lanjutan jika diperlukan"; Blueprint #23 relasi
                 // Sales -> Invoice).
                 $this->invoiceService->generateFromSalesTransaction($trx->fresh('items'));
+
+                // Fitur B.1/B.2: setiap Sales Transaction yang selesai
+                // otomatis masuk daftar Draft Delivery Order, tanpa perlu
+                // Admin membuat dokumen dari awal satu per satu. Item DO
+                // mengikuti persis item transaksi (snapshot, sama seperti
+                // pola DeliveryOrderController::store() manual).
+                $do = DeliveryOrder::create([
+                    'code' => 'TEMP',
+                    'sales_transaction_id' => $trx->id,
+                    'status' => DeliveryOrder::STATUS_DRAFT,
+                    'created_by' => $createdByUserId,
+                ]);
+                $do->update(['code' => DocumentCode::make('DO', $do->id)]);
+
+                foreach ($trx->items as $line) {
+                    $do->items()->create([
+                        'product_id' => $line->product_id,
+                        'quantity' => $line->quantity,
+                    ]);
+                }
 
                 $result = $trx->fresh(['items.product', 'customer', 'invoice']);
 

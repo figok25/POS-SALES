@@ -18,6 +18,14 @@ use Illuminate\Support\ServiceProvider;
  * Sales\RouteController@calculate) sudah dibind terpisah di AppServiceProvider
  * lewat interface RoutingEngine -- di sini kita bind instance TomTomRoutingAdapter
  * konkret untuk dipakai RoutingService::calculateMultiStopRoute().
+ *
+ * CATATAN TEKNIS (belum diperbaiki, di luar scope bugfix TomTom kali ini):
+ * provider ini membaca config('routing.tomtom.*'), sedangkan
+ * AppServiceProvider::RoutingEngine membaca config('services.routing.*') --
+ * DUA sumber config terpisah untuk provider yang sama. Sudah disamakan
+ * NILAI-nya (route_type default 'fast' di keduanya) supaya tidak lagi
+ * berbeda, tapi idealnya kedua provider ini dikonsolidasi ke satu sumber
+ * config saja supaya tidak berisiko ganda-tulis di kemudian hari.
  */
 class RoutingServiceProvider extends ServiceProvider
 {

@@ -70,6 +70,7 @@
                 <div>
                     <p class="px-2 text-xs uppercase tracking-wide text-gray-500 mb-1">Operations</p>
                     <a href="{{ route('admin.sales-tasks.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Sales Task</a>
+                    <a href="{{ route('admin.operations.live-monitoring.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Live Monitoring Sales</a>
                     <a href="{{ route('admin.operations.delivery-orders.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Delivery Order</a>
                     <a href="{{ route('admin.operations.routes.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Route</a>
                     <a href="{{ route('admin.master.vehicles.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Vehicle</a>

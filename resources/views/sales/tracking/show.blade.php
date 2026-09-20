@@ -18,7 +18,7 @@
             <div class="p-3 bg-red-100 text-red-800 rounded text-sm" x-text="errorMessage"></div>
         </template>
 
-        <template x-if="!geolocationSupported">
+        <template x-if="!geolocationSupported && !errorMessage">
             <div class="p-3 bg-yellow-100 text-yellow-800 rounded text-sm">
                 Browser ini tidak mendukung Geolocation. Gunakan Sales APK untuk tracking latar belakang.
             </div>
@@ -57,6 +57,18 @@
                 },
 
                 async init() {
+                    // BUGFIX: navigator.geolocation ADA di objek browser walau
+                    // origin tidak aman, tapi getCurrentPosition()-nya akan
+                    // selalu gagal diam-diam (reject) di HTTP non-localhost.
+                    // Deteksi di sini supaya Sales dapat pesan yang jelas,
+                    // bukan generic "Gagal mengambil lokasi" yang membingungkan.
+                    if (this.geolocationSupported && !window.isSecureContext) {
+                        this.geolocationSupported = false;
+                        this.errorMessage = 'Halaman ini dibuka lewat HTTP non-localhost (mis. domain Laragon seperti http://nama.test), sehingga browser memblokir akses GPS. '
+                            + 'Buka lewat http://localhost:8000 (atau 127.0.0.1:8000), atau aktifkan Auto SSL di Laragon untuk domain ini.';
+                        return;
+                    }
+
                     if (!this.geolocationSupported) return;
 
                     const res = await fetch('/api/sales/tracking/status', {

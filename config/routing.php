@@ -12,7 +12,12 @@ return [
         // sendiri path lengkapnya: {base_url}/maps/orbis/routing/routes/calculate
         'base_url' => env('TOMTOM_BASE_URL', 'https://api.tomtom.com'),
         'timeout_seconds' => (int) env('TOMTOM_TIMEOUT_SECONDS', 10),
-        'route_type' => env('TOMTOM_ROUTE_TYPE', 'fastest'),
+        // BUGFIX: default sebelumnya 'fastest' TIDAK VALID di Orbis v3 --
+        // nilai yang diterima cuma fast | short | efficient | thrilling
+        // (lihat docs.tomtom.com Migration Guide). 'fastest' bikin TomTom
+        // balas 400 Bad Request untuk SETIAP kalkulasi Today's Route
+        // (multi-stop), bahkan setelah field guidance/waypoints diperbaiki.
+        'route_type' => env('TOMTOM_ROUTE_TYPE', 'fast'),
         'traffic' => env('TOMTOM_TRAFFIC', 'true'),
     ],
 

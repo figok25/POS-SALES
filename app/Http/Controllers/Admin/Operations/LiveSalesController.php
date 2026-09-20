@@ -3,23 +3,40 @@
 namespace App\Http\Controllers\Admin\Operations;
 
 use App\Http\Controllers\Controller;
+use App\Models\Branch;
 use App\Models\Sales;
 use App\Models\SalesCurrentLocation;
 use App\Models\SalesLocationHistory;
 use Illuminate\Http\Request;
 
 /**
- * Live Sales Field Operations - Admin Live Monitoring API (Blueprint #28,
- * #29, #38, Fase 2):
+ * Live Sales Field Operations - Admin Live Monitoring (Blueprint #28,
+ * #29, #38, Fase 2 & Fase 7):
  *
- *   GET /api/admin/live-sales
- *   GET /api/admin/sales/{id}/locations
+ *   GET /admin/operations/live-monitoring        (index  - halaman peta)
+ *   GET /api/admin/live-sales                    (liveSales - JSON polling)
+ *   GET /api/admin/sales/{id}/locations          (locations - JSON history)
  *
  * MVP polling (Blueprint #31): Admin/JS map poll endpoint ini secara
  * berkala, bukan WebSocket.
  */
 class LiveSalesController extends Controller
 {
+    /**
+     * Halaman peta Live Monitoring: menampilkan seluruh Sales yang
+     * sedang tracking di satu peta MapLibre, auto-refresh lewat polling
+     * ke liveSales() di atas (Blueprint #28, sebelumnya belum ada
+     * halaman-nya sama sekali -- baru JSON API-nya).
+     */
+    public function index(Request $request)
+    {
+        $branches = Branch::where('is_active', true)->orderBy('name')->get();
+        $mapStyleUrl = config('services.maps.style_url');
+        $refreshSeconds = config('services.maps.admin_live_refresh_seconds', 15);
+
+        return view('admin.operations.live-monitoring.index', compact('branches', 'mapStyleUrl', 'refreshSeconds'));
+    }
+
     public function liveSales(Request $request)
     {
         $branchId = $request->query('branch_id');

@@ -10,6 +10,7 @@ use App\Models\Customer;
 use App\Models\Sales;
 use App\Models\SalesTask;
 use App\Models\SalesTaskDocument;
+use App\Models\SalesVisitPlan;
 use App\Models\Stock;
 use App\Services\AuditLogger;
 use App\Services\StockService;
@@ -115,7 +116,23 @@ class SalesTaskController extends Controller
 
             // PERBAIKAN AUDIT (item D - audit #14): simpan Visit Plan
             // harian kalau Admin mengisinya, urutan array = sequence.
-            foreach (($data['visit_plan'] ?? []) as $i => $line) {
+            //
+            // Fitur A.3: kalau Admin TIDAK mengisi visit_plan manual, ambil
+            // otomatis dari SalesVisitPlan (jadwal mingguan yang sudah
+            // disusun Admin sebelumnya) berdasarkan sales_id task ini +
+            // hari dari task_date -- menggantikan input manual satu-satu.
+            $visitPlanLines = $data['visit_plan'] ?? null;
+
+            if (empty($visitPlanLines)) {
+                $dayOfWeekIso = \Carbon\Carbon::parse($data['task_date'])->dayOfWeekIso;
+
+                $visitPlanLines = SalesVisitPlan::forDay($bkb->sales_id, $dayOfWeekIso)
+                    ->get()
+                    ->map(fn ($p) => ['customer_id' => $p->customer_id])
+                    ->all();
+            }
+
+            foreach ($visitPlanLines as $i => $line) {
                 $task->planCustomers()->create([
                     'customer_id' => $line['customer_id'],
                     'sequence' => $i,

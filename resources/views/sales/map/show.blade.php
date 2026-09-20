@@ -73,6 +73,17 @@
                         // sudah diizinkan. Lihat WebViewBridge.requestCurrentLocation().
                         this.nativeBridge = window.Android || window.SalesNative;
 
+                        // BUGFIX: sama seperti halaman Tracking - kalau bukan
+                        // native bridge (murni browser Laragon) DAN origin
+                        // tidak aman (HTTP non-localhost), getCurrentPosition
+                        // akan selalu gagal diam-diam. Deteksi lebih awal
+                        // supaya pesannya jelas & actionable.
+                        if (!this.nativeBridge && navigator.geolocation && !window.isSecureContext) {
+                            this.errorMessage = 'Halaman ini dibuka lewat HTTP non-localhost (mis. domain Laragon seperti http://nama.test), sehingga browser memblokir akses GPS. '
+                                + 'Buka lewat http://localhost:8000 (atau 127.0.0.1:8000), atau aktifkan Auto SSL di Laragon untuk domain ini.';
+                            return;
+                        }
+
                         if (!this.nativeBridge && !navigator.geolocation) {
                             this.errorMessage = 'Browser tidak mendukung Geolocation untuk menghitung route.';
                         }

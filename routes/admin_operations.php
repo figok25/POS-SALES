@@ -11,9 +11,18 @@
 use App\Http\Controllers\Admin\Operations\DeliveryOrderController;
 use App\Http\Controllers\Admin\Operations\DeliveryRouteController;
 use App\Http\Controllers\Admin\Operations\DriverController;
+use App\Http\Controllers\Admin\Operations\LiveSalesController;
 use App\Http\Controllers\Admin\Operations\MonitoringController;
 use App\Http\Controllers\Admin\RoutingQuotaController;
 use Illuminate\Support\Facades\Route;
+
+Route::middleware('permission:live-monitoring.view')->group(function () {
+    // BUGFIX: JSON API-nya (/api/admin/live-sales, /api/admin/sales/{id}/locations)
+    // sudah ada sejak Fase 2, tapi halaman peta-nya sendiri belum pernah
+    // dibuat -- Admin tidak punya cara melihat pergerakan Sales sama
+    // sekali. Route ini yang tadinya hilang.
+    Route::get('live-monitoring', [LiveSalesController::class, 'index'])->name('live-monitoring.index');
+});
 
 Route::middleware('permission:operations.view')->group(function () {
     Route::get('monitoring', [MonitoringController::class, 'index'])->name('monitoring.index');
@@ -34,6 +43,7 @@ Route::middleware('permission:operations.manage')->group(function () {
     Route::get('delivery-orders-create', [DeliveryOrderController::class, 'create'])->name('delivery-orders.create');
     Route::post('delivery-orders', [DeliveryOrderController::class, 'store'])->name('delivery-orders.store');
     Route::post('delivery-orders/{deliveryOrder}/dispatch', [DeliveryOrderController::class, 'dispatch'])->name('delivery-orders.dispatch');
+    Route::post('delivery-orders/bulk-dispatch', [DeliveryOrderController::class, 'bulkDispatch'])->name('delivery-orders.bulk-dispatch');
     Route::post('delivery-orders/{deliveryOrder}/deliver', [DeliveryOrderController::class, 'deliver'])->name('delivery-orders.deliver');
     Route::post('delivery-orders/{deliveryOrder}/cancel', [DeliveryOrderController::class, 'cancel'])->name('delivery-orders.cancel');
 
