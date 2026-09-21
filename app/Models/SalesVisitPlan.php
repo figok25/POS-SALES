@@ -14,7 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class SalesVisitPlan extends Model
 {
-    protected $fillable = ['sales_id', 'day_of_week', 'customer_id', 'sequence'];
+    protected $fillable = ['sales_id', 'day_of_week', 'customer_id', 'sequence', 'source'];
 
     public function sales(): BelongsTo
     {

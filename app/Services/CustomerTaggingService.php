@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Customer;
 use App\Services\AuditLogger;
 use App\Models\CustomerTagging;
+use App\Models\SalesVisitPlan;
 use App\Support\DocumentCode;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -101,6 +102,19 @@ class CustomerTaggingService
                 );
 
                 $tagging->customer_id = $customer->id;
+
+                // Otomasi Visit Plan "Rute Kanvas" (penyempurnaan Tagging
+                // Toko): outlet yang di-tag pada hari X otomatis ikut jadi
+                // bagian Rute Kanvas hari X untuk Sales tsb, supaya setiap
+                // minggu berikutnya toko ini otomatis kebentuk di rute --
+                // tidak menunggu Admin isi manual di Visit Plan.
+                //
+                // Sengaja HANYA menulis ke sales_visit_plans (template
+                // mingguan). Tidak menyentuh SalesTaskCustomer/SalesRoute/
+                // RouteStop -- itu tetap murni urusan SalesTaskController::
+                // store() (fallback SalesVisitPlan::forDay() yang sudah ada)
+                // dan RouteController (mobile), tidak diubah sama sekali.
+                $this->autoAddToVisitPlan($customer->id, $tagging->sales_id, $tagging->tagged_at);
             }
 
             $tagging->status = CustomerTagging::STATUS_APPROVED;
@@ -123,5 +137,28 @@ class CustomerTaggingService
         ]);
 
         return $tagging;
+    }
+
+    /**
+     * Sisipkan outlet ke Rute Kanvas (sales_visit_plans) pada hari sesuai
+     * $referenceDate (dipakai dengan $tagging->tagged_at -- hari toko
+     * DITEMUKAN di lapangan, bukan hari Admin approve). Idempotent lewat
+     * firstOrCreate: aman dipanggil ulang (mis. tagging yang sama entah
+     * bagaimana diproses dua kali) karena constraint unik
+     * uniq_visit_plan_slot (sales_id, day_of_week, customer_id) tetap
+     * berlaku sebagai pengaman terakhir.
+     */
+    private function autoAddToVisitPlan(int $customerId, int $salesId, \DateTimeInterface $referenceDate): void
+    {
+        $dayOfWeekIso = \Illuminate\Support\Carbon::parse($referenceDate)->dayOfWeekIso;
+
+        $nextSequence = 1 + (int) SalesVisitPlan::where('sales_id', $salesId)
+            ->where('day_of_week', $dayOfWeekIso)
+            ->max('sequence');
+
+        SalesVisitPlan::firstOrCreate(
+            ['sales_id' => $salesId, 'day_of_week' => $dayOfWeekIso, 'customer_id' => $customerId],
+            ['sequence' => $nextSequence, 'source' => 'tagging'],
+        );
     }
 }

@@ -60,15 +60,26 @@ class VisitPlanController extends Controller
         ]);
 
         DB::transaction(function () use ($data, $sales) {
+            // Simpan dulu source 'tagging' yang sudah ada sebelum di-delete,
+            // supaya submit form manual (walau hanya edit 1 hari) tidak
+            // menghapus jejak "otomatis dari tagging" milik hari-hari lain.
+            $existingSources = SalesVisitPlan::where('sales_id', $sales->id)
+                ->where('source', 'tagging')
+                ->get()
+                ->keyBy(fn ($p) => $p->day_of_week.':'.$p->customer_id);
+
             SalesVisitPlan::where('sales_id', $sales->id)->delete();
 
             foreach (($data['plan'] ?? []) as $day => $customerIds) {
                 foreach (array_values($customerIds) as $sequence => $customerId) {
+                    $wasFromTagging = $existingSources->has($day.':'.$customerId);
+
                     SalesVisitPlan::create([
                         'sales_id' => $sales->id,
                         'day_of_week' => (int) $day,
                         'customer_id' => $customerId,
                         'sequence' => $sequence,
+                        'source' => $wasFromTagging ? 'tagging' : 'manual',
                     ]);
                 }
             }

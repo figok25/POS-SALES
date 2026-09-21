@@ -35,6 +35,7 @@ Route::middleware('permission:sales-management.view')->group(function () {
 Route::middleware('permission:sales-management.manage')->group(function () {
     Route::post('customer-taggings/{tagging}/approve', [CustomerTaggingController::class, 'approve'])->name('customer-taggings.approve');
     Route::post('customer-taggings/{tagging}/reject', [CustomerTaggingController::class, 'reject'])->name('customer-taggings.reject');
+    Route::post('customer-taggings/bulk-approve', [CustomerTaggingController::class, 'bulkApprove'])->name('customer-taggings.bulk-approve');
 });
 
 // Fase 6 Hardening - Customer Assignment (Blueprint #729): siapa Sales

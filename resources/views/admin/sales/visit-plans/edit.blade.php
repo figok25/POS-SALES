@@ -20,6 +20,7 @@
                         <div class="bg-white rounded shadow p-4" data-day-container="{{ $dayNum }}">
                             <h2 class="font-semibold mb-3">{{ $dayName }}</h2>
                             <div class="space-y-2 max-h-80 overflow-y-auto" data-day-list="{{ $dayNum }}">
+                                @php $dayPlansByCustomer = ($plans[$dayNum] ?? collect())->keyBy('customer_id'); @endphp
                                 @foreach ($customers->sortBy(fn ($c) => array_search($c->id, $dayCustomerIds) === false ? 999 : array_search($c->id, $dayCustomerIds)) as $customer)
                                     <label class="flex items-center gap-2 text-sm">
                                         <input type="checkbox"
@@ -29,6 +30,9 @@
                                                class="visit-plan-checkbox"
                                                @checked(in_array($customer->id, $dayCustomerIds))>
                                         <span class="flex-1">{{ $customer->name }}</span>
+                                        @if (($dayPlansByCustomer[$customer->id]->source ?? null) === 'tagging')
+                                            <span class="text-[10px] uppercase tracking-wide text-indigo-700 bg-indigo-100 px-1.5 py-0.5 rounded" title="Otomatis ditambahkan dari Tagging Toko yang di-approve">dari tagging</span>
+                                        @endif
                                     </label>
                                 @endforeach
                             </div>
