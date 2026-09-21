@@ -78,6 +78,9 @@ Route::middleware(['permission:sales-stock.view', 'active_sales_task'])->group(f
 Route::middleware('permission:sales-stock.return')->prefix('return-stock')->name('return-stock.')->group(function () {
     Route::get('/', [ReturnStockController::class, 'index'])->name('index');
     Route::post('/', [ReturnStockController::class, 'store'])->name('store');
+    // PERBAIKAN: jalur khusus saat Sales Stock benar-benar 0 (habis
+    // terjual semua) - lihat catatan lengkap di ReturnStockController::completeEmpty().
+    Route::post('/complete-empty', [ReturnStockController::class, 'completeEmpty'])->name('complete-empty');
 });
 
 // Fase 7 - Payment yang diterima Sales langsung dari Customer di

@@ -13,7 +13,15 @@
             Anda belum memiliki pekerjaan (Working/Completed) yang bisa dijadikan rujukan retur.
         </div>
     @elseif ($currentStock->isEmpty())
-        <p class="text-sm text-gray-600 mb-3">Sales Stock Anda kosong, tidak ada yang bisa diretur.</p>
+        <div class="bg-white rounded-lg shadow p-4 text-sm">
+            <p class="text-gray-600 mb-3">Sales Stock Anda kosong, tidak ada yang bisa diretur. Ini normal kalau semua barang sudah terjual/dikunjungkan habis hari ini.</p>
+            <form method="POST" action="{{ route('sales.return-stock.complete-empty') }}" onsubmit="return confirm('Tandai Task ini selesai? Pastikan Sales Stock Anda memang sudah habis.');">
+                @csrf
+                <button class="w-full bg-blue-600 text-white px-3 py-2 rounded text-sm hover:bg-blue-700">
+                    Selesaikan Task (Stock Habis)
+                </button>
+            </form>
+        </div>
     @else
         <p class="text-sm text-gray-600 mb-3">Kirim stock sisa yang belum terjual. Admin akan memeriksa fisiknya sebelum disetujui.</p>
 
