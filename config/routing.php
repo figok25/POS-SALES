@@ -29,6 +29,8 @@ return [
     'monthly_hard_budget' => (int) env('ROUTING_MONTHLY_HARD_BUDGET', 18000),
 
     // Section 94: Reroute policy -- ambang jarak penyimpangan (meter) + jeda minimum antar reroute (detik)
-    'reroute_deviation_threshold_meters' => (int) env('ROUTING_REROUTE_THRESHOLD_METERS', 300),
+    // Diselaraskan dengan Android AppConfig.REROUTE_DEVIATION_THRESHOLD_METERS (200m,
+    // batas atas rentang blueprint "100-200m kandidat reroute"). Ubah dua-duanya bersamaan.
+    'reroute_deviation_threshold_meters' => (int) env('ROUTING_REROUTE_THRESHOLD_METERS', 200),
     'reroute_cooldown_seconds' => (int) env('ROUTING_REROUTE_COOLDOWN_SECONDS', 300),
 ];

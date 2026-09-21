@@ -68,7 +68,7 @@ class ReturnStockController extends Controller
         $items = array_values(array_filter($data['items'], fn ($line) => (float) ($line['quantity'] ?? 0) > 0));
 
         if (empty($items)) {
-            return back()->withInput()->with('error', 'Pilih minimal 1 produk dengan quantity lebih dari 0 untuk diretur.');
+            return back()->withInput()->with('error', 'Pilih minimal 1 produk dengan quantity lebih dari 0 untuk diretur. Jika Sales Stock Anda memang sudah habis, gunakan tombol "Selesaikan Task (Stock Habis)" di bawah.');
         }
 
         $task = $this->activeReturnableTask($sales->id);
@@ -132,6 +132,47 @@ class ReturnStockController extends Controller
 
         return redirect()->route('sales.return-stock.index')
             ->with('status', "Return Stock berhasil disubmit sebagai {$btb->code}. Task Anda ditandai selesai, menunggu pemeriksaan Admin.");
+    }
+
+    /**
+     * PERBAIKAN: Sales yang stock-nya sudah habis terjual (quantity 0 di
+     * SEMUA produk) sebelumnya TIDAK PUNYA cara menyelesaikan Task sama
+     * sekali - halaman index() hanya menampilkan teks "stock kosong" tanpa
+     * form apapun (lihat blade), sementara satu-satunya jalan Task pindah
+     * ke COMPLETED adalah lewat store() di atas yang mewajibkan minimal 1
+     * item quantity > 0. Method ini menutup Task TANPA membuat BtbDistribusi
+     * (karena memang tidak ada barang untuk diretur), khusus untuk kondisi
+     * stock benar-benar 0. Divalidasi ulang di server (bukan cuma dipercaya
+     * dari state blade) supaya tidak bisa dipakai untuk melewati Return
+     * Stock kalau ternyata Sales masih membawa sisa barang.
+     */
+    public function completeEmpty()
+    {
+        $sales = $this->currentSales();
+
+        $hasRemainingStock = Stock::where('location_type', Stock::LOCATION_SALES)
+            ->where('location_id', $sales->id)
+            ->where('quantity', '>', 0)
+            ->exists();
+
+        if ($hasRemainingStock) {
+            return back()->with('error', 'Sales Stock Anda tidak kosong - masih ada barang tersisa. Silakan submit Return Stock seperti biasa.');
+        }
+
+        $task = $this->activeReturnableTask($sales->id);
+
+        if (! $task) {
+            return back()->with('error', 'Tidak ada Sales Task aktif/selesai yang bisa ditandai selesai.');
+        }
+
+        if ($task->status !== SalesTask::STATUS_COMPLETED) {
+            $task->update(['status' => SalesTask::STATUS_COMPLETED, 'completed_at' => now()]);
+        }
+
+        AuditLogger::log('return_stock_complete_empty', 'Sales', SalesTask::class, $task->id, null, ['reason' => 'sales_stock_zero']);
+
+        return redirect()->route('sales.return-stock.index')
+            ->with('status', 'Task Anda ditandai selesai. Sales Stock Anda memang sudah habis, tidak ada yang perlu diretur.');
     }
 
     /**
