@@ -47,7 +47,9 @@
                     loading: false,
                     errorMessage: null,
                     routeInfo: null,
-                    nativeBridge: null,
+                    // Jangan simpan JavaScriptInterface Android di state Alpine.
+                    // Alpine dapat membungkusnya sebagai Proxy dan WebView akan
+                    // menolak pemanggilan method karena object bukan lagi injected object.
 
                     csrfToken() {
                         return document.querySelector('meta[name="csrf-token"]').content;
@@ -71,20 +73,20 @@
                         // dev HTTP (bukan HTTPS/localhost) -- Chromium menolak Geolocation
                         // API di origin yang dianggap tidak aman, walau izin lokasi Android
                         // sudah diizinkan. Lihat WebViewBridge.requestCurrentLocation().
-                        this.nativeBridge = window.Android || window.SalesNative;
+                        const bridge = window.Android || window.SalesNative;
 
                         // BUGFIX: sama seperti halaman Tracking - kalau bukan
                         // native bridge (murni browser Laragon) DAN origin
                         // tidak aman (HTTP non-localhost), getCurrentPosition
                         // akan selalu gagal diam-diam. Deteksi lebih awal
                         // supaya pesannya jelas & actionable.
-                        if (!this.nativeBridge && navigator.geolocation && !window.isSecureContext) {
+                        if (!bridge && navigator.geolocation && !window.isSecureContext) {
                             this.errorMessage = 'Halaman ini dibuka lewat HTTP non-localhost (mis. domain Laragon seperti http://nama.test), sehingga browser memblokir akses GPS. '
                                 + 'Buka lewat http://localhost:8000 (atau 127.0.0.1:8000), atau aktifkan Auto SSL di Laragon untuk domain ini.';
                             return;
                         }
 
-                        if (!this.nativeBridge && !navigator.geolocation) {
+                        if (!bridge && !navigator.geolocation) {
                             this.errorMessage = 'Browser tidak mendukung Geolocation untuk menghitung route.';
                         }
 
@@ -107,8 +109,9 @@
                         this.loading = true;
                         this.errorMessage = null;
 
-                        if (this.nativeBridge && typeof this.nativeBridge.requestCurrentLocation === 'function') {
-                            this.nativeBridge.requestCurrentLocation();
+                        const bridge = window.Android || window.SalesNative;
+                        if (bridge && typeof bridge.requestCurrentLocation === 'function') {
+                            bridge.requestCurrentLocation();
                             return;
                         }
 

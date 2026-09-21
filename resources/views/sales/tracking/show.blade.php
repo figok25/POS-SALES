@@ -63,21 +63,18 @@
                 intervalId: null,
                 lastPosition: null,
                 geolocationSupported: !!navigator.geolocation,
-                // PERBAIKAN AUDIT #1/#3/#6 (P0): kalau halaman ini dibuka di dalam
-                // Sales APK (WebView), window.Android / window.SalesNative SUDAH
-                // ada (didaftarkan Android lewat addJavascriptInterface). Dalam mode
-                // ini kita TIDAK boleh memakai navigator.geolocation sama sekali -
-                // itu penyebab error "secure context" di screenshot saat WebView
-                // dibuka lewat http://192.168.x.x. GPS & background service jadi
-                // 100% tanggung jawab Native lewat bridge ini.
-                nativeBridge: window.Android || window.SalesNative || null,
+                // PENTING: JANGAN simpan window.Android/window.SalesNative
+                // sebagai property Alpine. Alpine dapat membungkus object Java
+                // addJavascriptInterface dengan Proxy/reactive object sehingga
+                // Android menolak pemanggilan method: "non-injected object".
+                // Bridge selalu diambil langsung dari window saat akan dipanggil.
 
                 csrfToken() {
                     return document.querySelector('meta[name="csrf-token"]').content;
                 },
 
                 get isNative() {
-                    return !!this.nativeBridge;
+                    return !!(window.Android || window.SalesNative);
                 },
 
                 async init() {
@@ -143,6 +140,35 @@
                     });
                 },
 
+                requestNativeLocationPermission() {
+                    return new Promise((resolve, reject) => {
+                        const bridge = window.Android || window.SalesNative;
+                        if (!bridge || typeof bridge.requestLocationPermission !== 'function') {
+                            reject(new Error('PERMISSION_API_UNAVAILABLE'));
+                            return;
+                        }
+
+                        let settled = false;
+                        const timeout = setTimeout(() => {
+                            if (settled) return;
+                            settled = true;
+                            window.onNativeLocationPermissionResult = null;
+                            reject(new Error('PERMISSION_TIMEOUT'));
+                        }, 30000);
+
+                        window.onNativeLocationPermissionResult = (granted) => {
+                            if (settled) return;
+                            settled = true;
+                            clearTimeout(timeout);
+                            window.onNativeLocationPermissionResult = null;
+                            if (granted) resolve(true);
+                            else reject(new Error('PERMISSION_DENIED'));
+                        };
+
+                        bridge.requestLocationPermission();
+                    });
+                },
+
                 // Membungkus posisi supaya kode start()/stop() sama untuk kedua mode:
                 // native mengembalikan {latitude, longitude} langsung lewat bridge
                 // (JSON string), browser lewat Geolocation Position object.
@@ -159,29 +185,60 @@
                         }));
                     }
 
-                    if (this.nativeBridge.getCurrentLocation) {
-                        const loc = JSON.parse(this.nativeBridge.getCurrentLocation());
-                        if (loc.available) {
-                            return Promise.resolve({ latitude: loc.latitude, longitude: loc.longitude });
-                        }
+                    const bridge = window.Android || window.SalesNative;
+                    if (!bridge) {
+                        return Promise.reject(new Error('NATIVE_BRIDGE_UNAVAILABLE'));
                     }
 
-                    return new Promise((resolve, reject) => {
-                        window.onNativeLocationResult = (loc) => {
-                            window.onNativeLocationResult = null;
-                            if (loc && loc.available) {
-                                resolve({ latitude: loc.latitude, longitude: loc.longitude });
-                            } else {
-                                reject(new Error(loc?.reason || 'NO_FIX'));
+                    const ensurePermission = async () => {
+                        if (typeof bridge.hasLocationPermission === 'function' && !bridge.hasLocationPermission()) {
+                            await this.requestNativeLocationPermission();
+                        }
+                    };
+
+                    return ensurePermission().then(() => {
+                        if (typeof bridge.getCurrentLocation === 'function') {
+                            try {
+                                const loc = JSON.parse(bridge.getCurrentLocation());
+                                if (loc.available) {
+                                    return { latitude: loc.latitude, longitude: loc.longitude };
+                                }
+                            } catch (e) {
+                                // Lanjut meminta fresh GPS fix.
                             }
-                        };
-                        this.nativeBridge.requestCurrentLocation();
-                        setTimeout(() => {
-                            if (window.onNativeLocationResult) {
+                        }
+
+                        return new Promise((resolve, reject) => {
+                            let settled = false;
+                            const finish = (fn, value) => {
+                                if (settled) return;
+                                settled = true;
                                 window.onNativeLocationResult = null;
-                                reject(new Error('TIMEOUT'));
+                                fn(value);
+                            };
+
+                            window.onNativeLocationResult = (loc) => {
+                                if (loc && loc.available) {
+                                    finish(resolve, {
+                                        latitude: loc.latitude,
+                                        longitude: loc.longitude,
+                                    });
+                                } else {
+                                    finish(reject, new Error(loc?.reason || 'NO_FIX'));
+                                }
+                            };
+
+                            if (typeof bridge.requestCurrentLocation !== 'function') {
+                                finish(reject, new Error('LOCATION_API_UNAVAILABLE'));
+                                return;
                             }
-                        }, 12000);
+
+                            bridge.requestCurrentLocation();
+
+                            setTimeout(() => {
+                                finish(reject, new Error('TIMEOUT'));
+                            }, 18000);
+                        });
                     });
                 },
 
@@ -215,7 +272,11 @@
                                 // PERBAIKAN AUDIT #3/#4: sesi server ACTIVE HARUS diikuti
                                 // Native Foreground Location Service menyala, jangan
                                 // sampai server ACTIVE tapi native service tetap STOPPED.
-                                this.nativeBridge.startTracking(Number(this.sessionId));
+                                const bridge = window.Android || window.SalesNative;
+                                if (!bridge || typeof bridge.startTracking !== 'function') {
+                                    throw new Error('TRACKING_API_UNAVAILABLE');
+                                }
+                                bridge.startTracking(Number(this.sessionId));
                             } else {
                                 this.watchPosition();
                             }
@@ -223,9 +284,22 @@
                             this.errorMessage = json.message;
                         }
                     } catch (e) {
-                        this.errorMessage = this.isNative
-                            ? 'Gagal mengambil lokasi dari Native GPS. Pastikan izin lokasi aplikasi diaktifkan.'
-                            : 'Gagal mengambil lokasi. Pastikan izin lokasi browser diaktifkan.';
+                        const reason = e?.message || '';
+                        if (this.isNative) {
+                            if (reason === 'PERMISSION_DENIED') {
+                                this.errorMessage = 'Izin lokasi belum diberikan. Silakan izinkan akses Lokasi untuk Sales App lalu tekan Start Tracking lagi.';
+                            } else if (reason === 'NO_FIX' || reason === 'TIMEOUT') {
+                                this.errorMessage = 'GPS belum mendapatkan lokasi. Aktifkan Lokasi/GPS HP, pastikan berada di area terbuka, lalu coba lagi.';
+                            } else if (reason === 'PERMISSION_API_UNAVAILABLE') {
+                                this.errorMessage = 'APK belum mendukung permintaan izin lokasi otomatis. Build/install APK terbaru.';
+                            } else if (reason === 'NATIVE_BRIDGE_UNAVAILABLE' || reason === 'TRACKING_API_UNAVAILABLE' || reason === 'LOCATION_API_UNAVAILABLE') {
+                                this.errorMessage = 'Native GPS bridge tidak tersedia. Pastikan APK terbaru sudah terpasang dan halaman dibuka dari Sales App.';
+                            } else {
+                                this.errorMessage = 'Gagal mengambil lokasi dari Native GPS: ' + reason;
+                            }
+                        } else {
+                            this.errorMessage = 'Gagal mengambil lokasi. Pastikan izin lokasi browser diaktifkan.';
+                        }
                     }
 
                     this.loading = false;
@@ -260,7 +334,12 @@
                         // PERBAIKAN AUDIT #4: urutan STOP yang benar adalah Laravel
                         // stop session DULU, baru Native Service dimatikan - supaya
                         // tidak ada window waktu server ACTIVE tapi UI sudah bilang stop.
-                        if (this.isNative) this.nativeBridge.stopTracking();
+                        if (this.isNative) {
+                            const bridge = window.Android || window.SalesNative;
+                            if (bridge && typeof bridge.stopTracking === 'function') {
+                                bridge.stopTracking();
+                            }
+                        }
                     } else {
                         this.errorMessage = json.message;
                     }
