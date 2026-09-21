@@ -36,6 +36,7 @@ Route::middleware('permission:operations.view')->group(function () {
     Route::get('delivery-orders/{deliveryOrder}', [DeliveryOrderController::class, 'show'])->name('delivery-orders.show');
 
     Route::get('routes', [DeliveryRouteController::class, 'index'])->name('routes.index');
+    Route::get('routes/{item}/customers/export', [DeliveryRouteController::class, 'exportCustomers'])->name('routes.customers.export');
     Route::get('drivers', [DriverController::class, 'index'])->name('drivers.index');
 });
 
@@ -48,5 +49,13 @@ Route::middleware('permission:operations.manage')->group(function () {
     Route::post('delivery-orders/{deliveryOrder}/cancel', [DeliveryOrderController::class, 'cancel'])->name('delivery-orders.cancel');
 
     Route::resource('routes', DeliveryRouteController::class)->parameters(['routes' => 'item'])->except(['index', 'show']);
+
+    // Modul Manajemen Rute - detail pelanggan (Kode Rute, Jenis Rute,
+    // Salesman, Keterangan sudah ikut di Route::resource di atas).
+    Route::post('routes/{item}/customers', [DeliveryRouteController::class, 'storeCustomer'])->name('routes.customers.store');
+    Route::put('routes/{item}/customers/{routeCustomer}', [DeliveryRouteController::class, 'updateCustomer'])->name('routes.customers.update');
+    Route::delete('routes/{item}/customers/{routeCustomer}', [DeliveryRouteController::class, 'destroyCustomer'])->name('routes.customers.destroy');
+    Route::post('routes/{item}/customers/import', [DeliveryRouteController::class, 'importCustomers'])->name('routes.customers.import');
+
     Route::post('drivers/{item}/toggle', [DriverController::class, 'toggle'])->name('drivers.toggle');
 });
