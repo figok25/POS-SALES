@@ -30,7 +30,10 @@
         </div>
 
         <div class="bg-white rounded shadow overflow-x-auto mb-4">
-            <div class="px-3 py-2 border-b font-medium text-sm">Stock yang Ditugaskan</div>
+            <div class="px-3 py-2 border-b font-medium text-sm flex items-center justify-between">
+                <span>Stock yang Ditugaskan</span>
+                <a href="{{ route('admin.sales-tasks.print-stock', $salesTask) }}" target="_blank" class="text-blue-700 hover:underline text-xs font-normal">Cetak Daftar Stock</a>
+            </div>
             <table class="w-full text-sm">
                 <thead class="bg-gray-50 border-b">
                     <tr>

@@ -176,6 +176,20 @@ class SalesTaskController extends Controller
         return view('admin.operations.sales-tasks.show', compact('salesTask', 'salesList'));
     }
 
+    /**
+     * View print-friendly (format A4) untuk Sales Stock: daftar barang yang
+     * ditugaskan/dibawa Sales pada task ini, dipakai sebagai lampiran
+     * serah-terima stock fisik (Blueprint #13.6 - Verifikasi Stock).
+     */
+    public function printStock(SalesTask $salesTask)
+    {
+        $salesTask->load(['sales.branch.company', 'branch', 'taskStocks.product', 'bkbDistribusi']);
+
+        $company = $salesTask->sales?->branch?->company ?? $salesTask->branch?->company;
+
+        return view('admin.operations.sales-tasks.print-stock', compact('salesTask', 'company'));
+    }
+
     public function apply(SalesTask $salesTask)
     {
         if (! $salesTask->isDraft()) {

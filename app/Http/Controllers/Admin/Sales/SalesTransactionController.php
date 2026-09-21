@@ -34,4 +34,18 @@ class SalesTransactionController extends Controller
 
         return view('admin.sales.transactions.show', compact('transaction'));
     }
+
+    /**
+     * View print-friendly untuk Transaksi (Cetak Nota): format struk
+     * (thermal ~80mm) dan A4, dipilih lewat query `?format=`.
+     */
+    public function print(Request $request, SalesTransaction $transaction)
+    {
+        $transaction->load(['sales.branch.company', 'customer', 'items.product', 'invoice']);
+
+        $format = $request->query('format') === 'a4' ? 'a4' : 'struk';
+        $company = $transaction->sales?->branch?->company;
+
+        return view('admin.sales.transactions.print', compact('transaction', 'format', 'company'));
+    }
 }
