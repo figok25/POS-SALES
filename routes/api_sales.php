@@ -36,3 +36,11 @@ Route::middleware('permission:tracking.manage')->post('location', [TrackingContr
 // perhitungan rute dilakukan server-side, MapLibre di client hanya
 // menerima geometry siap-render (lihat App\Contracts\RoutingEngine).
 Route::middleware('permission:customer.view')->post('route/customer/{customer}', [RouteController::class, 'calculate'])->name('route.customer');
+
+// PERBAIKAN AUDIT (item A - P0): "Today's Route" & Reroute, sebelumnya
+// RoutingService::calculateDailyRoute()/reroute() sudah benar tapi belum
+// terpanggil dari route manapun.
+Route::middleware('permission:tracking.manage')->group(function () {
+    Route::get('routes/today', [RouteController::class, 'today'])->name('routes.today');
+    Route::post('routes/reroute', [RouteController::class, 'reroute'])->name('routes.reroute');
+});

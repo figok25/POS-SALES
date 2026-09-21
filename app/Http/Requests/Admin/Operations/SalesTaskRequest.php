@@ -24,6 +24,12 @@ class SalesTaskRequest extends FormRequest
             'stocks' => ['required', 'array', 'min:1'],
             'stocks.*.product_id' => ['required', 'exists:products,id'],
             'stocks.*.quantity_assigned' => ['required', 'numeric', 'min:0.01'],
+            // PERBAIKAN AUDIT (item D - audit #14): opsional -- kalau diisi,
+            // urutan array ini menjadi Visit Plan harian (sequence) yang
+            // dipakai RouteController::today() sebagai sumber kebenaran
+            // urutan stop, menggantikan heuristik jarak terdekat.
+            'visit_plan' => ['nullable', 'array'],
+            'visit_plan.*.customer_id' => ['required_with:visit_plan', 'exists:customers,id'],
         ];
     }
 

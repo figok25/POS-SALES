@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin\Operations;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\Operations\SalesTaskRequest;
 use App\Models\Branch;
+use App\Models\Customer;
 use App\Models\Product;
 use App\Models\Sales;
 use App\Models\SalesTask;
@@ -45,8 +46,9 @@ class SalesTaskController extends Controller
         $salesList = Sales::where('is_active', true)->orderBy('name')->get();
         $branches = Branch::where('is_active', true)->orderBy('name')->get();
         $products = Product::orderBy('name')->get();
+        $customers = Customer::where('is_active', true)->orderBy('name')->get();
 
-        return view('admin.operations.sales-tasks.create', compact('salesList', 'branches', 'products'));
+        return view('admin.operations.sales-tasks.create', compact('salesList', 'branches', 'products', 'customers'));
     }
 
     public function store(SalesTaskRequest $request)
@@ -70,6 +72,15 @@ class SalesTaskController extends Controller
                 $task->taskStocks()->create([
                     'product_id' => $line['product_id'],
                     'quantity_assigned' => $line['quantity_assigned'],
+                ]);
+            }
+
+            // PERBAIKAN AUDIT (item D - audit #14): simpan Visit Plan
+            // harian kalau Admin mengisinya, urutan array = sequence.
+            foreach (($data['visit_plan'] ?? []) as $i => $line) {
+                $task->planCustomers()->create([
+                    'customer_id' => $line['customer_id'],
+                    'sequence' => $i,
                 ]);
             }
 
@@ -129,5 +140,37 @@ class SalesTaskController extends Controller
         AuditLogger::log('cancel', 'Operations', SalesTask::class, $salesTask->id, $before, $salesTask->toArray());
 
         return back()->with('status', 'Sales Task dibatalkan.');
+    }
+
+    /**
+     * PERBAIKAN AUDIT (item D - audit #13): Task yang berhenti di status
+     * stock_variance (ada selisih quantity_assigned vs quantity_verified)
+     * butuh persetujuan eksplisit dari Admin sebelum Sales bisa mulai
+     * bekerja (start-work). Approval ini WAJIB dicatat di audit_logs
+     * karena berarti Admin menyetujui Sales membawa stock yang berbeda
+     * dari yang ditugaskan semula.
+     */
+    public function approveVariance(Request $request, SalesTask $salesTask)
+    {
+        if ($salesTask->status !== SalesTask::STATUS_STOCK_VARIANCE) {
+            return back()->with('error', 'Task ini tidak sedang menunggu approval selisih stock.');
+        }
+
+        $request->validate([
+            'approval_notes' => ['nullable', 'string'],
+        ]);
+
+        $before = $salesTask->toArray();
+
+        $salesTask->update([
+            'status' => SalesTask::STATUS_READY_TO_WORK,
+            'notes' => trim(($salesTask->notes ? $salesTask->notes."\n" : '')
+                .'[Variance disetujui oleh '.(auth()->user()->name ?? 'Admin').' pada '.now()->format('d/m/Y H:i').']'
+                .($request->input('approval_notes') ? ' '.$request->input('approval_notes') : '')),
+        ]);
+
+        AuditLogger::log('approve_variance', 'Operations', SalesTask::class, $salesTask->id, $before, $salesTask->fresh()->toArray());
+
+        return back()->with('status', 'Selisih stock disetujui. Task siap dikerjakan Sales (Ready to Work).');
     }
 }

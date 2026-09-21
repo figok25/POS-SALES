@@ -30,7 +30,12 @@ class EnsureActiveSalesTask
     {
         $sales = Sales::currentForUser($request->user()->id);
 
+        // PERBAIKAN AUDIT (item D - audit #12): sebelumnya query ini tidak
+        // membatasi tanggal task sama sekali, jadi task 'ready_to_work'/
+        // 'working' dari HARI LAIN yang lupa di-selesaikan Admin/Sales bisa
+        // tetap membuka gate hari ini. Sekarang wajib task_date = hari ini.
         $hasActiveTask = $sales && SalesTask::where('sales_id', $sales->id)
+            ->whereDate('task_date', today())
             ->whereIn('status', [SalesTask::STATUS_READY_TO_WORK, SalesTask::STATUS_WORKING])
             ->exists();
 

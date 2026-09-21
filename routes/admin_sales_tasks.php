@@ -19,4 +19,6 @@ Route::middleware('permission:sales-task.manage')->group(function () {
     Route::post('/', [SalesTaskController::class, 'store'])->name('store');
     Route::post('{salesTask}/apply', [SalesTaskController::class, 'apply'])->name('apply');
     Route::post('{salesTask}/cancel', [SalesTaskController::class, 'cancel'])->name('cancel');
+    // PERBAIKAN AUDIT (item D - audit #13): approval selisih stock.
+    Route::post('{salesTask}/approve-variance', [SalesTaskController::class, 'approveVariance'])->name('approve-variance');
 });

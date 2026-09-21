@@ -60,11 +60,24 @@ return [
      * baru (lihat App\Services\Routing) + ubah ROUTING_PROVIDER di sini,
      * tanpa mengubah business logic Visit/Customer/Sales/Transaction.
      */
+    /*
+     * Routing Engine terpisah dari map rendering (Blueprint #64
+     * Architecture Lock, #67 Provider Abstraction). TomTom Routing API
+     * Orbis v3 adalah routing service RESMI proyek - dipilih karena
+     * tidak butuh server/VPS sendiri (cocok Hostinger Shared Hosting),
+     * gratis 20.000 request/bulan. OpenRouteServiceAdapter tetap
+     * tersedia sebagai alternatif kalau suatu saat dibutuhkan.
+     */
     'routing' => [
-        'provider' => env('ROUTING_PROVIDER', 'openrouteservice'),
-        'base_url' => env('ROUTING_BASE_URL', 'https://api.openrouteservice.org'),
+        'provider' => env('ROUTING_PROVIDER', 'tomtom'),
+        'base_url' => env('ROUTING_BASE_URL', 'https://api.tomtom.com'),
         'api_key' => env('ROUTING_API_KEY'),
-        'profile' => env('ROUTING_PROFILE', 'driving-car'),
+        'profile' => env('ROUTING_PROFILE', 'driving-car'), // dipakai OpenRouteServiceAdapter saja
+        'route_type' => env('ROUTING_ROUTE_TYPE', 'fast'), // fast | short | efficient | thrilling (TomTom)
+        'traffic' => env('ROUTING_TRAFFIC', 'live'), // live | historical (TomTom)
+        // Blueprint #76: cache hasil rute supaya tidak boros quota untuk
+        // lokasi yang sama/nyaris sama dalam rentang waktu singkat.
+        'cache_ttl_seconds' => env('ROUTING_CACHE_TTL_SECONDS', 900),
     ],
 
 ];

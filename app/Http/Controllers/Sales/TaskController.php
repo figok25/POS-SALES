@@ -115,8 +115,21 @@ class TaskController extends Controller
 
             $allVerified = $task->taskStocks()->whereNull('quantity_verified')->doesntExist();
 
+            if (! $allVerified) {
+                $task->update(['status' => SalesTask::STATUS_STOCK_VERIFICATION]);
+
+                return;
+            }
+
+            // PERBAIKAN AUDIT (item D - audit #13): sebelumnya selisih
+            // (quantity_verified != quantity_assigned) tidak ditangani sama
+            // sekali -- Task langsung jadi ready_to_work walau stock yang
+            // dibawa Sales berbeda dari yang ditugaskan. Sekarang selisih
+            // menahan Task di status stock_variance sampai Admin approve
+            // secara eksplisit (lihat Admin\Operations\SalesTaskController::approveVariance).
+            $task->load('taskStocks');
             $task->update([
-                'status' => $allVerified ? SalesTask::STATUS_READY_TO_WORK : SalesTask::STATUS_STOCK_VERIFICATION,
+                'status' => $task->hasStockVariance() ? SalesTask::STATUS_STOCK_VARIANCE : SalesTask::STATUS_READY_TO_WORK,
             ]);
         });
 
@@ -129,6 +142,13 @@ class TaskController extends Controller
     public function startWork(SalesTask $task)
     {
         $this->authorizeOwnership($task);
+
+        if ($task->status === SalesTask::STATUS_STOCK_VARIANCE) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Ada selisih stock yang belum disetujui Admin. Tunggu approval Admin sebelum mulai bekerja.',
+            ], 403);
+        }
 
         if ($task->status !== SalesTask::STATUS_READY_TO_WORK) {
             return response()->json([
