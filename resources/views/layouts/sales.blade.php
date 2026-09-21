@@ -51,5 +51,37 @@
     </nav>
 
     @stack('scripts')
+
+    {{--
+        PERBAIKAN AUDIT #2/#7 (P0): kirim Sanctum token ke Android SETIAP kali
+        WebView memuat halaman Sales, supaya Retrofit native (background
+        service) selalu punya Authorization: Bearer <token> yang valid.
+        Endpoint ini aman dipanggil berkali-kali (rotasi token 'sales-app').
+        Di browser biasa (tanpa bridge Android), fetch ini tidak berdampak apa-apa.
+    --}}
+    <script>
+        (function () {
+            var bridge = window.Android || window.SalesNative;
+            if (!bridge || typeof bridge.setAuthToken !== 'function') return;
+
+            fetch('{{ route('sales.native-token') }}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Accept': 'application/json',
+                },
+            })
+                .then(function (res) { return res.json(); })
+                .then(function (json) {
+                    if (json.success && json.data && json.data.token) {
+                        bridge.setAuthToken(json.data.token);
+                    }
+                })
+                .catch(function () {
+                    // Diam-diam gagal - WebView tetap jalan pakai session biasa,
+                    // hanya background native sync yang akan menunggu retry berikutnya.
+                });
+        })();
+    </script>
 </body>
 </html>

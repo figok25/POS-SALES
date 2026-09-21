@@ -20,46 +20,121 @@
                class="px-3 py-1.5 rounded {{ $status === 'rejected' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700' }}">Rejected</a>
         </div>
 
-        <div class="bg-white rounded shadow overflow-x-auto">
-            <table class="w-full text-sm">
-                <thead class="bg-gray-50 border-b">
-                    <tr>
-                        <th class="px-3 py-2 text-left">Waktu Tagging</th>
-                        <th class="px-3 py-2 text-left">Sales</th>
-                        <th class="px-3 py-2 text-left">Nama Toko</th>
-                        <th class="px-3 py-2 text-left">Telepon</th>
-                        <th class="px-3 py-2 text-left">Tipe</th>
-                        <th class="px-3 py-2 text-left">Status</th>
-                        <th class="px-3 py-2 text-right">Aksi</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse ($items as $item)
-                        <tr class="border-b">
-                            <td class="px-3 py-2">{{ $item->tagged_at->format('d M Y H:i') }}</td>
-                            <td class="px-3 py-2">{{ $item->sales->name ?? '-' }}</td>
-                            <td class="px-3 py-2">{{ $item->name }}</td>
-                            <td class="px-3 py-2">{{ $item->phone ?? '-' }}</td>
-                            <td class="px-3 py-2">{{ $item->customer_type ?? '-' }}</td>
-                            <td class="px-3 py-2">
-                                @if ($item->status === 'pending')
-                                    <span class="text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded text-xs">Pending</span>
-                                @elseif ($item->status === 'approved')
-                                    <span class="text-green-700 bg-green-100 px-2 py-0.5 rounded text-xs">Approved</span>
-                                @else
-                                    <span class="text-red-700 bg-red-100 px-2 py-0.5 rounded text-xs">Rejected</span>
-                                @endif
-                            </td>
-                            <td class="px-3 py-2 text-right">
-                                <a href="{{ route('admin.sales.customer-taggings.show', $item) }}" class="text-blue-600 hover:underline">Detail</a>
-                            </td>
+        @if ($status === 'pending')
+            <form id="bulk-approve-form" method="POST" action="{{ route('admin.sales.customer-taggings.bulk-approve') }}">
+                @csrf
+                <div class="mb-3 flex items-center gap-3">
+                    <button type="submit"
+                            id="bulk-approve-btn"
+                            disabled
+                            onclick="return confirm('Approve semua tagging terpilih? Customer akan langsung dibuat dan masuk Rute Kanvas.')"
+                            class="px-3 py-1.5 rounded text-sm bg-green-600 text-white disabled:bg-gray-300 disabled:cursor-not-allowed">
+                        Approve Terpilih (<span id="bulk-approve-count">0</span>)
+                    </button>
+                </div>
+
+                <div class="bg-white rounded shadow overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-50 border-b">
+                            <tr>
+                                <th class="px-3 py-2 text-left w-8"><input type="checkbox" id="select-all-taggings"></th>
+                                <th class="px-3 py-2 text-left">Waktu Tagging</th>
+                                <th class="px-3 py-2 text-left">Sales</th>
+                                <th class="px-3 py-2 text-left">Nama Toko</th>
+                                <th class="px-3 py-2 text-left">Telepon</th>
+                                <th class="px-3 py-2 text-left">Tipe</th>
+                                <th class="px-3 py-2 text-left">Status</th>
+                                <th class="px-3 py-2 text-right">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse ($items as $item)
+                                <tr class="border-b">
+                                    <td class="px-3 py-2">
+                                        <input type="checkbox" name="tagging_ids[]" value="{{ $item->id }}" class="tagging-checkbox">
+                                    </td>
+                                    <td class="px-3 py-2">{{ $item->tagged_at->format('d M Y H:i') }}</td>
+                                    <td class="px-3 py-2">{{ $item->sales->name ?? '-' }}</td>
+                                    <td class="px-3 py-2">{{ $item->name }}</td>
+                                    <td class="px-3 py-2">{{ $item->phone ?? '-' }}</td>
+                                    <td class="px-3 py-2">{{ $item->customer_type ?? '-' }}</td>
+                                    <td class="px-3 py-2">
+                                        <span class="text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded text-xs">Pending</span>
+                                    </td>
+                                    <td class="px-3 py-2 text-right">
+                                        <a href="{{ route('admin.sales.customer-taggings.show', $item) }}" class="text-blue-600 hover:underline">Detail</a>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr><td colspan="99" class="px-3 py-6 text-center text-gray-500">Belum ada data.</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </form>
+
+            <script>
+                (function () {
+                    const selectAll = document.getElementById('select-all-taggings');
+                    const checkboxes = document.querySelectorAll('.tagging-checkbox');
+                    const countEl = document.getElementById('bulk-approve-count');
+                    const btn = document.getElementById('bulk-approve-btn');
+
+                    function refresh() {
+                        const checked = document.querySelectorAll('.tagging-checkbox:checked').length;
+                        countEl.textContent = checked;
+                        btn.disabled = checked === 0;
+                    }
+
+                    selectAll?.addEventListener('change', function () {
+                        checkboxes.forEach(cb => { cb.checked = selectAll.checked; });
+                        refresh();
+                    });
+
+                    checkboxes.forEach(cb => cb.addEventListener('change', refresh));
+                    refresh();
+                })();
+            </script>
+        @else
+            <div class="bg-white rounded shadow overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-50 border-b">
+                        <tr>
+                            <th class="px-3 py-2 text-left">Waktu Tagging</th>
+                            <th class="px-3 py-2 text-left">Sales</th>
+                            <th class="px-3 py-2 text-left">Nama Toko</th>
+                            <th class="px-3 py-2 text-left">Telepon</th>
+                            <th class="px-3 py-2 text-left">Tipe</th>
+                            <th class="px-3 py-2 text-left">Status</th>
+                            <th class="px-3 py-2 text-right">Aksi</th>
                         </tr>
-                    @empty
-                        <tr><td colspan="99" class="px-3 py-6 text-center text-gray-500">Belum ada data.</td></tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
+                    </thead>
+                    <tbody>
+                        @forelse ($items as $item)
+                            <tr class="border-b">
+                                <td class="px-3 py-2">{{ $item->tagged_at->format('d M Y H:i') }}</td>
+                                <td class="px-3 py-2">{{ $item->sales->name ?? '-' }}</td>
+                                <td class="px-3 py-2">{{ $item->name }}</td>
+                                <td class="px-3 py-2">{{ $item->phone ?? '-' }}</td>
+                                <td class="px-3 py-2">{{ $item->customer_type ?? '-' }}</td>
+                                <td class="px-3 py-2">
+                                    @if ($item->status === 'approved')
+                                        <span class="text-green-700 bg-green-100 px-2 py-0.5 rounded text-xs">Approved</span>
+                                    @else
+                                        <span class="text-red-700 bg-red-100 px-2 py-0.5 rounded text-xs">Rejected</span>
+                                    @endif
+                                </td>
+                                <td class="px-3 py-2 text-right">
+                                    <a href="{{ route('admin.sales.customer-taggings.show', $item) }}" class="text-blue-600 hover:underline">Detail</a>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="99" class="px-3 py-6 text-center text-gray-500">Belum ada data.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        @endif
 
         <div class="mt-4">{{ $items->links() }}</div>
     </div>

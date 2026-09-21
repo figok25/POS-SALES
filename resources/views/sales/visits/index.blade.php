@@ -51,6 +51,44 @@
             e.preventDefault();
             const form = e.target;
             const done = () => form.submit();
+
+            // PERBAIKAN: sama seperti check-in - getCurrentLocation() sinkron,
+            // requestCurrentLocation() ASYNC lewat window.onNativeLocationResult.
+            const bridge = window.Android || window.SalesNative;
+            if (bridge) {
+                if (bridge.getCurrentLocation) {
+                    try {
+                        const loc = JSON.parse(bridge.getCurrentLocation());
+                        if (loc.available) {
+                            document.getElementById('co-latitude').value = loc.latitude;
+                            document.getElementById('co-longitude').value = loc.longitude;
+                            return done();
+                        }
+                    } catch (err) { /* lanjut ke requestCurrentLocation() */ }
+                }
+
+                if (bridge.requestCurrentLocation) {
+                    window.onNativeLocationResult = function (loc) {
+                        window.onNativeLocationResult = null;
+                        if (loc && loc.available) {
+                            document.getElementById('co-latitude').value = loc.latitude;
+                            document.getElementById('co-longitude').value = loc.longitude;
+                        }
+                        done();
+                    };
+                    bridge.requestCurrentLocation();
+                    setTimeout(function () {
+                        if (window.onNativeLocationResult) {
+                            window.onNativeLocationResult = null;
+                            done();
+                        }
+                    }, 12000);
+                    return false;
+                }
+
+                return done();
+            }
+
             if (! navigator.geolocation) return done();
             navigator.geolocation.getCurrentPosition(function (pos) {
                 document.getElementById('co-latitude').value = pos.coords.latitude;

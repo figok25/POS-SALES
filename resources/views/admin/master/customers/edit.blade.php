@@ -4,45 +4,63 @@
         <form method="POST" action="{{ route('admin.master.customers.update', $item) }}" class="panel panel-body">
             @csrf
             @method('PUT')
-
-            <div class="form-group">
-                <label class="form-label">Sales</label>
-                <select name="sales_id" class="form-control @error('sales_id') is-invalid @enderror">
-                    <option value="">-- Pilih Sales --</option>
-                    @foreach ($saless as $opt)
-                        <option value="{{ $opt->id }}" @selected(old('sales_id', $item->sales_id ?? null) == $opt->id)>{{ $opt->name }}</option>
-                    @endforeach
-                </select>
-                @error('sales_id') <p class="form-error">{{ $message }}</p> @enderror
+            
+        <div class="mb-4">
+            <label class="block text-sm font-medium mb-1">Sales</label>
+            <select name="sales_id" class="w-full border rounded px-3 py-2 text-sm">
+                <option value="">-- Pilih Sales --</option>
+                @foreach ($saless as $opt)
+                    <option value="{{ $opt->id }}" @selected(old('sales_id', $item->sales_id ?? null) == $opt->id)>{{ $opt->name }}</option>
+                @endforeach
+            </select>
+            @error('sales_id') <p class="text-red-600 text-xs mt-1">{{ $message }}</p> @enderror
+        </div>
+        <div class="mb-4">
+            <label class="block text-sm font-medium mb-1">Kode *</label>
+            <input type="text" name="code" value="{{ old('code', $item->code ?? '') }}" class="w-full border rounded px-3 py-2 text-sm">
+            @error('code') <p class="text-red-600 text-xs mt-1">{{ $message }}</p> @enderror
+        </div>
+        <div class="mb-4">
+            <label class="block text-sm font-medium mb-1">Nama *</label>
+            <input type="text" name="name" value="{{ old('name', $item->name ?? '') }}" class="w-full border rounded px-3 py-2 text-sm">
+            @error('name') <p class="text-red-600 text-xs mt-1">{{ $message }}</p> @enderror
+        </div>
+        <div class="mb-4">
+            <label class="block text-sm font-medium mb-1">Alamat</label>
+            <textarea name="address" rows="3" class="w-full border rounded px-3 py-2 text-sm">{{ old('address', $item->address ?? '') }}</textarea>
+            @error('address') <p class="text-red-600 text-xs mt-1">{{ $message }}</p> @enderror
+        </div>
+        <div class="mb-4">
+            <label class="block text-sm font-medium mb-1">Telepon</label>
+            <input type="text" name="phone" value="{{ old('phone', $item->phone ?? '') }}" class="w-full border rounded px-3 py-2 text-sm">
+            @error('phone') <p class="text-red-600 text-xs mt-1">{{ $message }}</p> @enderror
+        </div>
+        <div class="mb-4">
+            <label class="block text-sm font-medium mb-1">NPWP</label>
+            <input type="text" name="npwp" value="{{ old('npwp', $item->npwp ?? '') }}" class="w-full border rounded px-3 py-2 text-sm">
+            @error('npwp') <p class="text-red-600 text-xs mt-1">{{ $message }}</p> @enderror
+        </div>
+        <div class="mb-4 grid grid-cols-2 gap-3">
+            <div>
+                <label class="block text-sm font-medium mb-1">Latitude</label>
+                <input type="text" name="latitude" value="{{ old('latitude', $item->latitude ?? '') }}" placeholder="-8.0768309" class="w-full border rounded px-3 py-2 text-sm">
+                @error('latitude') <p class="text-red-600 text-xs mt-1">{{ $message }}</p> @enderror
             </div>
-            <div class="form-group">
-                <label class="form-label">Kode *</label>
-                <input type="text" name="code" value="{{ old('code', $item->code ?? '') }}" class="form-control @error('code') is-invalid @enderror">
-                @error('code') <p class="form-error">{{ $message }}</p> @enderror
+            <div>
+                <label class="block text-sm font-medium mb-1">Longitude</label>
+                <input type="text" name="longitude" value="{{ old('longitude', $item->longitude ?? '') }}" placeholder="111.7016798" class="w-full border rounded px-3 py-2 text-sm">
+                @error('longitude') <p class="text-red-600 text-xs mt-1">{{ $message }}</p> @enderror
             </div>
-            <div class="form-group">
-                <label class="form-label">Nama *</label>
-                <input type="text" name="name" value="{{ old('name', $item->name ?? '') }}" class="form-control @error('name') is-invalid @enderror">
-                @error('name') <p class="form-error">{{ $message }}</p> @enderror
-            </div>
-            <div class="form-group">
-                <label class="form-label">Alamat</label>
-                <textarea name="address" rows="3" class="form-control @error('address') is-invalid @enderror">{{ old('address', $item->address ?? '') }}</textarea>
-                @error('address') <p class="form-error">{{ $message }}</p> @enderror
-            </div>
-            <div class="form-group">
-                <label class="form-label">Telepon</label>
-                <input type="text" name="phone" value="{{ old('phone', $item->phone ?? '') }}" class="form-control @error('phone') is-invalid @enderror">
-                @error('phone') <p class="form-error">{{ $message }}</p> @enderror
-            </div>
-            <div class="form-group">
-                <label class="form-label">NPWP</label>
-                <input type="text" name="npwp" value="{{ old('npwp', $item->npwp ?? '') }}" class="form-control @error('npwp') is-invalid @enderror">
-                @error('npwp') <p class="form-error">{{ $message }}</p> @enderror
-            </div>
-            <div class="form-group">
-                <label class="form-check">
-                    <input type="checkbox" name="is_active" value="1" @checked($item->is_active)> Aktif
+            <p class="col-span-2 text-xs text-gray-500">
+                Dipakai Peta Customer di Sales App. Biasanya otomatis terisi saat Admin approve Tagging Toko dari Sales.
+                @if ($item->latitude && $item->longitude)
+                    <a href="https://maps.google.com/?q={{ $item->latitude }},{{ $item->longitude }}" target="_blank" class="text-blue-600 hover:underline">Lihat di Google Maps</a>
+                @endif
+            </p>
+        </div>
+            <div class="mb-4">
+                <label class="inline-flex items-center text-sm">
+                    <input type="checkbox" name="is_active" value="1" @checked($item->is_active) class="mr-2"> Aktif
                 </label>
             </div>
 

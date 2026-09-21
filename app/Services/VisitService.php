@@ -3,7 +3,9 @@
 namespace App\Services;
 
 use App\Models\Customer;
+use App\Models\CustomerAssignment;
 use App\Models\Visit;
+use App\Services\AuditLogger;
 use App\Support\Geo;
 use Illuminate\Validation\ValidationException;
 
@@ -35,6 +37,22 @@ class VisitService
         }
 
         $customer = Customer::findOrFail($customerId);
+
+        // PERBAIKAN AUDIT #16: Customer Assignment adalah authorization/business
+        // relationship (bukan cuma penanda), jadi Sales HARUS divalidasi benar-benar
+        // ditugaskan ke Customer ini sebelum boleh check-in - bukan sekadar bisa
+        // check-in ke Customer manapun yang ID-nya diketahui.
+        $isAssigned = $customer->sales_id === $salesId
+            || CustomerAssignment::where('customer_id', $customerId)
+                ->where('sales_id', $salesId)
+                ->whereNull('unassigned_at')
+                ->exists();
+
+        if (! $isAssigned) {
+            throw ValidationException::withMessages([
+                'customer_id' => 'Customer ini tidak termasuk dalam assignment Anda. Hubungi Admin jika ini seharusnya milik Anda.',
+            ]);
+        }
 
         if (! $customer->hasLocation()) {
             throw ValidationException::withMessages([

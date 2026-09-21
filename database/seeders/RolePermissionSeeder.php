@@ -54,6 +54,9 @@ class RolePermissionSeeder extends Seeder
             'kunjungan.manage',
             'sales-transaction.create', 'sales-transaction.view',
             'sales-stock.view',
+            // Business Flow Update v3.1 (Blueprint #13.11): Sales submit Return
+            // Stock lewat Sales Mobile, otomatis membuat BTB Distribusi.
+            'sales-stock.return',
             'invoice.view-own',
             'payment.create',
             // Live Sales Field Operations (Blueprint #14, #21)

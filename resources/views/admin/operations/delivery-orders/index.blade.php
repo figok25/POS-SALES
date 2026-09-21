@@ -25,10 +25,46 @@
             <button class="bg-gray-200 px-3 py-2 rounded text-sm">Filter</button>
         </form>
 
+        <form id="bulk-dispatch-form" method="POST" action="{{ route('admin.operations.delivery-orders.bulk-dispatch') }}">
+            @csrf
+            @can('operations.manage')
+                <div class="bg-white rounded shadow p-4 mb-4 flex flex-wrap items-end gap-2">
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Vehicle</label>
+                        <select name="vehicle_id" class="border rounded px-2 py-1.5 text-sm">
+                            <option value="">- pilih -</option>
+                            @foreach ($vehicles ?? [] as $v)
+                                <option value="{{ $v->id }}">{{ $v->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Driver</label>
+                        <select name="driver_id" class="border rounded px-2 py-1.5 text-sm">
+                            <option value="">- pilih -</option>
+                            @foreach ($drivers ?? [] as $d)
+                                <option value="{{ $d->id }}">{{ $d->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Jadwal</label>
+                        <input type="date" name="scheduled_date" class="border rounded px-2 py-1.5 text-sm">
+                    </div>
+                    <button type="submit" class="bg-green-600 text-white px-3 py-2 rounded text-sm hover:bg-green-700"
+                            onclick="return document.querySelectorAll('.do-checkbox:checked').length > 0 || alert('Pilih minimal 1 Draft DO dulu.');">
+                        Apply &amp; Dispatch yang Dicentang
+                    </button>
+                </div>
+            @endcan
+
         <div class="bg-white rounded shadow overflow-x-auto">
             <table class="w-full text-sm">
                 <thead class="bg-gray-50 border-b">
                     <tr>
+                        @can('operations.manage')
+                            <th class="px-3 py-2"><input type="checkbox" id="check-all"></th>
+                        @endcan
                         <th class="px-3 py-2 text-left">Kode</th>
                         <th class="px-3 py-2 text-left">Customer</th>
                         <th class="px-3 py-2 text-left">Vehicle</th>
@@ -41,6 +77,13 @@
                 <tbody>
                     @forelse ($items as $item)
                         <tr class="border-b">
+                            @can('operations.manage')
+                                <td class="px-3 py-2">
+                                    @if ($item->status === 'draft')
+                                        <input type="checkbox" name="delivery_order_ids[]" value="{{ $item->id }}" class="do-checkbox">
+                                    @endif
+                                </td>
+                            @endcan
                             <td class="px-3 py-2 font-mono">{{ $item->code }}</td>
                             <td class="px-3 py-2">{{ $item->salesTransaction->customer->name ?? '-' }}</td>
                             <td class="px-3 py-2">{{ $item->vehicle->name ?? '-' }}</td>
@@ -62,12 +105,19 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="7" class="px-3 py-6 text-center text-gray-500">Belum ada data.</td></tr>
+                        <tr><td colspan="8" class="px-3 py-6 text-center text-gray-500">Belum ada data.</td></tr>
                     @endforelse
                 </tbody>
             </table>
         </div>
+        </form>
 
         <div class="mt-4">{{ $items->links() }}</div>
+
+        <script>
+            document.getElementById('check-all')?.addEventListener('change', function () {
+                document.querySelectorAll('.do-checkbox').forEach(cb => cb.checked = this.checked);
+            });
+        </script>
     </div>
 </x-admin-layout>

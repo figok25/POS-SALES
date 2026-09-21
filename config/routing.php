@@ -12,7 +12,12 @@ return [
         // sendiri path lengkapnya: {base_url}/maps/orbis/routing/routes/calculate
         'base_url' => env('TOMTOM_BASE_URL', 'https://api.tomtom.com'),
         'timeout_seconds' => (int) env('TOMTOM_TIMEOUT_SECONDS', 10),
-        'route_type' => env('TOMTOM_ROUTE_TYPE', 'fastest'),
+        // BUGFIX: default sebelumnya 'fastest' TIDAK VALID di Orbis v3 --
+        // nilai yang diterima cuma fast | short | efficient | thrilling
+        // (lihat docs.tomtom.com Migration Guide). 'fastest' bikin TomTom
+        // balas 400 Bad Request untuk SETIAP kalkulasi Today's Route
+        // (multi-stop), bahkan setelah field guidance/waypoints diperbaiki.
+        'route_type' => env('TOMTOM_ROUTE_TYPE', 'fast'),
         'traffic' => env('TOMTOM_TRAFFIC', 'true'),
     ],
 
@@ -24,6 +29,8 @@ return [
     'monthly_hard_budget' => (int) env('ROUTING_MONTHLY_HARD_BUDGET', 18000),
 
     // Section 94: Reroute policy -- ambang jarak penyimpangan (meter) + jeda minimum antar reroute (detik)
-    'reroute_deviation_threshold_meters' => (int) env('ROUTING_REROUTE_THRESHOLD_METERS', 300),
+    // Diselaraskan dengan Android AppConfig.REROUTE_DEVIATION_THRESHOLD_METERS (200m,
+    // batas atas rentang blueprint "100-200m kandidat reroute"). Ubah dua-duanya bersamaan.
+    'reroute_deviation_threshold_meters' => (int) env('ROUTING_REROUTE_THRESHOLD_METERS', 200),
     'reroute_cooldown_seconds' => (int) env('ROUTING_REROUTE_COOLDOWN_SECONDS', 300),
 ];

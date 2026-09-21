@@ -93,7 +93,7 @@ class BkbDistribusiController extends Controller
 
     public function show(BkbDistribusi $bkb)
     {
-        $bkb->load(['items.product', 'warehouse', 'sales', 'stockRequest']);
+        $bkb->load(['items.product', 'warehouse', 'sales', 'stockRequest', 'salesTask']);
 
         // Info stok warehouse saat ini per item, untuk membantu Check
         // sebelum Apply (Blueprint #8 - tahap Check).

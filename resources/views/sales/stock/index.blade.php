@@ -3,6 +3,10 @@
 
     <p class="text-sm text-gray-600 mb-3">Stok yang ada pada Anda saat ini (hasil BKB dari Gudang).</p>
 
+    @can('sales-stock.return')
+        <a href="{{ route('sales.return-stock.index') }}" class="block text-center bg-blue-600 text-white rounded-lg py-2.5 text-sm mb-3 hover:bg-blue-700">Return Stock (Kembalikan Sisa)</a>
+    @endcan
+
     <div class="bg-white rounded-lg shadow divide-y text-sm">
         @forelse ($items as $item)
             <div class="flex justify-between px-3 py-2.5">

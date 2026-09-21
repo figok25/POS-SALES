@@ -41,6 +41,49 @@
             const form = e.target;
             const status = document.getElementById('lokasi-status');
             const done = () => form.submit();
+
+            // PERBAIKAN: getCurrentLocation() sinkron (JSON string {available,...}),
+            // requestCurrentLocation() ASYNC - hasil lewat window.onNativeLocationResult(json).
+            const bridge = window.Android || window.SalesNative;
+            if (bridge) {
+                status.textContent = 'Mengambil lokasi dari GPS Native...';
+
+                if (bridge.getCurrentLocation) {
+                    try {
+                        const loc = JSON.parse(bridge.getCurrentLocation());
+                        if (loc.available) {
+                            document.getElementById('latitude').value = loc.latitude;
+                            document.getElementById('longitude').value = loc.longitude;
+                            return done();
+                        }
+                    } catch (err) { /* lanjut ke requestCurrentLocation() di bawah */ }
+                }
+
+                if (bridge.requestCurrentLocation) {
+                    window.onNativeLocationResult = function (loc) {
+                        window.onNativeLocationResult = null;
+                        if (loc && loc.available) {
+                            document.getElementById('latitude').value = loc.latitude;
+                            document.getElementById('longitude').value = loc.longitude;
+                        } else {
+                            status.textContent = 'Gagal mengambil lokasi Native, mengirim tanpa koordinat.';
+                        }
+                        done();
+                    };
+                    bridge.requestCurrentLocation();
+                    setTimeout(function () {
+                        if (window.onNativeLocationResult) {
+                            window.onNativeLocationResult = null;
+                            status.textContent = 'Timeout GPS Native, mengirim tanpa koordinat.';
+                            done();
+                        }
+                    }, 12000);
+                    return false;
+                }
+
+                return done();
+            }
+
             if (! navigator.geolocation) return done();
             status.textContent = 'Mengambil lokasi...';
             navigator.geolocation.getCurrentPosition(function (pos) {

@@ -15,6 +15,7 @@ use App\Http\Controllers\Admin\Sales\CustomerTaggingController;
 use App\Http\Controllers\Admin\Sales\InvoiceController;
 use App\Http\Controllers\Admin\Sales\SalesTransactionController;
 use App\Http\Controllers\Admin\Sales\VisitController;
+use App\Http\Controllers\Admin\Sales\VisitPlanController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('permission:sales-management.view')->group(function () {
@@ -34,6 +35,7 @@ Route::middleware('permission:sales-management.view')->group(function () {
 Route::middleware('permission:sales-management.manage')->group(function () {
     Route::post('customer-taggings/{tagging}/approve', [CustomerTaggingController::class, 'approve'])->name('customer-taggings.approve');
     Route::post('customer-taggings/{tagging}/reject', [CustomerTaggingController::class, 'reject'])->name('customer-taggings.reject');
+    Route::post('customer-taggings/bulk-approve', [CustomerTaggingController::class, 'bulkApprove'])->name('customer-taggings.bulk-approve');
 });
 
 // Fase 6 Hardening - Customer Assignment (Blueprint #729): siapa Sales
@@ -41,8 +43,11 @@ Route::middleware('permission:sales-management.manage')->group(function () {
 // data Customer itu sendiri (lihat routes/admin_master.php).
 Route::middleware('permission:customer-assignment.view')->group(function () {
     Route::get('customer-assignments', [CustomerAssignmentController::class, 'index'])->name('customer-assignments.index');
+    Route::get('visit-plans', [VisitPlanController::class, 'index'])->name('visit-plans.index');
+    Route::get('visit-plans/{sales}', [VisitPlanController::class, 'edit'])->name('visit-plans.edit');
 });
 Route::middleware('permission:customer-assignment.manage')->group(function () {
     Route::get('customer-assignments/{customer}/edit', [CustomerAssignmentController::class, 'edit'])->name('customer-assignments.edit');
     Route::put('customer-assignments/{customer}', [CustomerAssignmentController::class, 'update'])->name('customer-assignments.update');
+    Route::put('visit-plans/{sales}', [VisitPlanController::class, 'update'])->name('visit-plans.update');
 });

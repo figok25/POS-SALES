@@ -56,6 +56,21 @@
     <script>
         function ambilLokasi() {
             const status = document.getElementById('lokasi-status');
+            const native = window.Android || window.SalesNative;
+
+            // Prioritaskan bridge native Android (Fused Location Provider):
+            // navigator.geolocation TIDAK bisa dipakai di dalam WebView untuk
+            // server dev HTTP (bukan HTTPS/localhost) -- Chromium menolak
+            // Geolocation API di origin yang dianggap tidak aman, walau izin
+            // lokasi Android sudah diizinkan user.
+            if (native && typeof native.requestCurrentLocation === 'function') {
+                status.textContent = 'Mengambil lokasi (GPS native)...';
+                native.requestCurrentLocation();
+                return;
+            }
+
+            // Fallback: browser biasa (mis. testing di Chrome desktop lewat
+            // https/localhost, bukan di dalam APK).
             if (! navigator.geolocation) {
                 status.textContent = 'Geolocation tidak didukung perangkat ini.';
                 return;
@@ -69,5 +84,20 @@
                 status.textContent = 'Gagal mengambil lokasi. Pastikan izin GPS diaktifkan.';
             });
         }
+
+        // Dipanggil balik oleh WebViewBridge.requestCurrentLocation() (Android native).
+        window.onNativeLocationResult = function (data) {
+            const status = document.getElementById('lokasi-status');
+            if (data && data.available) {
+                document.getElementById('latitude').value = data.latitude;
+                document.getElementById('longitude').value = data.longitude;
+                status.textContent = 'Lokasi didapat: ' + data.latitude.toFixed(5) + ', ' + data.longitude.toFixed(5)
+                    + ' (akurasi ' + Math.round(data.accuracy) + 'm)';
+            } else if (data && data.reason === 'PERMISSION_DENIED') {
+                status.textContent = 'Izin lokasi belum diberikan. Buka Pengaturan > Aplikasi > Sales App > Izin > Lokasi.';
+            } else {
+                status.textContent = 'Gagal mendapatkan sinyal GPS. Pastikan GPS aktif & coba di area terbuka, lalu coba lagi.';
+            }
+        };
     </script>
 </x-sales-layout>

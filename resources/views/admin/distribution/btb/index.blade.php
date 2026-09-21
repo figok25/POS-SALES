@@ -17,8 +17,9 @@
         <form method="GET" class="mb-4 flex gap-2">
             <select name="status" class="border rounded px-3 py-2 text-sm">
                 <option value="">Semua Status</option>
-                <option value="draft" @selected($status === 'draft')>Draft</option>
-                <option value="applied" @selected($status === 'applied')>Applied</option>
+                <option value="draft" @selected($status === 'draft')>Menunggu Check</option>
+                <option value="applied" @selected($status === 'applied')>Approved</option>
+                <option value="discrepancy" @selected($status === 'discrepancy')>Discrepancy</option>
                 <option value="cancelled" @selected($status === 'cancelled')>Cancelled</option>
             </select>
             <button class="bg-gray-200 px-3 py-2 rounded text-sm">Filter</button>
@@ -44,9 +45,11 @@
                             <td class="px-3 py-2">{{ $item->warehouse->name ?? '-' }}</td>
                             <td class="px-3 py-2">
                                 @if ($item->status === 'draft')
-                                    <span class="text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded text-xs">Draft</span>
+                                    <span class="text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded text-xs">Menunggu Check</span>
                                 @elseif ($item->status === 'applied')
-                                    <span class="text-green-700 bg-green-100 px-2 py-0.5 rounded text-xs">Applied</span>
+                                    <span class="text-green-700 bg-green-100 px-2 py-0.5 rounded text-xs">Approved</span>
+                                @elseif ($item->status === 'discrepancy')
+                                    <span class="text-red-700 bg-red-100 px-2 py-0.5 rounded text-xs">Discrepancy</span>
                                 @else
                                     <span class="text-gray-600 bg-gray-100 px-2 py-0.5 rounded text-xs">Cancelled</span>
                                 @endif

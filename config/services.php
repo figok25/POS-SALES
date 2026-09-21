@@ -49,6 +49,11 @@ return [
         // (mis. MapTiler) atau tile self-hosted saat production.
         'style_url' => env('MAP_STYLE_URL', 'https://tiles.openfreemap.org/styles/liberty'),
         'tile_provider' => env('MAP_TILE_PROVIDER'),
+        // Blueprint: Admin Live Monitoring polling interval (MVP - bukan
+        // WebSocket). Jangan terlalu kecil supaya tidak boros resource
+        // Hostinger Shared Hosting untuk banyak Admin yang buka halaman ini
+        // bersamaan.
+        'admin_live_refresh_seconds' => (int) env('ADMIN_LIVE_REFRESH_SECONDS', 15),
     ],
 
     /*
@@ -78,6 +83,8 @@ return [
         // Blueprint #76: cache hasil rute supaya tidak boros quota untuk
         // lokasi yang sama/nyaris sama dalam rentang waktu singkat.
         'cache_ttl_seconds' => env('ROUTING_CACHE_TTL_SECONDS', 900),
+        // Blueprint #95-97: Free-Only Guard, hard stop sebelum tembus batas gratis provider.
+        'monthly_hard_budget' => env('ROUTING_MONTHLY_HARD_BUDGET', 18000),
     ],
 
 ];

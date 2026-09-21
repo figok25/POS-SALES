@@ -47,6 +47,9 @@
                     loading: false,
                     errorMessage: null,
                     routeInfo: null,
+                    // Jangan simpan JavaScriptInterface Android di state Alpine.
+                    // Alpine dapat membungkusnya sebagai Proxy dan WebView akan
+                    // menolak pemanggilan method karena object bukan lagi injected object.
 
                     csrfToken() {
                         return document.querySelector('meta[name="csrf-token"]').content;
@@ -65,72 +68,120 @@
                             .setLngLat([destLng, destLat])
                             .addTo(this.map);
 
-                        if (!navigator.geolocation) {
+                        // Prioritaskan bridge native Android (Fused Location Provider):
+                        // navigator.geolocation TIDAK bisa dipakai di WebView untuk server
+                        // dev HTTP (bukan HTTPS/localhost) -- Chromium menolak Geolocation
+                        // API di origin yang dianggap tidak aman, walau izin lokasi Android
+                        // sudah diizinkan. Lihat WebViewBridge.requestCurrentLocation().
+                        const bridge = window.Android || window.SalesNative;
+
+                        // BUGFIX: sama seperti halaman Tracking - kalau bukan
+                        // native bridge (murni browser Laragon) DAN origin
+                        // tidak aman (HTTP non-localhost), getCurrentPosition
+                        // akan selalu gagal diam-diam. Deteksi lebih awal
+                        // supaya pesannya jelas & actionable.
+                        if (!bridge && navigator.geolocation && !window.isSecureContext) {
+                            this.errorMessage = 'Halaman ini dibuka lewat HTTP non-localhost (mis. domain Laragon seperti http://nama.test), sehingga browser memblokir akses GPS. '
+                                + 'Buka lewat http://localhost:8000 (atau 127.0.0.1:8000), atau aktifkan Auto SSL di Laragon untuk domain ini.';
+                            return;
+                        }
+
+                        if (!bridge && !navigator.geolocation) {
                             this.errorMessage = 'Browser tidak mendukung Geolocation untuk menghitung route.';
                         }
+
+                        // Dipanggil balik oleh WebViewBridge.requestCurrentLocation() (async/native).
+                        window.onNativeLocationResult = (data) => {
+                            if (!this.loading) return; // abaikan callback nyasar di luar konteks kalkulasi rute
+
+                            if (data && data.available) {
+                                this.proceedWithOrigin({ lat: data.latitude, lng: data.longitude });
+                            } else {
+                                this.loading = false;
+                                this.errorMessage = (data && data.reason === 'PERMISSION_DENIED')
+                                    ? 'Izin lokasi belum diberikan. Buka Pengaturan > Aplikasi > Sales App > Izin > Lokasi.'
+                                    : 'Gagal mendapatkan sinyal GPS. Pastikan GPS aktif & coba di area terbuka, lalu coba lagi.';
+                            }
+                        };
                     },
 
                     calculateRoute() {
                         this.loading = true;
                         this.errorMessage = null;
 
-                        navigator.geolocation.getCurrentPosition(async (position) => {
-                            const origin = { lat: position.coords.latitude, lng: position.coords.longitude };
+                        const bridge = window.Android || window.SalesNative;
+                        if (bridge && typeof bridge.requestCurrentLocation === 'function') {
+                            bridge.requestCurrentLocation();
+                            return;
+                        }
 
-                            new maplibregl.Marker({ color: '#16a34a' })
-                                .setLngLat([origin.lng, origin.lat])
-                                .addTo(this.map);
+                        // Fallback: browser biasa (mis. testing di Chrome desktop lewat
+                        // https/localhost, bukan di dalam APK).
+                        if (!navigator.geolocation) {
+                            this.loading = false;
+                            this.errorMessage = 'Browser tidak mendukung Geolocation untuk menghitung route.';
+                            return;
+                        }
 
-                            try {
-                                // Perhitungan rute dilakukan di Laravel (Routing Engine
-                                // terpisah dari MapLibre) - lihat Blueprint #67.
-                                const res = await fetch(`/api/sales/route/customer/${customerId}`, {
-                                    method: 'POST',
-                                    headers: {
-                                        'X-CSRF-TOKEN': this.csrfToken(),
-                                        'Content-Type': 'application/json',
-                                        'Accept': 'application/json',
-                                    },
-                                    body: JSON.stringify({ latitude: origin.lat, longitude: origin.lng }),
-                                });
-                                const json = await res.json();
-                                this.loading = false;
-
-                                if (!json.success) {
-                                    this.errorMessage = json.message;
-                                    return;
-                                }
-
-                                const geometry = json.data.geometry;
-                                this.map.addSource('route', {
-                                    type: 'geojson',
-                                    data: { type: 'Feature', geometry: { type: 'LineString', coordinates: geometry } },
-                                });
-                                this.map.addLayer({
-                                    id: 'route',
-                                    type: 'line',
-                                    source: 'route',
-                                    paint: { 'line-color': '#4f46e5', 'line-width': 4 },
-                                });
-
-                                const bounds = geometry.reduce(
-                                    (b, coord) => b.extend(coord),
-                                    new maplibregl.LngLatBounds(geometry[0], geometry[0])
-                                );
-                                this.map.fitBounds(bounds, { padding: 40 });
-
-                                this.routeInfo = {
-                                    distance: (json.data.distance_meters / 1000).toFixed(1) + ' km',
-                                    duration: Math.round(json.data.duration_seconds / 60) + ' menit',
-                                };
-                            } catch (e) {
-                                this.loading = false;
-                                this.errorMessage = 'Gagal menghitung route. Coba lagi.';
-                            }
+                        navigator.geolocation.getCurrentPosition((position) => {
+                            this.proceedWithOrigin({ lat: position.coords.latitude, lng: position.coords.longitude });
                         }, () => {
                             this.loading = false;
                             this.errorMessage = 'Gagal mengambil lokasi Anda. Pastikan izin lokasi browser diaktifkan.';
                         }, { enableHighAccuracy: true, timeout: 10000 });
+                    },
+
+                    async proceedWithOrigin(origin) {
+                        new maplibregl.Marker({ color: '#16a34a' })
+                            .setLngLat([origin.lng, origin.lat])
+                            .addTo(this.map);
+
+                        try {
+                            // Perhitungan rute dilakukan di Laravel (Routing Engine
+                            // terpisah dari MapLibre) - lihat Blueprint #67.
+                            const res = await fetch(`/api/sales/route/customer/${customerId}`, {
+                                method: 'POST',
+                                headers: {
+                                    'X-CSRF-TOKEN': this.csrfToken(),
+                                    'Content-Type': 'application/json',
+                                    'Accept': 'application/json',
+                                },
+                                body: JSON.stringify({ latitude: origin.lat, longitude: origin.lng }),
+                            });
+                            const json = await res.json();
+                            this.loading = false;
+
+                            if (!json.success) {
+                                this.errorMessage = json.message;
+                                return;
+                            }
+
+                            const geometry = json.data.geometry;
+                            this.map.addSource('route', {
+                                type: 'geojson',
+                                data: { type: 'Feature', geometry: { type: 'LineString', coordinates: geometry } },
+                            });
+                            this.map.addLayer({
+                                id: 'route',
+                                type: 'line',
+                                source: 'route',
+                                paint: { 'line-color': '#4f46e5', 'line-width': 4 },
+                            });
+
+                            const bounds = geometry.reduce(
+                                (b, coord) => b.extend(coord),
+                                new maplibregl.LngLatBounds(geometry[0], geometry[0])
+                            );
+                            this.map.fitBounds(bounds, { padding: 40 });
+
+                            this.routeInfo = {
+                                distance: (json.data.distance_meters / 1000).toFixed(1) + ' km',
+                                duration: Math.round(json.data.duration_seconds / 60) + ' menit',
+                            };
+                        } catch (e) {
+                            this.loading = false;
+                            this.errorMessage = 'Gagal menghitung route. Coba lagi.';
+                        }
                     },
                 };
             }

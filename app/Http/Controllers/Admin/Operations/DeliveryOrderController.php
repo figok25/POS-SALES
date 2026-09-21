@@ -32,7 +32,10 @@ class DeliveryOrderController extends Controller
             ->paginate(15)
             ->withQueryString();
 
-        return view('admin.operations.delivery-orders.index', compact('items', 'status'));
+        $vehicles = Vehicle::where('is_active', true)->orderBy('name')->get();
+        $drivers = Employee::drivers()->where('is_active', true)->orderBy('name')->get();
+
+        return view('admin.operations.delivery-orders.index', compact('items', 'status', 'vehicles', 'drivers'));
     }
 
     public function create()
@@ -117,6 +120,54 @@ class DeliveryOrderController extends Controller
         AuditLogger::log('dispatch', 'Operations', DeliveryOrder::class, $deliveryOrder->id, $before, $deliveryOrder->toArray());
 
         return back()->with('status', 'Delivery Order berhasil di-Dispatch. Barang dalam pengiriman.');
+    }
+
+    /**
+     * Fitur B.3 - Bulk Apply: Admin memproses banyak Draft DO sekaligus
+     * (assign vehicle/driver/route/jadwal yang sama, lalu dispatch semua),
+     * tanpa perlu buka satu-satu.
+     */
+    public function bulkDispatch(Request $request)
+    {
+        $data = $request->validate([
+            'delivery_order_ids' => ['required', 'array', 'min:1'],
+            'delivery_order_ids.*' => ['integer', 'exists:delivery_orders,id'],
+            'vehicle_id' => ['nullable', 'exists:vehicles,id'],
+            'driver_id' => ['nullable', 'exists:employees,id'],
+            'route_id' => ['nullable', 'exists:routes,id'],
+            'scheduled_date' => ['nullable', 'date'],
+        ]);
+
+        $orders = DeliveryOrder::whereIn('id', $data['delivery_order_ids'])
+            ->where('status', DeliveryOrder::STATUS_DRAFT)
+            ->get();
+
+        if ($orders->isEmpty()) {
+            return back()->with('error', 'Tidak ada Draft DO yang valid untuk diproses (mungkin sudah di-dispatch pihak lain).');
+        }
+
+        DB::transaction(function () use ($orders, $data) {
+            foreach ($orders as $do) {
+                $before = $do->toArray();
+
+                $do->update(array_filter([
+                    'vehicle_id' => $data['vehicle_id'] ?? $do->vehicle_id,
+                    'driver_id' => $data['driver_id'] ?? $do->driver_id,
+                    'route_id' => $data['route_id'] ?? $do->route_id,
+                    'scheduled_date' => $data['scheduled_date'] ?? $do->scheduled_date,
+                ], fn ($v) => $v !== null));
+
+                $do->update([
+                    'status' => DeliveryOrder::STATUS_DISPATCHED,
+                    'dispatched_by' => auth()->id(),
+                    'dispatched_at' => now(),
+                ]);
+
+                AuditLogger::log('dispatch', 'Operations', DeliveryOrder::class, $do->id, $before, $do->fresh()->toArray());
+            }
+        });
+
+        return back()->with('status', $orders->count().' Delivery Order berhasil di-Dispatch sekaligus.');
     }
 
     public function deliver(DeliveryOrder $deliveryOrder)

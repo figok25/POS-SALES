@@ -21,6 +21,13 @@ class CustomerRequest extends FormRequest
             'address' => ['nullable', 'string'],
             'phone' => ['nullable', 'string', 'max:255'],
             'npwp' => ['nullable', 'string', 'max:255'],
+            // Live Sales Field Operations (Blueprint #11): koordinat yang
+            // dipakai Peta Customer di Sales App. Normalnya terisi otomatis
+            // lewat approve Tagging Toko, tapi Admin tetap perlu bisa
+            // mengoreksi/mengisi manual (mis. data lama sebelum fitur ini ada,
+            // atau titik GPS tagging kurang akurat).
+            'latitude' => ['nullable', 'numeric', 'between:-90,90'],
+            'longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'is_active' => ['boolean'],
         ];
     }

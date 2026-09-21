@@ -148,28 +148,15 @@
                     </div>
                 </div>
 
-                <div x-data="{ open: {{ $sectionOpen([
-                    'admin.sales-tasks.index',
-                    'admin.operations.delivery-orders.index',
-                    'admin.operations.routes.index',
-                    'admin.master.vehicles.index',
-                    'admin.operations.drivers.index',
-                    'admin.operations.monitoring.index',
-                ]) }} }" class="py-1">
-                    <button type="button" @click="open = ! open" :aria-expanded="open" class="w-full flex items-center justify-between px-2 py-1.5 rounded text-xs uppercase tracking-wide text-sidebar-heading hover:text-white transition-colors">
-                        <span>Operations</span>
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-3.5 w-3.5 shrink-0 transition-transform duration-150" :class="{ '-rotate-180': open }">
-                            <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.25a.75.75 0 01-1.06 0L5.21 8.27a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
-                        </svg>
-                    </button>
-                    <div x-show="open" x-transition class="mt-1 space-y-0.5">
-                        <a href="{{ route('admin.sales-tasks.index') }}" class="{{ $navLinkClass('admin.sales-tasks.index') }}">Sales Task</a>
-                        <a href="{{ route('admin.operations.delivery-orders.index') }}" class="{{ $navLinkClass('admin.operations.delivery-orders.index') }}">Delivery Order</a>
-                        <a href="{{ route('admin.operations.routes.index') }}" class="{{ $navLinkClass('admin.operations.routes.index') }}">Route</a>
-                        <a href="{{ route('admin.master.vehicles.index') }}" class="{{ $navLinkClass('admin.master.vehicles.index') }}">Vehicle</a>
-                        <a href="{{ route('admin.operations.drivers.index') }}" class="{{ $navLinkClass('admin.operations.drivers.index') }}">Driver</a>
-                        <a href="{{ route('admin.operations.monitoring.index') }}" class="{{ $navLinkClass('admin.operations.monitoring.index') }}">Monitoring</a>
-                    </div>
+                <div>
+                    <p class="px-2 text-xs uppercase tracking-wide text-gray-500 mb-1">Operations</p>
+                    <a href="{{ route('admin.sales-tasks.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Sales Task</a>
+                    <a href="{{ route('admin.operations.live-monitoring.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Live Monitoring Sales</a>
+                    <a href="{{ route('admin.operations.delivery-orders.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Delivery Order</a>
+                    <a href="{{ route('admin.operations.routes.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Route</a>
+                    <a href="{{ route('admin.master.vehicles.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Vehicle</a>
+                    <a href="{{ route('admin.operations.drivers.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Driver</a>
+                    <a href="{{ route('admin.operations.monitoring.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Monitoring</a>
                 </div>
 
                 <a href="{{ route('admin.reports.index') }}" class="{{ $navLinkClass('admin.reports.index') }}">Reports</a>

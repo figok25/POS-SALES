@@ -3,7 +3,10 @@
 namespace App\Services\Routing;
 
 use App\Contracts\RoutingEngine;
+use App\Exceptions\RoutingUnavailableException;
+use App\Models\RoutingUsage;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Live Sales Field Operations - Caching & Request Deduplication untuk
@@ -24,6 +27,7 @@ class CachingRoutingEngine implements RoutingEngine
     public function __construct(
         protected RoutingEngine $inner,
         protected int $ttlSeconds,
+        protected int $monthlyHardBudget = 18000,
     ) {}
 
     public function calculateRoute(
@@ -51,7 +55,15 @@ class CachingRoutingEngine implements RoutingEngine
                 return $this->hydrate($cached);
             }
 
+            // Blueprint #95-97: Free-Only Guard -- jangan sampai tembus batas gratis provider.
+            if (! $this->hasQuotaAvailable()) {
+                throw new RoutingUnavailableException(
+                    'Kuota routing bulan ini sudah habis. Fitur rute sementara tidak tersedia, hubungi Administrator.'
+                );
+            }
+
             $result = $this->inner->calculateRoute($originLat, $originLng, $destinationLat, $destinationLng);
+            $this->incrementQuota();
 
             Cache::put($key, $result->toArray(), $this->ttlSeconds);
 
@@ -59,6 +71,25 @@ class CachingRoutingEngine implements RoutingEngine
         } finally {
             optional($lock)->release();
         }
+    }
+
+    protected function hasQuotaAvailable(): bool
+    {
+        $usage = RoutingUsage::firstOrCreate(
+            ['period_month' => now()->format('Y-m')],
+            ['request_count' => 0]
+        );
+
+        return $usage->request_count < $this->monthlyHardBudget;
+    }
+
+    protected function incrementQuota(): void
+    {
+        DB::transaction(function () {
+            RoutingUsage::lockForUpdate()
+                ->firstOrCreate(['period_month' => now()->format('Y-m')], ['request_count' => 0])
+                ->increment('request_count');
+        });
     }
 
     protected function cacheKey(float $originLat, float $originLng, float $destinationLat, float $destinationLng): string

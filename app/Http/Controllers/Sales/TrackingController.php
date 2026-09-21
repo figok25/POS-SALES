@@ -39,8 +39,13 @@ class TrackingController extends Controller
 
         $current = SalesCurrentLocation::where('sales_id', $sales->id)->first();
 
+        // PERBAIKAN AUDIT #8 (P0/P1): Android TrackingStatusResponse mengharapkan
+        // field TOP-LEVEL `status` (string) dan `tracking_session_id`, bukan
+        // hanya nested di dalam `data`. Field `data` dipertahankan untuk WebView JS.
         return response()->json([
             'success' => true,
+            'status' => $session ? 'ACTIVE' : 'STOPPED',
+            'tracking_session_id' => $session?->id,
             'data' => [
                 'tracking_active' => (bool) $session,
                 'session' => $session,
@@ -73,7 +78,12 @@ class TrackingController extends Controller
             ->first();
 
         if ($existing) {
-            return response()->json(['success' => true, 'data' => $existing]);
+            return response()->json([
+                'success' => true,
+                'tracking_session_id' => $existing->id,
+                'message' => 'Sesi tracking sudah aktif.',
+                'data' => $existing,
+            ]);
         }
 
         $session = DB::transaction(function () use ($request, $sales, $task) {
@@ -125,7 +135,15 @@ class TrackingController extends Controller
             return $session;
         });
 
-        return response()->json(['success' => true, 'data' => $session], 201);
+        // PERBAIKAN AUDIT #8: tambahkan field top-level tracking_session_id +
+        // message supaya cocok dengan Android TrackingStartResponse(success,
+        // trackingSessionId, message).
+        return response()->json([
+            'success' => true,
+            'tracking_session_id' => $session->id,
+            'message' => 'Tracking dimulai.',
+            'data' => $session,
+        ], 201);
     }
 
     public function stop(TrackingStopRequest $request)
@@ -138,10 +156,15 @@ class TrackingController extends Controller
             ->first();
 
         if (! $session) {
+            // PERBAIKAN AUDIT #4/#35: Stop harus idempotent juga - kalau native
+            // service memanggil stop tapi server sudah tidak ada sesi aktif
+            // (mis. race condition/retry), jangan balikan error yang bikin
+            // Android bingung; anggap sudah stopped.
             return response()->json([
-                'success' => false,
-                'message' => 'Tidak ada sesi tracking aktif.',
-            ], 422);
+                'success' => true,
+                'tracking_session_id' => null,
+                'message' => 'Tidak ada sesi tracking aktif (sudah berhenti).',
+            ]);
         }
 
         $session->update([
@@ -156,7 +179,12 @@ class TrackingController extends Controller
             'last_seen_at' => now(),
         ]);
 
-        return response()->json(['success' => true, 'data' => $session]);
+        return response()->json([
+            'success' => true,
+            'tracking_session_id' => $session->id,
+            'message' => 'Tracking dihentikan.',
+            'data' => $session,
+        ]);
     }
 
     public function location(LocationUpdateRequest $request)

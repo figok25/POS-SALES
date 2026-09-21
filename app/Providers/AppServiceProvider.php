@@ -45,7 +45,7 @@ class AppServiceProvider extends ServiceProvider
                 ),
             };
 
-            return new CachingRoutingEngine($adapter, (int) $config['cache_ttl_seconds']);
+            return new CachingRoutingEngine($adapter, (int) $config['cache_ttl_seconds'], (int) ($config['monthly_hard_budget'] ?? 18000));
         });
     }
 
