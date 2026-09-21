@@ -13,6 +13,7 @@
 use App\Http\Controllers\Admin\Sales\CustomerAssignmentController;
 use App\Http\Controllers\Admin\Sales\CustomerTaggingController;
 use App\Http\Controllers\Admin\Sales\InvoiceController;
+use App\Http\Controllers\Admin\Sales\MapController as RouteMapController;
 use App\Http\Controllers\Admin\Sales\SalesTransactionController;
 use App\Http\Controllers\Admin\Sales\VisitController;
 use App\Http\Controllers\Admin\Sales\VisitPlanController;
@@ -47,6 +48,10 @@ Route::middleware('permission:customer-assignment.view')->group(function () {
     Route::get('customer-assignments', [CustomerAssignmentController::class, 'index'])->name('customer-assignments.index');
     Route::get('visit-plans', [VisitPlanController::class, 'index'])->name('visit-plans.index');
     Route::get('visit-plans/{sales}', [VisitPlanController::class, 'edit'])->name('visit-plans.edit');
+
+    // Route Toko Sesuai Hari/Minggu - versi Admin: monitoring read-only,
+    // permission sama dengan Visit Plan (satu-satunya editor Rute Kanvas).
+    Route::get('route-map', [RouteMapController::class, 'index'])->name('route-map.index');
 });
 Route::middleware('permission:customer-assignment.manage')->group(function () {
     Route::get('customer-assignments/{customer}/edit', [CustomerAssignmentController::class, 'edit'])->name('customer-assignments.edit');
