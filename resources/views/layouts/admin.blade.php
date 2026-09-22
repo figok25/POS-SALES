@@ -53,6 +53,8 @@
                     <a href="{{ route('admin.master.sales.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Sales Management</a>
                     <a href="{{ route('admin.master.customers.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Customer</a>
                     <a href="{{ route('admin.sales.customer-assignments.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Customer Assignment</a>
+                    <a href="{{ route('admin.sales.visit-plans.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Visit Plan (Rute Kanvas)</a>
+                    <a href="{{ route('admin.sales.route-map.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Rute Toko per Sales</a>
                     <a href="{{ route('admin.sales.customer-taggings.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Tagging Toko</a>
                     <a href="{{ route('admin.sales.visits.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Visit</a>
                     <a href="{{ route('admin.sales.transactions.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Transaksi Penjualan</a>
@@ -72,7 +74,7 @@
                     <a href="{{ route('admin.sales-tasks.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Sales Task</a>
                     <a href="{{ route('admin.operations.live-monitoring.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Live Monitoring Sales</a>
                     <a href="{{ route('admin.operations.delivery-orders.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Delivery Order</a>
-                    <a href="{{ route('admin.operations.routes.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Route</a>
+                    <a href="{{ route('admin.operations.routes.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Manajemen Rute</a>
                     <a href="{{ route('admin.master.vehicles.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Vehicle</a>
                     <a href="{{ route('admin.operations.drivers.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Driver</a>
                     <a href="{{ route('admin.operations.monitoring.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Monitoring</a>

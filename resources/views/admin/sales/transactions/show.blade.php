@@ -2,7 +2,10 @@
     <div class="p-6 max-w-3xl">
         <div class="flex items-center justify-between mb-4">
             <h1 class="text-xl font-semibold">Transaksi {{ $transaction->code }}</h1>
-            <a href="{{ route('admin.sales.transactions.index') }}" class="text-sm text-gray-600 hover:underline">&larr; Kembali</a>
+            <div class="text-sm space-x-3">
+                <a href="{{ route('admin.sales.transactions.print', $transaction) }}" target="_blank" class="text-gray-700 hover:underline">Cetak</a>
+                <a href="{{ route('admin.sales.transactions.index') }}" class="text-gray-600 hover:underline">&larr; Kembali</a>
+            </div>
         </div>
 
         <div class="bg-white rounded shadow p-4 space-y-2 text-sm mb-4">

@@ -13,6 +13,7 @@
 use App\Http\Controllers\Admin\Sales\CustomerAssignmentController;
 use App\Http\Controllers\Admin\Sales\CustomerTaggingController;
 use App\Http\Controllers\Admin\Sales\InvoiceController;
+use App\Http\Controllers\Admin\Sales\MapController as RouteMapController;
 use App\Http\Controllers\Admin\Sales\SalesTransactionController;
 use App\Http\Controllers\Admin\Sales\VisitController;
 use App\Http\Controllers\Admin\Sales\VisitPlanController;
@@ -26,9 +27,11 @@ Route::middleware('permission:sales-management.view')->group(function () {
     Route::get('visits/{visit}', [VisitController::class, 'show'])->name('visits.show');
 
     Route::get('transactions', [SalesTransactionController::class, 'index'])->name('transactions.index');
+    Route::get('transactions/{transaction}/print', [SalesTransactionController::class, 'print'])->name('transactions.print');
     Route::get('transactions/{transaction}', [SalesTransactionController::class, 'show'])->name('transactions.show');
 
     Route::get('invoices', [InvoiceController::class, 'index'])->name('invoices.index');
+    Route::get('invoices/{invoice}/print', [InvoiceController::class, 'print'])->name('invoices.print');
     Route::get('invoices/{invoice}', [InvoiceController::class, 'show'])->name('invoices.show');
 });
 
@@ -45,6 +48,10 @@ Route::middleware('permission:customer-assignment.view')->group(function () {
     Route::get('customer-assignments', [CustomerAssignmentController::class, 'index'])->name('customer-assignments.index');
     Route::get('visit-plans', [VisitPlanController::class, 'index'])->name('visit-plans.index');
     Route::get('visit-plans/{sales}', [VisitPlanController::class, 'edit'])->name('visit-plans.edit');
+
+    // Route Toko Sesuai Hari/Minggu - versi Admin: monitoring read-only,
+    // permission sama dengan Visit Plan (satu-satunya editor Rute Kanvas).
+    Route::get('route-map', [RouteMapController::class, 'index'])->name('route-map.index');
 });
 Route::middleware('permission:customer-assignment.manage')->group(function () {
     Route::get('customer-assignments/{customer}/edit', [CustomerAssignmentController::class, 'edit'])->name('customer-assignments.edit');

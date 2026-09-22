@@ -1,6 +1,22 @@
 <x-sales-layout>
     <x-slot name="header">Peta Customer</x-slot>
 
+    <div class="bg-white rounded-lg shadow p-3 mb-4">
+        <div class="flex gap-2 overflow-x-auto">
+            @foreach ($weekDays as $option)
+                <a href="{{ route('sales.map.index', ['day' => $option['day']]) }}"
+                   class="flex-shrink-0 text-center px-3 py-2 rounded-lg text-xs
+                          {{ $option['isSelected'] ? 'bg-indigo-600 text-white' : ($option['isToday'] ? 'bg-indigo-50 text-indigo-700' : 'bg-gray-50 text-gray-600') }}">
+                    <p class="font-medium">{{ $option['label'] }}</p>
+                    <p class="text-[10px] {{ $option['isSelected'] ? 'text-indigo-100' : 'text-gray-400' }}">{{ $option['date']->format('d M') }}</p>
+                </a>
+            @endforeach
+        </div>
+        @if ($usingFallback)
+            <p class="text-xs text-gray-500 mt-2">Rute Kanvas hari ini belum diatur -- menampilkan semua toko yang di-assign ke Anda.</p>
+        @endif
+    </div>
+
     @if ($customersWithLocation->isEmpty())
         <div class="bg-white rounded-lg shadow p-4 text-sm text-gray-500 mb-4">
             Belum ada Customer dengan titik lokasi yang tersimpan.

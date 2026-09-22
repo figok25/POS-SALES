@@ -32,4 +32,20 @@ class InvoiceController extends Controller
 
         return view('admin.sales.invoices.show', compact('invoice'));
     }
+
+    /**
+     * View print-friendly untuk Invoice (Cetak Nota): mendukung format
+     * struk (thermal ~80mm) dan A4, dipilih lewat query `?format=`.
+     * Halaman ini berdiri sendiri (tanpa sidebar admin) supaya bersih
+     * saat dicetak.
+     */
+    public function print(Request $request, Invoice $invoice)
+    {
+        $invoice->load(['customer', 'sales.branch.company', 'items.product']);
+
+        $format = $request->query('format') === 'a4' ? 'a4' : 'struk';
+        $company = $invoice->sales?->branch?->company;
+
+        return view('admin.sales.invoices.print', compact('invoice', 'format', 'company'));
+    }
 }

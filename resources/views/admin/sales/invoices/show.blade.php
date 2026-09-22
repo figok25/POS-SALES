@@ -3,6 +3,7 @@
         <div class="flex items-center justify-between mb-4">
             <h1 class="text-xl font-semibold">Invoice {{ $invoice->code }}</h1>
             <div class="text-sm space-x-3">
+                <a href="{{ route('admin.sales.invoices.print', $invoice) }}" target="_blank" class="text-gray-700 hover:underline">Cetak</a>
                 @if (! $invoice->isFullyPaid())
                     <a href="{{ route('admin.finance.payments.create', $invoice) }}" class="text-indigo-600 hover:underline">Catat Payment</a>
                 @endif

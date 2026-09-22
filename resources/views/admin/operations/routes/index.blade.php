@@ -1,7 +1,7 @@
 <x-admin-layout>
     <div class="p-6">
         <div class="flex items-center justify-between mb-4">
-            <h1 class="text-xl font-semibold">Route</h1>
+            <h1 class="text-xl font-semibold">Manajemen Rute</h1>
             @can('operations.manage')
                 <a href="{{ route('admin.operations.routes.create') }}" class="bg-blue-600 text-white px-3 py-2 rounded text-sm hover:bg-blue-700">+ Tambah Route</a>
             @endcan
@@ -20,9 +20,12 @@
             <table class="w-full text-sm">
                 <thead class="bg-gray-50 border-b">
                     <tr>
-                        <th class="px-3 py-2 text-left">Kode</th>
-                        <th class="px-3 py-2 text-left">Nama</th>
+                        <th class="px-3 py-2 text-left">Kode Rute</th>
+                        <th class="px-3 py-2 text-left">Nama Rute</th>
+                        <th class="px-3 py-2 text-left">Jenis Rute</th>
+                        <th class="px-3 py-2 text-left">Salesman</th>
                         <th class="px-3 py-2 text-left">Area</th>
+                        <th class="px-3 py-2 text-center">Jml Pelanggan</th>
                         <th class="px-3 py-2 text-left">Status</th>
                         <th class="px-3 py-2 text-right">Aksi</th>
                     </tr>
@@ -32,7 +35,10 @@
                         <tr class="border-b">
                             <td class="px-3 py-2 font-mono">{{ $item->code }}</td>
                             <td class="px-3 py-2">{{ $item->name }}</td>
+                            <td class="px-3 py-2">{{ $item->route_type ?: '-' }}</td>
+                            <td class="px-3 py-2">{{ $item->sales?->name ?: '-' }}</td>
                             <td class="px-3 py-2">{{ $item->area ?: '-' }}</td>
+                            <td class="px-3 py-2 text-center">{{ $item->route_customers_count }}</td>
                             <td class="px-3 py-2">
                                 @if ($item->is_active)
                                     <span class="text-green-700 bg-green-100 px-2 py-0.5 rounded text-xs">Aktif</span>
@@ -51,7 +57,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="5" class="px-3 py-6 text-center text-gray-500">Belum ada data.</td></tr>
+                        <tr><td colspan="8" class="px-3 py-6 text-center text-gray-500">Belum ada data.</td></tr>
                     @endforelse
                 </tbody>
             </table>

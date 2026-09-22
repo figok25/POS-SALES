@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admin\Operations;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class DeliveryRouteRequest extends FormRequest
 {
@@ -16,9 +17,12 @@ class DeliveryRouteRequest extends FormRequest
         $id = $this->route('item')?->id;
 
         return [
-            'code' => ['required', 'string', 'max:50', 'unique:routes,code,'.$id],
+            'code' => ['required', 'string', 'max:50', Rule::unique('routes', 'code')->ignore($id)],
             'name' => ['required', 'string', 'max:150'],
+            'route_type' => ['nullable', 'string', 'max:50'],
+            'sales_id' => ['nullable', 'integer', 'exists:sales,id'],
             'area' => ['nullable', 'string'],
+            'description' => ['nullable', 'string'],
             'is_active' => ['boolean'],
         ];
     }

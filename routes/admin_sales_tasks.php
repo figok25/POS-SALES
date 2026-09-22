@@ -29,5 +29,6 @@ Route::middleware('permission:sales-task.manage')->group(function () {
 });
 
 Route::middleware('permission:sales-task.view')->group(function () {
+    Route::get('{salesTask}/print-stock', [SalesTaskController::class, 'printStock'])->name('print-stock');
     Route::get('{salesTask}', [SalesTaskController::class, 'show'])->name('show');
 });

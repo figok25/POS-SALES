@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin\Sales;
 
 use App\Http\Controllers\Controller;
 use App\Models\CustomerTagging;
+use App\Models\Sales;
 use App\Services\AuditLogger;
 use App\Services\CustomerTaggingService;
 use Illuminate\Http\Request;
@@ -21,15 +22,39 @@ class CustomerTaggingController extends Controller
     public function index(Request $request)
     {
         $status = $request->query('status', CustomerTagging::STATUS_PENDING);
+        $salesId = $request->query('sales_id');
+        $dateFrom = $this->validDateOrNull($request->query('date_from'));
+        $dateTo = $this->validDateOrNull($request->query('date_to'));
 
         $items = CustomerTagging::query()
             ->with(['sales', 'customer'])
             ->when($status, fn ($q) => $q->where('status', $status))
+            ->when($salesId, fn ($q) => $q->where('sales_id', $salesId))
+            ->when($dateFrom, fn ($q) => $q->whereDate('tagged_at', '>=', $dateFrom))
+            ->when($dateTo, fn ($q) => $q->whereDate('tagged_at', '<=', $dateTo))
             ->orderBy('id', 'desc')
             ->paginate(15)
             ->withQueryString();
 
-        return view('admin.sales.customer-taggings.index', compact('items', 'status'));
+        $salesList = Sales::orderBy('name')->get();
+
+        return view('admin.sales.customer-taggings.index', compact(
+            'items', 'status', 'salesList', 'salesId', 'dateFrom', 'dateTo'
+        ));
+    }
+
+    /**
+     * Validasi ringan format tanggal filter (input type="date" HTML5 selalu
+     * mengirim format Y-m-d). Nilai yang tidak valid diabaikan saja supaya
+     * halaman tidak error hanya karena parameter query di-utak-atik manual.
+     */
+    private function validDateOrNull(?string $value): ?string
+    {
+        if (! $value) {
+            return null;
+        }
+
+        return preg_match('/^\d{4}-\d{2}-\d{2}$/', $value) ? $value : null;
     }
 
     public function show(CustomerTagging $tagging)

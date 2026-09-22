@@ -12,13 +12,42 @@
         @endif
 
         <div class="mb-4 flex gap-2 text-sm">
-            <a href="{{ route('admin.sales.customer-taggings.index', ['status' => 'pending']) }}"
+            @php
+                $tabParams = fn (string $s) => array_merge(request()->except(['status', 'page']), ['status' => $s]);
+            @endphp
+            <a href="{{ route('admin.sales.customer-taggings.index', $tabParams('pending')) }}"
                class="px-3 py-1.5 rounded {{ $status === 'pending' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700' }}">Pending</a>
-            <a href="{{ route('admin.sales.customer-taggings.index', ['status' => 'approved']) }}"
+            <a href="{{ route('admin.sales.customer-taggings.index', $tabParams('approved')) }}"
                class="px-3 py-1.5 rounded {{ $status === 'approved' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700' }}">Approved</a>
-            <a href="{{ route('admin.sales.customer-taggings.index', ['status' => 'rejected']) }}"
+            <a href="{{ route('admin.sales.customer-taggings.index', $tabParams('rejected')) }}"
                class="px-3 py-1.5 rounded {{ $status === 'rejected' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700' }}">Rejected</a>
         </div>
+
+        {{-- Filter: Sales + Rentang Tanggal Tagging --}}
+        <form method="GET" class="mb-4 bg-white p-3 rounded shadow flex flex-wrap items-end gap-3 text-sm">
+            <input type="hidden" name="status" value="{{ $status }}">
+            <div>
+                <label class="block text-xs font-medium mb-1">Sales</label>
+                <select name="sales_id" class="border rounded px-3 py-2 text-sm min-w-[180px]">
+                    <option value="">- Semua Sales -</option>
+                    @foreach ($salesList as $sales)
+                        <option value="{{ $sales->id }}" @selected((string) $salesId === (string) $sales->id)>{{ $sales->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-medium mb-1">Dari Tanggal</label>
+                <input type="date" name="date_from" value="{{ $dateFrom }}" class="border rounded px-3 py-2 text-sm">
+            </div>
+            <div>
+                <label class="block text-xs font-medium mb-1">Sampai Tanggal</label>
+                <input type="date" name="date_to" value="{{ $dateTo }}" class="border rounded px-3 py-2 text-sm">
+            </div>
+            <button type="submit" class="bg-blue-600 text-white px-3 py-2 rounded text-sm hover:bg-blue-700">Filter</button>
+            @if ($salesId || $dateFrom || $dateTo)
+                <a href="{{ route('admin.sales.customer-taggings.index', ['status' => $status]) }}" class="px-3 py-2 text-sm rounded border">Reset Filter</a>
+            @endif
+        </form>
 
         @if ($status === 'pending')
             <form id="bulk-approve-form" method="POST" action="{{ route('admin.sales.customer-taggings.bulk-approve') }}">
