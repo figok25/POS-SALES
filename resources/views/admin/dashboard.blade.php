@@ -2,7 +2,31 @@
     <x-slot name="header">Dashboard</x-slot>
 
     <div class="p-6">
-        <p class="text-gray-700 mb-6">Selamat datang, <strong>{{ auth()->user()->name }}</strong>.</p>
+        <p class="text-gray-700 mb-4">Selamat datang, <strong>{{ auth()->user()->name }}</strong>.</p>
+
+        <form method="GET" class="bg-white rounded shadow p-4 mb-6 flex flex-wrap items-end gap-3">
+            <div>
+                <label class="block text-xs text-gray-500 mb-1">Dari Tanggal</label>
+                <input type="date" name="date_from" value="{{ $dateFrom }}" class="border rounded px-3 py-2 text-sm">
+            </div>
+            <div>
+                <label class="block text-xs text-gray-500 mb-1">Sampai Tanggal</label>
+                <input type="date" name="date_to" value="{{ $dateTo }}" class="border rounded px-3 py-2 text-sm">
+            </div>
+            <div>
+                <label class="block text-xs text-gray-500 mb-1">Sales</label>
+                <select name="sales_id" class="border rounded px-3 py-2 text-sm min-w-[180px]">
+                    <option value="">Semua Sales</option>
+                    @foreach ($salesList as $s)
+                        <option value="{{ $s->id }}" @selected($selectedSalesId === $s->id)>{{ $s->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="flex gap-2">
+                <button type="submit" class="px-4 py-2 rounded text-sm bg-indigo-600 text-white">Terapkan</button>
+                <a href="{{ route('admin.dashboard') }}" class="px-4 py-2 rounded text-sm border">Reset</a>
+            </div>
+        </form>
 
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <div class="bg-white rounded shadow p-4">
@@ -10,16 +34,16 @@
                 <p class="text-2xl font-semibold">{{ number_format($kpi['total_products']) }}</p>
             </div>
             <div class="bg-white rounded shadow p-4">
-                <p class="text-xs text-gray-500">Total Customer</p>
+                <p class="text-xs text-gray-500">Total Customer{{ $selectedSalesId ? ' (Sales Ini)' : '' }}</p>
                 <p class="text-2xl font-semibold">{{ number_format($kpi['total_customers']) }}</p>
             </div>
             <div class="bg-white rounded shadow p-4">
-                <p class="text-xs text-gray-500">Transaksi Bulan Ini</p>
-                <p class="text-2xl font-semibold">{{ number_format($kpi['sales_count_this_month']) }}</p>
+                <p class="text-xs text-gray-500">Transaksi (Periode Dipilih)</p>
+                <p class="text-2xl font-semibold">{{ number_format($kpi['sales_count']) }}</p>
             </div>
             <div class="bg-white rounded shadow p-4">
-                <p class="text-xs text-gray-500">Penjualan Bulan Ini</p>
-                <p class="text-2xl font-semibold">Rp {{ number_format($kpi['sales_total_this_month'], 0, ',', '.') }}</p>
+                <p class="text-xs text-gray-500">Penjualan (Periode Dipilih)</p>
+                <p class="text-2xl font-semibold">Rp {{ number_format($kpi['sales_total'], 0, ',', '.') }}</p>
             </div>
         </div>
 
@@ -38,8 +62,8 @@
                 <p class="text-2xl font-semibold text-blue-600">{{ number_format($kpi['do_dispatched']) }}</p>
             </a>
             <a href="{{ route('admin.operations.monitoring.index') }}" class="bg-white rounded shadow p-4 hover:shadow-md">
-                <p class="text-xs text-gray-500">Delivered Hari Ini</p>
-                <p class="text-2xl font-semibold text-green-600">{{ number_format($kpi['do_delivered_today']) }}</p>
+                <p class="text-xs text-gray-500">Delivered (Periode Dipilih)</p>
+                <p class="text-2xl font-semibold text-green-600">{{ number_format($kpi['do_delivered']) }}</p>
             </a>
         </div>
 
@@ -49,16 +73,16 @@
                 <p class="text-2xl font-semibold text-yellow-600">{{ number_format($kpi['settlement_draft_count']) }}</p>
             </a>
             <a href="{{ route('admin.finance.settlements.index', ['status' => 'applied']) }}" class="bg-white rounded shadow p-4 hover:shadow-md">
-                <p class="text-xs text-gray-500">Settlement Di-Apply (Bulan Ini)</p>
-                <p class="text-2xl font-semibold text-green-600">{{ number_format($kpi['settlement_applied_this_month']) }}</p>
+                <p class="text-xs text-gray-500">Settlement Di-Apply (Periode Dipilih)</p>
+                <p class="text-2xl font-semibold text-green-600">{{ number_format($kpi['settlement_applied']) }}</p>
             </a>
             <a href="{{ route('admin.finance.settlements.index', ['status' => 'applied']) }}" class="bg-white rounded shadow p-4 hover:shadow-md">
-                <p class="text-xs text-gray-500">Selisih Uang (Bulan Ini)</p>
-                <p class="text-2xl font-semibold {{ $kpi['settlement_cash_variance_this_month'] < 0 ? 'text-red-600' : 'text-gray-800' }}">Rp {{ number_format($kpi['settlement_cash_variance_this_month'], 0, ',', '.') }}</p>
+                <p class="text-xs text-gray-500">Selisih Uang (Periode Dipilih)</p>
+                <p class="text-2xl font-semibold {{ $kpi['settlement_cash_variance'] < 0 ? 'text-red-600' : 'text-gray-800' }}">Rp {{ number_format($kpi['settlement_cash_variance'], 0, ',', '.') }}</p>
             </a>
             <a href="{{ route('admin.finance.settlements.index', ['status' => 'applied']) }}" class="bg-white rounded shadow p-4 hover:shadow-md">
-                <p class="text-xs text-gray-500">Selisih Barang (Bulan Ini)</p>
-                <p class="text-2xl font-semibold {{ $kpi['settlement_goods_variance_this_month'] > 0 ? 'text-red-600' : 'text-gray-800' }}">{{ number_format($kpi['settlement_goods_variance_this_month'], 0, ',', '.') }} unit</p>
+                <p class="text-xs text-gray-500">Selisih Barang (Periode Dipilih)</p>
+                <p class="text-2xl font-semibold {{ $kpi['settlement_goods_variance'] > 0 ? 'text-red-600' : 'text-gray-800' }}">{{ number_format($kpi['settlement_goods_variance'], 0, ',', '.') }} unit</p>
             </a>
         </div>
 
@@ -94,7 +118,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="99" class="px-3 py-6 text-center text-gray-500">Belum ada transaksi.</td></tr>
+                            <tr><td colspan="99" class="px-3 py-6 text-center text-gray-500">Tidak ada transaksi pada periode/sales yang dipilih.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -133,7 +157,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="99" class="px-3 py-6 text-center text-gray-500">Belum ada invoice.</td></tr>
+                            <tr><td colspan="99" class="px-3 py-6 text-center text-gray-500">Tidak ada invoice pada periode/sales yang dipilih.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
