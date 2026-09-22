@@ -57,6 +57,34 @@
         </div>
 
         <div class="bg-white rounded shadow overflow-x-auto mb-4">
+            <div class="px-3 py-2 border-b font-medium text-sm flex items-center justify-between">
+                <span>Rute Kunjungan (otomatis dari Rute Kanvas)</span>
+                @if ($salesTask->sales_id)
+                    <a href="{{ route('admin.sales.route-map.index', ['sales_id' => $salesTask->sales_id, 'date' => optional($salesTask->task_date)->toDateString()]) }}"
+                       class="text-blue-700 hover:underline text-xs font-normal">Lihat di Peta Rute</a>
+                @endif
+            </div>
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50 border-b">
+                    <tr>
+                        <th class="px-3 py-2 w-10 text-left">#</th>
+                        <th class="px-3 py-2 text-left">Customer</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse ($salesTask->planCustomers as $plan)
+                        <tr class="border-b">
+                            <td class="px-3 py-2">{{ $plan->sequence + 1 }}</td>
+                            <td class="px-3 py-2">{{ $plan->customer->name ?? "Customer #{$plan->customer_id}" }}</td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="2" class="px-3 py-4 text-center text-gray-400">Tidak ada rute kunjungan tercatat untuk Task ini.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+
+        <div class="bg-white rounded shadow overflow-x-auto mb-4">
             <div class="px-3 py-2 border-b font-medium text-sm">Dokumen Task</div>
             <table class="w-full text-sm">
                 <thead class="bg-gray-50 border-b">

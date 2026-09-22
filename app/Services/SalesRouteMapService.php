@@ -64,15 +64,33 @@ class SalesRouteMapService
     }
 
     /**
-     * 7 opsi hari (Senin-Minggu) minggu berjalan, masing-masing dengan
-     * tanggal aslinya, supaya "Senin" jelas maksudnya tanggal berapa --
-     * bukan cuma nama hari lepas dari konteks minggu.
+     * Sales yang punya Rute Kanvas terjadwal pada hari tertentu --
+     * dipakai untuk menyaring dropdown "Sales" di Peta Rute Admin dan
+     * BKB assignable di Sales Task, supaya keduanya hanya menampilkan
+     * Sales yang benar-benar "aktif bertugas" hari itu (Penyaringan
+     * Daftar Sales), bukan seluruh Sales aktif tanpa pandang jadwal.
+     */
+    public function salesIdsWithRouteOnDay(int $dayOfWeek): Collection
+    {
+        return SalesVisitPlan::where('day_of_week', $dayOfWeek)->distinct()->pluck('sales_id');
+    }
+
+    /**
+     * 7 opsi hari (Senin-Minggu), masing-masing dengan tanggal aslinya,
+     * supaya "Senin" jelas maksudnya tanggal berapa -- bukan cuma nama
+     * hari lepas dari konteks minggu.
+     *
+     * $anchorDate menentukan MINGGU mana yang ditampilkan: default hari
+     * ini (browsing biasa), tapi kalau dipanggil dari tautan Sales Task
+     * ("Lihat di Peta Rute" dengan tanggal tugas tsb), anchor-nya adalah
+     * tanggal task itu -- supaya tab yang tampil adalah minggu ASLI
+     * task itu dibuat, bukan selalu minggu berjalan saat ini.
      *
      * @return array<int, array{day: int, label: string, date: Carbon, isToday: bool, isSelected: bool}>
      */
-    public function weekDayOptions(int $selectedDay): array
+    public function weekDayOptions(int $selectedDay, ?Carbon $anchorDate = null): array
     {
-        $startOfWeek = Carbon::now()->startOfWeek(Carbon::MONDAY);
+        $startOfWeek = ($anchorDate ?? Carbon::now())->copy()->startOfWeek(Carbon::MONDAY);
         $labels = ['Senin', 'Selasa', 'Rabu', 'Kamis', "Jum'at", 'Sabtu', 'Minggu'];
 
         $options = [];

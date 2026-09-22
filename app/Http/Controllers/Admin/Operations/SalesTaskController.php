@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\Operations\SalesTaskRequest;
 use App\Models\BkbDistribusi;
 use App\Models\Branch;
-use App\Models\Customer;
 use App\Models\Sales;
 use App\Models\SalesTask;
 use App\Models\SalesTaskDocument;
@@ -57,21 +56,66 @@ class SalesTaskController extends Controller
 
     public function create(Request $request)
     {
-        // Business Flow Update v3.1 (Blueprint #14.1): hanya BKB yang
-        // sudah Applied dan BELUM punya Sales Task yang boleh dipilih.
+        // Otomasi Sales Task Berdasarkan Rute Harian: tanggal tugas dipilih
+        // LEBIH DULU (default hari ini), lalu daftar BKB yang bisa dipilih
+        // disaring hanya untuk Sales yang punya Rute Kanvas (SalesVisitPlan)
+        // pada hari itu -- supaya Admin tidak bisa membuat Task untuk Sales
+        // yang rutenya kosong (yang berarti tidak ada toko untuk ditarik
+        // otomatis sama sekali).
+        $taskDate = $this->parseTaskDate($request->query('task_date'));
+        $dayOfWeekIso = $taskDate->dayOfWeekIso;
+
+        $salesIdsWithRoute = SalesVisitPlan::where('day_of_week', $dayOfWeekIso)
+            ->distinct()
+            ->pluck('sales_id');
+
         $assignableBkbs = BkbDistribusi::query()
             ->where('status', BkbDistribusi::STATUS_APPLIED)
             ->whereDoesntHave('salesTask')
+            ->whereIn('sales_id', $salesIdsWithRoute)
             ->with(['sales', 'warehouse', 'items.product'])
             ->orderByDesc('id')
             ->get();
 
+        // Preview rute per BKB (read-only) -- ditampilkan di form supaya
+        // Admin tahu persis toko apa saja yang akan otomatis masuk Task,
+        // tanpa perlu (dan tanpa bisa) mengetik manual satu per satu.
+        $routePreviewByBkb = $assignableBkbs->mapWithKeys(function ($bkb) use ($dayOfWeekIso) {
+            $stops = SalesVisitPlan::forDay($bkb->sales_id, $dayOfWeekIso)
+                ->with('customer')
+                ->get()
+                ->map(fn ($p) => $p->customer->name ?? "Customer #{$p->customer_id}")
+                ->values();
+
+            return [$bkb->id => $stops];
+        });
+
+        $skippedCount = BkbDistribusi::query()
+            ->where('status', BkbDistribusi::STATUS_APPLIED)
+            ->whereDoesntHave('salesTask')
+            ->whereNotIn('sales_id', $salesIdsWithRoute)
+            ->count();
+
         $branches = Branch::where('is_active', true)->orderBy('name')->get();
-        $customers = Customer::where('is_active', true)->orderBy('name')->get();
 
         $selectedBkbId = $request->query('bkb_distribusi_id');
 
-        return view('admin.operations.sales-tasks.create', compact('assignableBkbs', 'branches', 'customers', 'selectedBkbId'));
+        return view('admin.operations.sales-tasks.create', compact(
+            'assignableBkbs', 'branches', 'selectedBkbId', 'taskDate', 'dayOfWeekIso', 'routePreviewByBkb', 'skippedCount'
+        ));
+    }
+
+    private function parseTaskDate(?string $value): \Carbon\Carbon
+    {
+        if ($value) {
+            try {
+                return \Carbon\Carbon::createFromFormat('Y-m-d', $value)->startOfDay();
+            } catch (\Exception) {
+                // fall through ke default
+            }
+        }
+
+        return now()->startOfDay();
     }
 
     public function store(SalesTaskRequest $request)
@@ -114,22 +158,24 @@ class SalesTaskController extends Controller
                 ]);
             }
 
-            // PERBAIKAN AUDIT (item D - audit #14): simpan Visit Plan
-            // harian kalau Admin mengisinya, urutan array = sequence.
-            //
-            // Fitur A.3: kalau Admin TIDAK mengisi visit_plan manual, ambil
-            // otomatis dari SalesVisitPlan (jadwal mingguan yang sudah
-            // disusun Admin sebelumnya) berdasarkan sales_id task ini +
-            // hari dari task_date -- menggantikan input manual satu-satu.
-            $visitPlanLines = $data['visit_plan'] ?? null;
+            // Otomasi Sales Task Berdasarkan Rute Harian: TIDAK ADA LAGI
+            // input manual satu-satu. Daftar toko/outlet WAJIB ditarik
+            // otomatis dari SalesVisitPlan (Rute Kanvas) berdasarkan
+            // sales_id task ini + hari dari task_date. Kalau Rute Kanvas
+            // hari itu kosong, Task DIBATALKAN pembuatannya (bukan dibuat
+            // dengan daftar kunjungan kosong) -- sejalan dengan filter di
+            // create() yang sudah menyembunyikan BKB milik Sales tanpa
+            // rute hari itu dari pilihan Admin; guard ini jaga-jaga kalau
+            // ada race condition (rute dihapus tepat setelah form dimuat).
+            $dayOfWeekIso = \Carbon\Carbon::parse($data['task_date'])->dayOfWeekIso;
+
+            $visitPlanLines = SalesVisitPlan::forDay($bkb->sales_id, $dayOfWeekIso)
+                ->get()
+                ->map(fn ($p) => ['customer_id' => $p->customer_id])
+                ->all();
 
             if (empty($visitPlanLines)) {
-                $dayOfWeekIso = \Carbon\Carbon::parse($data['task_date'])->dayOfWeekIso;
-
-                $visitPlanLines = SalesVisitPlan::forDay($bkb->sales_id, $dayOfWeekIso)
-                    ->get()
-                    ->map(fn ($p) => ['customer_id' => $p->customer_id])
-                    ->all();
+                abort(422, 'Sales ini tidak punya Rute Kanvas (Visit Plan) terjadwal untuk tanggal tugas yang dipilih. Atur dulu Rute Kanvas-nya di menu Visit Plan sebelum membuat Sales Task.');
             }
 
             foreach ($visitPlanLines as $i => $line) {
@@ -166,7 +212,7 @@ class SalesTaskController extends Controller
 
     public function show(SalesTask $salesTask)
     {
-        $salesTask->load(['sales', 'branch', 'documents', 'taskStocks.product', 'bkbDistribusi']);
+        $salesTask->load(['sales', 'branch', 'documents', 'taskStocks.product', 'bkbDistribusi', 'planCustomers.customer']);
 
         // Daftar Sales lain untuk fitur Edit Penugasan (Blueprint #13.8,
         // #14.4) -- reassignment memindahkan Sales Stock lewat StockService,

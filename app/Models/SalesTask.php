@@ -86,8 +86,12 @@ class SalesTask extends Model
     }
 
     /**
-     * PERBAIKAN AUDIT (item D - audit #14): Visit Plan harian, urutan
-     * kunjungan yang dikontrol eksplisit oleh Admin (opsional per Task).
+     * Rute Kunjungan Hari Ini: WAJIB terisi otomatis dari SalesVisitPlan
+     * (Rute Kanvas) saat Task dibuat -- lihat SalesTaskController::store().
+     * Sejak "Otomasi Sales Task Berdasarkan Rute Harian", Admin TIDAK LAGI
+     * bisa mengisi/mengubah baris ini secara manual lewat form Sales Task;
+     * satu-satunya cara mengubah isinya adalah lewat menu Visit Plan
+     * (VisitPlanController) sebelum Task dibuat.
      */
     public function planCustomers(): HasMany
     {

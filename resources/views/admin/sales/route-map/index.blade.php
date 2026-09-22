@@ -1,29 +1,37 @@
 <x-admin-layout>
     <x-slot name="header">Rute Toko per Sales</x-slot>
 
+    @if ($anchorDate)
+        <div class="bg-blue-50 text-blue-800 text-xs rounded px-3 py-2 mb-4">
+            Menampilkan rute untuk tanggal <strong>{{ $anchorDate->format('d M Y') }}</strong> (dibuka dari tautan Sales Task).
+            <a href="{{ route('admin.sales.route-map.index') }}" class="underline">Lihat minggu berjalan</a>
+        </div>
+    @endif
+
     <div class="bg-white rounded shadow p-4 mb-4">
-        <label class="block text-xs text-gray-500 mb-1">Sales</label>
+        <label class="block text-xs text-gray-500 mb-1">Sales <span class="text-gray-400">(yang bertugas hari ini)</span></label>
         <select onchange="window.location.href = this.value" class="border rounded px-3 py-2 text-sm w-full md:w-80">
             @forelse ($salesList as $s)
-                <option value="{{ route('admin.sales.route-map.index', ['sales_id' => $s->id, 'day' => $selectedDay]) }}"
+                <option value="{{ route('admin.sales.route-map.index', ['sales_id' => $s->id, 'date' => collect($weekDays)->firstWhere('isSelected', true)['date']->toDateString()]) }}"
                         @selected($selectedSales && $s->id === $selectedSales->id)>
                     {{ $s->name }}
                 </option>
             @empty
-                <option value="">Belum ada Sales aktif</option>
+                <option value="">Tidak ada Sales dengan Rute Kanvas hari ini</option>
             @endforelse
         </select>
+        <p class="text-xs text-gray-400 mt-1">Sales yang belum punya Rute Kanvas untuk hari ini tidak muncul di sini. Atur dulu di <a href="{{ route('admin.sales.visit-plans.index') }}" class="underline">menu Visit Plan</a>.</p>
     </div>
 
     @if (! $selectedSales)
         <div class="bg-white rounded shadow p-4 text-sm text-gray-500">
-            Tidak ada Sales aktif untuk ditampilkan rutenya.
+            Tidak ada Sales yang bertugas (punya Rute Kanvas) pada hari yang dipilih.
         </div>
     @else
         <div class="bg-white rounded shadow p-3 mb-4">
             <div class="flex gap-2 overflow-x-auto">
                 @foreach ($weekDays as $option)
-                    <a href="{{ route('admin.sales.route-map.index', ['sales_id' => $selectedSales->id, 'day' => $option['day']]) }}"
+                    <a href="{{ route('admin.sales.route-map.index', ['sales_id' => $selectedSales->id, 'date' => $option['date']->toDateString()]) }}"
                        class="flex-shrink-0 text-center px-3 py-2 rounded-lg text-xs
                               {{ $option['isSelected'] ? 'bg-indigo-600 text-white' : ($option['isToday'] ? 'bg-indigo-50 text-indigo-700' : 'bg-gray-50 text-gray-600') }}">
                         <p class="font-medium">{{ $option['label'] }}</p>

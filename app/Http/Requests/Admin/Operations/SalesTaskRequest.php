@@ -29,12 +29,6 @@ class SalesTaskRequest extends FormRequest
             'branch_id' => ['required', 'exists:branches,id'],
             'task_date' => ['required', 'date'],
             'notes' => ['nullable', 'string'],
-            // PERBAIKAN AUDIT (item D - audit #14): opsional -- kalau diisi,
-            // urutan array ini menjadi Visit Plan harian (sequence) yang
-            // dipakai RouteController::today() sebagai sumber kebenaran
-            // urutan stop, menggantikan heuristik jarak terdekat.
-            'visit_plan' => ['nullable', 'array'],
-            'visit_plan.*.customer_id' => ['required_with:visit_plan', 'exists:customers,id'],
         ];
     }
 
