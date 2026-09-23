@@ -6,8 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Sales\Concerns\ResolvesCurrentSales;
 use App\Http\Requests\Sales\VisitCheckInRequest;
 use App\Http\Requests\Sales\VisitCheckOutRequest;
-use App\Models\Customer;
 use App\Models\Visit;
+use App\Services\SalesRouteMapService;
 use App\Services\VisitService;
 use Illuminate\Validation\ValidationException;
 
@@ -18,7 +18,7 @@ class VisitController extends Controller
 {
     use ResolvesCurrentSales;
 
-    public function __construct(protected VisitService $service)
+    public function __construct(protected VisitService $service, protected SalesRouteMapService $routeMapService)
     {
     }
 
@@ -37,18 +37,24 @@ class VisitController extends Controller
         return view('sales.visits.index', compact('ongoing', 'items'));
     }
 
+    /**
+     * PERBAIKAN: sebelumnya menampilkan SEMUA Customer yang di-assign ke
+     * Sales (+ yang belum di-assign ke siapapun), tanpa peduli hari.
+     * Akibatnya Sales bisa check-in ke toko jadwal hari lain di hari yang
+     * salah. Sekarang dropdown Check-in dibatasi ke Rute Kanvas HARI INI
+     * saja, memakai service yang sama dengan Peta Customer (SalesRouteMapService)
+     * supaya kedua fitur selalu konsisten -- termasuk toko hasil Tagging
+     * yang baru di-approve untuk hari ini (lihat CustomerTaggingService::
+     * autoAddToVisitPlan()).
+     */
     public function create()
     {
         $sales = $this->currentSales();
 
-        $customers = Customer::where('is_active', true)
-            ->where(function ($q) use ($sales) {
-                $q->whereNull('sales_id')->orWhere('sales_id', $sales->id);
-            })
-            ->orderBy('name')
-            ->get();
+        $today = now()->dayOfWeekIso;
+        [$customers, $usingFallback] = $this->routeMapService->customersForDay($sales->id, $today);
 
-        return view('sales.visits.create', compact('customers'));
+        return view('sales.visits.create', compact('customers', 'usingFallback'));
     }
 
     public function store(VisitCheckInRequest $request)

@@ -11,6 +11,7 @@ use App\Models\Customer;
 use App\Models\SalesRoute;
 use App\Models\SalesTask;
 use App\Services\Routing\RoutingService;
+use App\Services\SalesRouteMapService;
 use App\Support\Geo;
 use Illuminate\Http\Request;
 
@@ -30,7 +31,7 @@ class RouteController extends Controller
 {
     use ResolvesCurrentSales;
 
-    public function __construct(protected RoutingEngine $routingEngine) {}
+    public function __construct(protected RoutingEngine $routingEngine, protected SalesRouteMapService $routeMapService) {}
 
     public function calculate(Request $request, Customer $customer)
     {
@@ -71,6 +72,20 @@ class RouteController extends Controller
      * heuristik jarak terdekat karena skema customer_assignments live
      * belum punya kolom urutan kunjungan harian (audit #14, lihat catatan
      * di CHANGELOG).
+     *
+     * PERBAIKAN: sebelumnya endpoint ini mengambil SEMUA Customer yang
+     * di-assign ke Sales (`Customer::where('sales_id', ...)->get()`),
+     * tanpa peduli Rute Kanvas hari apa Customer itu dijadwalkan. Akibatnya
+     * peta native Android (MapActivity, lewat routes/today) menampilkan
+     * toko jadwal SEMUA hari sekaligus, bukan cuma toko hari ini -- SalesTask
+     * planCustomers sebelumnya cuma dipakai untuk urutan kunjungan
+     * (orderFromExplicitPlan), bukan untuk MENYARING daftar toko itu sendiri.
+     *
+     * Sekarang daftar toko disaring dulu lewat SalesRouteMapService (Rute
+     * Kanvas hari ini) -- service yang SAMA dipakai Peta Customer & Check-in
+     * Kunjungan WebView -- supaya "toko hari ini" konsisten di native app
+     * maupun WebView, termasuk toko hasil Tagging yang baru di-approve untuk
+     * hari ini (CustomerTaggingService::autoAddToVisitPlan()).
      */
     public function today(Request $request, RoutingService $routingService)
     {
@@ -85,15 +100,16 @@ class RouteController extends Controller
             ], 422);
         }
 
-        $customers = Customer::where('sales_id', $sales->id)
-            ->where('is_active', true)
-            ->get()
-            ->filter(fn (Customer $c) => $c->hasLocation());
+        [$scheduledCustomers, $usingFallback] = $this->routeMapService->customersForDay($sales->id, now()->dayOfWeekIso);
+
+        $customers = $scheduledCustomers->filter(fn (Customer $c) => $c->hasLocation());
 
         if ($customers->isEmpty()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Tidak ada Customer aktif dengan titik lokasi untuk dihitung rutenya hari ini.',
+                'message' => $usingFallback
+                    ? 'Tidak ada Customer aktif dengan titik lokasi untuk dihitung rutenya hari ini.'
+                    : 'Tidak ada toko terjadwal untuk hari ini di Rute Kanvas Anda.',
             ], 422);
         }
 

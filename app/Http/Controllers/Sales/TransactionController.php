@@ -5,11 +5,11 @@ namespace App\Http\Controllers\Sales;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Sales\Concerns\ResolvesCurrentSales;
 use App\Http\Requests\Sales\SalesTransactionRequest;
-use App\Models\Customer;
 use App\Models\Price;
 use App\Models\Product;
 use App\Models\SalesTransaction;
 use App\Models\Stock;
+use App\Services\SalesRouteMapService;
 use App\Services\SalesTransactionService;
 use App\Services\StockService;
 use Illuminate\Validation\ValidationException;
@@ -21,8 +21,11 @@ class TransactionController extends Controller
 {
     use ResolvesCurrentSales;
 
-    public function __construct(protected SalesTransactionService $service, protected StockService $stockService)
-    {
+    public function __construct(
+        protected SalesTransactionService $service,
+        protected StockService $stockService,
+        protected SalesRouteMapService $routeMapService,
+    ) {
     }
 
     public function index()
@@ -37,16 +40,20 @@ class TransactionController extends Controller
         return view('sales.transactions.index', compact('items'));
     }
 
+    /**
+     * PERBAIKAN: sebelumnya dropdown Customer di form transaksi
+     * menampilkan SEMUA Customer yang di-assign ke Sales (+ yang belum
+     * di-assign ke siapapun), tanpa peduli hari -- konsisten dengan bug
+     * yang sama di Peta Customer & Check-in Kunjungan. Sekarang dibatasi
+     * ke Rute Kanvas HARI INI, memakai service yang sama supaya "toko hari
+     * ini" konsisten di semua fitur Sales App.
+     */
     public function create()
     {
         $sales = $this->currentSales();
 
-        $customers = Customer::where('is_active', true)
-            ->where(function ($q) use ($sales) {
-                $q->whereNull('sales_id')->orWhere('sales_id', $sales->id);
-            })
-            ->orderBy('name')
-            ->get();
+        $today = now()->dayOfWeekIso;
+        [$customers, $usingFallback] = $this->routeMapService->customersForDay($sales->id, $today);
 
         // Hanya tampilkan produk yang tersedia di Sales Stock milik Sales
         // ini, agar pemilihan produk di form transaksi realistis
@@ -60,7 +67,7 @@ class TransactionController extends Controller
 
         $prices = Price::where('is_active', true)->pluck('amount', 'product_id');
 
-        return view('sales.transactions.create', compact('customers', 'myStock', 'prices'));
+        return view('sales.transactions.create', compact('customers', 'usingFallback', 'myStock', 'prices'));
     }
 
     public function store(SalesTransactionRequest $request)

@@ -11,6 +11,16 @@
         </div>
     @endif
 
+    @if ($customers->isEmpty() && ! $usingFallback)
+        <div class="bg-white rounded-lg shadow p-4 text-sm text-gray-500">
+            Tidak ada toko terjadwal untuk dikunjungi hari ini di Rute Kanvas Anda.
+        </div>
+    @else
+        @if ($usingFallback)
+            <div class="mb-3 p-3 bg-amber-50 text-amber-800 rounded text-xs">
+                Rute Kanvas Anda belum pernah diatur Admin -- daftar di bawah menampilkan semua toko yang di-assign ke Anda untuk sementara.
+            </div>
+        @endif
     <form method="POST" action="{{ route('sales.visits.store') }}" onsubmit="return isiLokasi(event)" class="bg-white rounded-lg shadow p-4 space-y-3">
         @csrf
         <div>
@@ -34,6 +44,7 @@
         <button type="submit" class="w-full bg-indigo-600 text-white px-3 py-2 rounded text-sm">Check-in</button>
         <a href="{{ route('sales.visits.index') }}" class="block text-center text-sm text-gray-500">Batal</a>
     </form>
+    @endif
 
     <script>
         function isiLokasi(e) {

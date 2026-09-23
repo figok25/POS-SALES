@@ -35,9 +35,20 @@ class SalesRouteMapService
 
     /**
      * Daftar Customer untuk 1 Sales pada 1 hari tertentu, mengikuti
-     * Rute Kanvas (SalesVisitPlan). Kalau Rute Kanvas hari itu masih
-     * kosong, fallback ke seluruh Customer yang di-assign ke Sales
-     * tsb (diurutkan nama) supaya peta/list tidak kosong.
+     * Rute Kanvas (SalesVisitPlan).
+     *
+     * PERBAIKAN: sebelumnya begitu Rute Kanvas HARI INI kosong, service
+     * ini fallback menampilkan SELURUH Customer yang di-assign ke Sales
+     * (lintas hari) -- akibatnya toko-toko jadwal Senin ikut nongol pas
+     * hari Rabu, dan toko hasil Tagging yang baru terdaftar di hari lain
+     * ikut kebawa juga. "Rute Kanvas per hari" jadi tidak berarti apa-apa.
+     *
+     * Sekarang fallback ke SEMUA customer HANYA terjadi kalau Sales ini
+     * belum PERNAH punya Rute Kanvas sama sekali (di hari manapun) --
+     * supaya Sales yang baru dan belum di-setup Admin tetap bisa lihat
+     * customer-nya. Begitu Sales sudah punya jadwal di satu hari saja,
+     * hari-hari lain yang memang kosong akan tampil KOSONG (bukan
+     * fallback), sesuai maksud "Rute Kanvas hari ini".
      *
      * @return array{0: Collection<int, Customer>, 1: bool} [$customers, $usingFallback]
      */
@@ -58,6 +69,16 @@ class SalesRouteMapService
             return [$customers, false];
         }
 
+        $hasAnyPlanAnyDay = SalesVisitPlan::where('sales_id', $salesId)->exists();
+
+        if ($hasAnyPlanAnyDay) {
+            // Sales SUDAH punya Rute Kanvas (di hari lain) - hari ini memang
+            // tidak dijadwalkan, jadi tampilkan kosong, JANGAN fallback.
+            return [new Collection(), false];
+        }
+
+        // Sales belum pernah punya Rute Kanvas di hari manapun -> fallback
+        // ke semua customer supaya tidak buntu total sebelum Admin sempat setup.
         $customers = (clone $baseQuery)->orderBy('name')->get();
 
         return [$customers, true];

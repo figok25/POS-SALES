@@ -15,7 +15,16 @@
         <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm text-yellow-800">
             Sales Stock Anda kosong. Hubungi Admin untuk pengiriman barang (BKB) terlebih dahulu.
         </div>
+    @elseif ($customers->isEmpty())
+        <div class="bg-white rounded-lg shadow p-4 text-sm text-gray-500">
+            Tidak ada toko terjadwal untuk hari ini di Rute Kanvas Anda, jadi belum bisa membuat transaksi baru.
+        </div>
     @else
+        @if ($usingFallback)
+            <div class="mb-3 p-3 bg-amber-50 text-amber-800 rounded text-xs">
+                Rute Kanvas Anda belum pernah diatur Admin -- daftar Customer di bawah menampilkan semua toko yang di-assign ke Anda untuk sementara.
+            </div>
+        @endif
         <form method="POST" action="{{ route('sales.transactions.store') }}" x-data="salesTransactionForm()" class="bg-white rounded-lg shadow p-4 space-y-3">
             @csrf
             <div>

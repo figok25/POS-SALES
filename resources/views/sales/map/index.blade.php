@@ -13,7 +13,9 @@
             @endforeach
         </div>
         @if ($usingFallback)
-            <p class="text-xs text-gray-500 mt-2">Rute Kanvas hari ini belum diatur -- menampilkan semua toko yang di-assign ke Anda.</p>
+            <p class="text-xs text-gray-500 mt-2">Rute Kanvas Anda belum pernah diatur Admin sama sekali -- menampilkan semua toko yang di-assign ke Anda untuk sementara.</p>
+        @elseif ($customers->isEmpty())
+            <p class="text-xs text-gray-500 mt-2">Tidak ada toko terjadwal untuk hari ini di Rute Kanvas Anda.</p>
         @endif
     </div>
 
@@ -41,7 +43,7 @@
                 </span>
             </a>
         @empty
-            <p class="px-4 py-6 text-center text-gray-500 text-sm">Belum ada Customer yang di-assign ke Anda.</p>
+            <p class="px-4 py-6 text-center text-gray-500 text-sm">Tidak ada toko terjadwal untuk hari ini.</p>
         @endforelse
     </div>
 

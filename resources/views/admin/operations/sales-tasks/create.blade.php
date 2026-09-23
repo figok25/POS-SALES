@@ -4,23 +4,46 @@
 
         @if ($errors->any())
             <div class="mb-4 p-3 bg-red-100 text-red-800 rounded text-sm">
-                <ul class="list-disc pl-5">@foreach ($errors->all() as $e) <li>{{ $e }}</li> @endforeach</ul>
+                <ul class="list-disc pl-5">
+                    @foreach ($errors->all() as $e)
+                        <li>{{ $e }}</li>
+                    @endforeach
+                </ul>
             </div>
         @endif
+
+        @php
+            $dayNames = [
+                1 => 'Senin',
+                2 => 'Selasa',
+                3 => 'Rabu',
+                4 => 'Kamis',
+                5 => "Jum'at",
+                6 => 'Sabtu',
+                7 => 'Minggu',
+            ];
+
+            $dayName = $dayNames[$dayOfWeekIso] ?? '-';
+        @endphp
 
         {{-- Otomasi Sales Task Berdasarkan Rute Harian: tanggal dipilih DULU
              (form GET terpisah, auto-reload), baru daftar BKB/Sales yang
              muncul di bawah disaring sesuai Rute Kanvas hari itu. --}}
+
         <form method="GET" action="{{ route('admin.sales-tasks.create') }}" class="bg-white p-4 rounded shadow mb-4">
             <label class="block text-sm font-medium mb-1">Tanggal Tugas</label>
+
             <div class="flex items-center gap-2">
-                <input type="date"
-                       name="task_date"
-                       value="{{ $taskDate->toDateString() }}"
-                       onchange="this.form.submit()"
-                       class="border rounded px-3 py-2 text-sm">
+                <input
+                    type="date"
+                    name="task_date"
+                    value="{{ $taskDate->toDateString() }}"
+                    onchange="this.form.submit()"
+                    class="border rounded px-3 py-2 text-sm"
+                >
+
                 <span class="text-xs text-gray-500">
-                    ({{ ['Senin', 'Selasa', 'Rabu', 'Kamis', "Jum'at", 'Sabtu', 'Minggu'][$dayOfWeekIso - 1] }])
+                    ({{ $dayName }})
                 </span>
             </div>
             <p class="text-xs text-gray-500 mt-2">
