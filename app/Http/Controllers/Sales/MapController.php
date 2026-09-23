@@ -21,6 +21,11 @@ use Illuminate\Http\Request;
  * bisa lihat hari lain dalam minggu berjalan lewat query ?day=1..7.
  * Logic filter-nya ada di SalesRouteMapService, dipakai bersama dengan
  * versi Admin (Admin\Sales\MapController) supaya kedua sisi konsisten.
+ *
+ * Indikator Visual Status Kunjungan pada Peta: setiap Customer ditandai
+ * "sudah" atau "belum" dikunjungi (berdasarkan Visit::check_in_at pada
+ * tanggal tab yang dipilih) -- read-only, dari SalesRouteMapService,
+ * TIDAK menyentuh RouteController/TrackingController (mobile native).
  */
 class MapController extends Controller
 {
@@ -40,6 +45,9 @@ class MapController extends Controller
 
         $weekDays = $this->routeMapService->weekDayOptions($selectedDay);
 
+        $selectedDate = collect($weekDays)->firstWhere('isSelected', true)['date'];
+        $visitedCustomerIds = $this->routeMapService->visitedCustomerIds($sales->id, $selectedDate);
+
         return view('sales.map.index', [
             'customers' => $customers,
             'customersWithLocation' => $customers->filter->hasLocation()->values(),
@@ -47,6 +55,7 @@ class MapController extends Controller
             'weekDays' => $weekDays,
             'selectedDay' => $selectedDay,
             'usingFallback' => $usingFallback,
+            'visitedCustomerIds' => $visitedCustomerIds,
         ]);
     }
 

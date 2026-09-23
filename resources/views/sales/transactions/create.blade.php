@@ -29,12 +29,12 @@
             @csrf
             <div>
                 <label class="block text-sm text-gray-600 mb-1">Customer</label>
-                <select name="customer_id" required class="w-full border rounded px-3 py-2 text-sm">
-                    <option value="">- Pilih Customer -</option>
-                    @foreach ($customers as $c)
-                        <option value="{{ $c->id }}">{{ $c->name }}</option>
-                    @endforeach
-                </select>
+                <x-searchable-select
+                    name="customer_id"
+                    :options="$customers->map(fn ($c) => ['id' => $c->id, 'label' => $c->name . ($c->code ? ' (' . $c->code . ')' : '')])"
+                    placeholder="Cari nama atau kode customer..."
+                    required
+                />
             </div>
 
             <div>

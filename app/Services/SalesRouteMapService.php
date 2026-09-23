@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Customer;
 use App\Models\SalesVisitPlan;
+use App\Models\Visit;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -82,6 +83,23 @@ class SalesRouteMapService
         $customers = (clone $baseQuery)->orderBy('name')->get();
 
         return [$customers, true];
+    }
+
+    /**
+     * Indikator Visual Status Kunjungan pada Peta: Customer ID yang SUDAH
+     * dikunjungi (ada Visit dengan check_in_at pada tanggal tsb) oleh
+     * Sales yang bersangkutan. Dipakai Sales\MapController & Admin\Sales\
+     * MapController untuk membedakan marker/baris "sudah" vs "belum"
+     * dikunjungi -- read-only, TIDAK menulis apapun, dan tidak dipakai
+     * RouteController/TrackingController (mobile native) sama sekali.
+     */
+    public function visitedCustomerIds(int $salesId, Carbon $date): Collection
+    {
+        return Visit::where('sales_id', $salesId)
+            ->whereDate('check_in_at', $date->toDateString())
+            ->pluck('customer_id')
+            ->unique()
+            ->values();
     }
 
     /**

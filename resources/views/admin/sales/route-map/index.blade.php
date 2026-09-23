@@ -51,6 +51,12 @@
                     Rute Kanvas hari ini belum diatur untuk Sales ini -- menampilkan semua toko yang di-assign.
                 </p>
             @endif
+            @if ($customers->isNotEmpty())
+                <div class="flex items-center gap-4 mt-3 pt-2 border-t text-xs text-gray-600">
+                    <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-green-600 inline-block"></span> Sudah dikunjungi ({{ $visitedCustomerIds->count() }})</span>
+                    <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-gray-400 inline-block"></span> Belum dikunjungi ({{ $customers->count() - $visitedCustomerIds->count() }})</span>
+                </div>
+            @endif
         </div>
 
         @if ($customersWithLocation->isEmpty())
@@ -63,21 +69,23 @@
 
         <div class="bg-white rounded-lg shadow divide-y">
             @forelse ($customers as $index => $customer)
+                @php $isVisited = $visitedCustomerIds->contains($customer->id); @endphp
                 <div class="flex items-center justify-between px-4 py-3 text-sm">
                     <div class="flex items-center gap-3">
-                        <span class="w-6 h-6 flex items-center justify-center rounded-full bg-gray-100 text-xs text-gray-500">{{ $index + 1 }}</span>
+                        <span class="w-6 h-6 flex items-center justify-center rounded-full text-xs {{ $isVisited ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-500' }}">{{ $isVisited ? '✓' : $index + 1 }}</span>
                         <div>
                             <p class="font-medium">{{ $customer->name }}</p>
                             <p class="text-xs text-gray-500">{{ $customer->address ?? 'Alamat belum diisi' }}</p>
                         </div>
                     </div>
-                    <span>
+                    <div class="text-right">
+                        <p class="text-xs {{ $isVisited ? 'text-green-600' : 'text-gray-400' }} font-medium">{{ $isVisited ? 'Sudah Dikunjungi' : 'Belum Dikunjungi' }}</p>
                         @if ($customer->hasLocation())
                             <span class="text-green-600 text-xs">📍 Ada Lokasi</span>
                         @else
                             <span class="text-gray-400 text-xs">Belum Ada Lokasi</span>
                         @endif
-                    </span>
+                    </div>
                 </div>
             @empty
                 <p class="px-4 py-6 text-center text-gray-500 text-sm">Belum ada Customer yang di-assign ke Sales ini.</p>
@@ -91,6 +99,7 @@
                     'name' => $c->name,
                     'lat' => (float) $c->latitude,
                     'lng' => (float) $c->longitude,
+                    'visited' => $visitedCustomerIds->contains($c->id),
                 ])->values();
             @endphp
             @push('styles')
@@ -113,6 +122,9 @@
                     const bounds = new maplibregl.LngLatBounds();
 
                     customerMarkers.forEach((c, i) => {
+                        // Indikator Visual Status Kunjungan pada Peta: hijau +
+                        // centang untuk yang sudah dikunjungi hari ini, abu-abu
+                        // bernomor untuk yang belum.
                         const el = document.createElement('div');
                         el.style.display = 'flex';
                         el.style.alignItems = 'center';
@@ -120,16 +132,17 @@
                         el.style.width = '20px';
                         el.style.height = '20px';
                         el.style.borderRadius = '50%';
-                        el.style.background = '#4f46e5';
+                        el.style.background = c.visited ? '#16a34a' : '#4f46e5';
                         el.style.color = 'white';
                         el.style.fontSize = '10px';
+                        el.style.fontWeight = 'bold';
                         el.style.border = '2px solid white';
-                        el.textContent = i + 1;
+                        el.textContent = c.visited ? '✓' : (i + 1);
 
                         new maplibregl.Marker({ element: el })
                             .setLngLat([c.lng, c.lat])
                             .setPopup(new maplibregl.Popup({ offset: 14 }).setHTML(
-                                `<span class="text-sm font-medium">${i + 1}. ${c.name}</span>`
+                                `<span class="text-sm font-medium">${i + 1}. ${c.name}</span><br><span class="text-xs ${c.visited ? 'text-green-600' : 'text-gray-500'}">${c.visited ? '✓ Sudah dikunjungi' : 'Belum dikunjungi'}</span>`
                             ))
                             .addTo(map);
 
