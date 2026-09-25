@@ -2,7 +2,10 @@
     <div class="p-6">
         <div class="flex items-center justify-between mb-4">
             <h1 class="text-xl font-semibold">Customer</h1>
-            <a href="{{ route('admin.master.customers.create') }}" class="bg-blue-600 text-white px-3 py-2 rounded text-sm hover:bg-blue-700">+ Tambah Customer</a>
+            <div class="flex gap-2">
+                <a href="{{ route('admin.master.customers.export', request()->query()) }}" class="bg-gray-200 px-3 py-2 rounded text-sm hover:bg-gray-300">Download Laporan</a>
+                <a href="{{ route('admin.master.customers.create') }}" class="bg-blue-600 text-white px-3 py-2 rounded text-sm hover:bg-blue-700">+ Tambah Customer</a>
+            </div>
         </div>
 
         @if (session('status'))

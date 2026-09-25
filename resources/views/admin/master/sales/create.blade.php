@@ -30,6 +30,21 @@
             <input type="text" name="phone" value="{{ old('phone', $item->phone ?? '') }}" class="w-full border rounded px-3 py-2 text-sm">
             @error('phone') <p class="text-red-600 text-xs mt-1">{{ $message }}</p> @enderror
         </div>
+
+        <div class="border-t pt-4 mt-2 mb-4">
+            <p class="text-sm font-semibold text-gray-700 mb-1">Akun Login (Sales App)</p>
+            <p class="text-xs text-gray-500 mb-3">Opsional saat pembuatan. Isi Email &amp; Password kalau Sales ini perlu langsung bisa login. Bisa juga diisi belakangan lewat menu Edit.</p>
+            <div class="mb-3">
+                <label class="block text-sm font-medium mb-1">Email</label>
+                <input type="email" name="email" value="{{ old('email') }}" class="w-full border rounded px-3 py-2 text-sm" placeholder="sales1@perusahaan.com">
+                @error('email') <p class="text-red-600 text-xs mt-1">{{ $message }}</p> @enderror
+            </div>
+            <div class="mb-1">
+                <label class="block text-sm font-medium mb-1">Password</label>
+                <input type="text" name="password" value="{{ old('password') }}" class="w-full border rounded px-3 py-2 text-sm" placeholder="Minimal 4 karakter">
+                @error('password') <p class="text-red-600 text-xs mt-1">{{ $message }}</p> @enderror
+            </div>
+        </div>
             <div class="mb-4">
                 <label class="inline-flex items-center text-sm">
                     <input type="checkbox" name="is_active" value="1" checked class="mr-2"> Aktif

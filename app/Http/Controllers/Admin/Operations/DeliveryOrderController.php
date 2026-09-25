@@ -34,8 +34,9 @@ class DeliveryOrderController extends Controller
 
         $vehicles = Vehicle::where('is_active', true)->orderBy('name')->get();
         $drivers = Employee::drivers()->where('is_active', true)->orderBy('name')->get();
+        $draftCount = DeliveryOrder::where('status', DeliveryOrder::STATUS_DRAFT)->count();
 
-        return view('admin.operations.delivery-orders.index', compact('items', 'status', 'vehicles', 'drivers'));
+        return view('admin.operations.delivery-orders.index', compact('items', 'status', 'vehicles', 'drivers', 'draftCount'));
     }
 
     public function create()
@@ -126,11 +127,20 @@ class DeliveryOrderController extends Controller
      * Fitur B.3 - Bulk Apply: Admin memproses banyak Draft DO sekaligus
      * (assign vehicle/driver/route/jadwal yang sama, lalu dispatch semua),
      * tanpa perlu buka satu-satu.
+     *
+     * PERBAIKAN: sebelumnya hanya bisa memproses Draft DO yang tercentang
+     * di HALAMAN saat ini (daftar di-paginate 15/halaman), jadi "Pilih
+     * Semua" tidak pernah benar-benar memproses SELURUH Draft DO kalau
+     * jumlahnya lebih dari 15. Sekarang mendukung flag `select_all_draft`
+     * yang memproses seluruh Draft DO di database (opsional difilter
+     * `status` bila dikirim), tidak tergantung checkbox halaman mana pun.
      */
     public function bulkDispatch(Request $request)
     {
+        $selectAllDraft = $request->boolean('select_all_draft');
+
         $data = $request->validate([
-            'delivery_order_ids' => ['required', 'array', 'min:1'],
+            'delivery_order_ids' => [$selectAllDraft ? 'nullable' : 'required', 'array'],
             'delivery_order_ids.*' => ['integer', 'exists:delivery_orders,id'],
             'vehicle_id' => ['nullable', 'exists:vehicles,id'],
             'driver_id' => ['nullable', 'exists:employees,id'],
@@ -138,9 +148,17 @@ class DeliveryOrderController extends Controller
             'scheduled_date' => ['nullable', 'date'],
         ]);
 
-        $orders = DeliveryOrder::whereIn('id', $data['delivery_order_ids'])
-            ->where('status', DeliveryOrder::STATUS_DRAFT)
-            ->get();
+        if ($selectAllDraft) {
+            $orders = DeliveryOrder::where('status', DeliveryOrder::STATUS_DRAFT)->get();
+        } else {
+            if (empty($data['delivery_order_ids'])) {
+                return back()->with('error', 'Pilih minimal 1 Draft DO dulu.');
+            }
+
+            $orders = DeliveryOrder::whereIn('id', $data['delivery_order_ids'])
+                ->where('status', DeliveryOrder::STATUS_DRAFT)
+                ->get();
+        }
 
         if ($orders->isEmpty()) {
             return back()->with('error', 'Tidak ada Draft DO yang valid untuk diproses (mungkin sudah di-dispatch pihak lain).');

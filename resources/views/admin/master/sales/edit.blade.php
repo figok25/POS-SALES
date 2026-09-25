@@ -30,6 +30,25 @@
             <input type="text" name="phone" value="{{ old('phone', $item->phone ?? '') }}" class="w-full border rounded px-3 py-2 text-sm">
             @error('phone') <p class="text-red-600 text-xs mt-1">{{ $message }}</p> @enderror
         </div>
+
+        <div class="border-t pt-4 mt-2 mb-4">
+            <p class="text-sm font-semibold text-gray-700 mb-1">Akun Login (Sales App)</p>
+            @if ($item->user)
+                <p class="text-xs text-gray-500 mb-3">Sales ini sudah punya akun login. Kosongkan Password kalau tidak ingin menggantinya.</p>
+            @else
+                <p class="text-xs text-gray-500 mb-3">Sales ini BELUM punya akun login. Isi Email &amp; Password untuk membuatkan sekarang.</p>
+            @endif
+            <div class="mb-3">
+                <label class="block text-sm font-medium mb-1">Email</label>
+                <input type="email" name="email" value="{{ old('email', $item->user->email ?? '') }}" class="w-full border rounded px-3 py-2 text-sm" placeholder="sales1@perusahaan.com">
+                @error('email') <p class="text-red-600 text-xs mt-1">{{ $message }}</p> @enderror
+            </div>
+            <div class="mb-1">
+                <label class="block text-sm font-medium mb-1">{{ $item->user ? 'Ganti Password (opsional)' : 'Password' }}</label>
+                <input type="text" name="password" value="{{ old('password') }}" class="w-full border rounded px-3 py-2 text-sm" placeholder="{{ $item->user ? 'Kosongkan jika tidak diganti' : 'Minimal 4 karakter' }}">
+                @error('password') <p class="text-red-600 text-xs mt-1">{{ $message }}</p> @enderror
+            </div>
+        </div>
             <div class="mb-4">
                 <label class="inline-flex items-center text-sm">
                     <input type="checkbox" name="is_active" value="1" @checked($item->is_active) class="mr-2"> Aktif

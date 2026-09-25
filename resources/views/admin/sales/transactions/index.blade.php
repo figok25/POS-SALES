@@ -1,6 +1,9 @@
 <x-admin-layout>
     <div class="p-6">
-        <h1 class="text-xl font-semibold mb-4">Transaksi Penjualan</h1>
+        <div class="flex items-center justify-between mb-4">
+            <h1 class="text-xl font-semibold">Transaksi Penjualan</h1>
+            <a href="{{ route('admin.sales.transactions.export', request()->query()) }}" class="bg-gray-200 px-3 py-2 rounded text-sm hover:bg-gray-300">Download Laporan</a>
+        </div>
 
         <form method="GET" class="mb-4 flex gap-2 text-sm">
             <select name="sales_id" class="border rounded px-3 py-2" onchange="this.form.submit()">

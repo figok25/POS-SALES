@@ -2,7 +2,10 @@
     <div class="p-6">
         <div class="flex items-center justify-between mb-4">
             <h1 class="text-xl font-semibold">Sales</h1>
-            <a href="{{ route('admin.master.sales.create') }}" class="bg-blue-600 text-white px-3 py-2 rounded text-sm hover:bg-blue-700">+ Tambah Sales</a>
+            <div class="flex gap-2">
+                <a href="{{ route('admin.master.sales.export', request()->query()) }}" class="bg-gray-200 px-3 py-2 rounded text-sm hover:bg-gray-300">Download Laporan</a>
+                <a href="{{ route('admin.master.sales.create') }}" class="bg-blue-600 text-white px-3 py-2 rounded text-sm hover:bg-blue-700">+ Tambah Sales</a>
+            </div>
         </div>
 
         @if (session('status'))
@@ -17,12 +20,13 @@
         <div class="bg-white rounded shadow overflow-x-auto">
             <table class="w-full text-sm">
                 <thead class="bg-gray-50 border-b">
-                    <tr><th class="px-3 py-2 text-left">Branch</th><th class="px-3 py-2 text-left">Kode</th><th class="px-3 py-2 text-left">Nama</th><th class="px-3 py-2 text-left">Telepon</th><th class="px-3 py-2 text-left">Status</th><th class="px-3 py-2 text-right">Aksi</th></tr>
+                    <tr><th class="px-3 py-2 text-left">Branch</th><th class="px-3 py-2 text-left">Kode</th><th class="px-3 py-2 text-left">Nama</th><th class="px-3 py-2 text-left">Telepon</th><th class="px-3 py-2 text-left">Email Login</th><th class="px-3 py-2 text-left">Status</th><th class="px-3 py-2 text-right">Aksi</th></tr>
                 </thead>
                 <tbody>
                     @forelse ($items as $item)
                         <tr class="border-b">
                             <td class="px-3 py-2">{{ $item->branch->name ?? '-' }}</td><td class="px-3 py-2">{{ $item->code }}</td><td class="px-3 py-2">{{ $item->name }}</td><td class="px-3 py-2">{{ $item->phone }}</td>
+                            <td class="px-3 py-2">{{ $item->user->email ?? '-' }}</td>
                             <td class="px-3 py-2">
                                 @if ($item->is_active)
                                     <span class="text-green-700 bg-green-100 px-2 py-0.5 rounded text-xs">Aktif</span>

@@ -27,6 +27,7 @@ Route::middleware('permission:sales-management.view')->group(function () {
     Route::get('visits/{visit}', [VisitController::class, 'show'])->name('visits.show');
 
     Route::get('transactions', [SalesTransactionController::class, 'index'])->name('transactions.index');
+    Route::get('transactions/export', [SalesTransactionController::class, 'export'])->name('transactions.export');
     Route::get('transactions/{transaction}/print', [SalesTransactionController::class, 'print'])->name('transactions.print');
     Route::get('transactions/{transaction}', [SalesTransactionController::class, 'show'])->name('transactions.show');
 

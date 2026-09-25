@@ -27,6 +27,7 @@
 
         <form id="bulk-dispatch-form" method="POST" action="{{ route('admin.operations.delivery-orders.bulk-dispatch') }}">
             @csrf
+            <input type="hidden" name="select_all_draft" id="select-all-draft-flag" value="0">
             @can('operations.manage')
                 <div class="bg-white rounded shadow p-4 mb-4 flex flex-wrap items-end gap-2">
                     <div>
@@ -51,10 +52,16 @@
                         <label class="block text-xs text-gray-500 mb-1">Jadwal</label>
                         <input type="date" name="scheduled_date" class="border rounded px-2 py-1.5 text-sm">
                     </div>
-                    <button type="submit" class="bg-green-600 text-white px-3 py-2 rounded text-sm hover:bg-green-700"
-                            onclick="return document.querySelectorAll('.do-checkbox:checked').length > 0 || alert('Pilih minimal 1 Draft DO dulu.');">
+                    <button type="submit" id="bulk-dispatch-submit" class="bg-green-600 text-white px-3 py-2 rounded text-sm hover:bg-green-700">
                         Apply &amp; Dispatch yang Dicentang
                     </button>
+                    @if ($draftCount > 0)
+                        <label class="flex items-center gap-2 text-sm ml-2 bg-yellow-50 border border-yellow-200 px-3 py-2 rounded">
+                            <input type="checkbox" id="select-all-draft-everywhere">
+                            Pilih SEMUA {{ $draftCount }} Draft DO (termasuk yang tidak tampil di halaman ini)
+                        </label>
+                    @endif
+                    <span id="select-all-draft-note" class="hidden text-xs text-yellow-800">Seluruh Draft DO akan diproses saat tombol Apply &amp; Dispatch ditekan, terlepas dari centang di tabel.</span>
                 </div>
             @endcan
 
@@ -115,9 +122,64 @@
         <div class="mt-4">{{ $items->links() }}</div>
 
         <script>
-            document.getElementById('check-all')?.addEventListener('change', function () {
-                document.querySelectorAll('.do-checkbox').forEach(cb => cb.checked = this.checked);
-            });
+            (function () {
+                const checkAll = document.getElementById('check-all');
+                const rowCheckboxes = () => document.querySelectorAll('.do-checkbox');
+                const selectAllEverywhere = document.getElementById('select-all-draft-everywhere');
+                const selectAllFlag = document.getElementById('select-all-draft-flag');
+                const selectAllNote = document.getElementById('select-all-draft-note');
+                const form = document.getElementById('bulk-dispatch-form');
+
+                function syncHeaderCheckbox() {
+                    if (!checkAll) return;
+                    const boxes = Array.from(rowCheckboxes());
+                    const checkedCount = boxes.filter(cb => cb.checked).length;
+                    checkAll.checked = boxes.length > 0 && checkedCount === boxes.length;
+                    checkAll.indeterminate = checkedCount > 0 && checkedCount < boxes.length;
+                }
+
+                if (checkAll) {
+                    checkAll.addEventListener('change', function () {
+                        rowCheckboxes().forEach(cb => { cb.checked = this.checked; });
+                        syncHeaderCheckbox();
+                    });
+                }
+
+                document.addEventListener('change', function (e) {
+                    if (e.target.classList && e.target.classList.contains('do-checkbox')) {
+                        syncHeaderCheckbox();
+                    }
+                });
+
+                if (selectAllEverywhere) {
+                    selectAllEverywhere.addEventListener('change', function () {
+                        selectAllFlag.value = this.checked ? '1' : '0';
+                        if (selectAllNote) selectAllNote.classList.toggle('hidden', !this.checked);
+
+                        rowCheckboxes().forEach(cb => {
+                            cb.checked = this.checked;
+                            cb.disabled = this.checked;
+                        });
+                        if (checkAll) {
+                            checkAll.checked = this.checked;
+                            checkAll.disabled = this.checked;
+                            checkAll.indeterminate = false;
+                        }
+                    });
+                }
+
+                if (form) {
+                    form.addEventListener('submit', function (e) {
+                        const allEverywhere = selectAllFlag && selectAllFlag.value === '1';
+                        const anyChecked = Array.from(rowCheckboxes()).some(cb => cb.checked);
+
+                        if (!allEverywhere && !anyChecked) {
+                            e.preventDefault();
+                            alert('Pilih minimal 1 Draft DO dulu, atau centang "Pilih SEMUA Draft DO".');
+                        }
+                    });
+                }
+            })();
         </script>
     </div>
 </x-admin-layout>

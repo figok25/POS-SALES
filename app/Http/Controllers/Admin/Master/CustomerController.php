@@ -8,6 +8,7 @@ use App\Models\Customer;
 use App\Services\AuditLogger;
 use App\Services\CustomerAssignmentService;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Phase 2 - Master Data: Customer (Blueprint #32, #42 Definition of Done).
@@ -35,6 +36,51 @@ class CustomerController extends Controller
             ->withQueryString();
 
         return view('admin.master.customers.index', compact('items', 'search'));
+    }
+
+    /**
+     * Laporan Data Customer: unduh CSV mengikuti filter pencarian yang
+     * sedang aktif pada halaman index (kalau ada).
+     */
+    public function export(Request $request): StreamedResponse
+    {
+        $search = $request->query('q');
+
+        $items = Customer::query()
+            ->with(['sales', 'branch'])
+            ->when($search, fn ($query) => $query
+                ->where('code', 'like', "%{$search}%")
+                ->orWhere('name', 'like', "%{$search}%"))
+            ->orderBy('id', 'desc')
+            ->get();
+
+        $filename = 'laporan-data-customer-'.now()->format('Ymd_His').'.csv';
+
+        $callback = function () use ($items) {
+            $out = fopen('php://output', 'w');
+            fwrite($out, "\xEF\xBB\xBF");
+            fputcsv($out, ['Kode', 'Nama', 'Alamat', 'Telepon', 'NPWP', 'Branch', 'Sales', 'Status']);
+
+            foreach ($items as $c) {
+                fputcsv($out, [
+                    $c->code,
+                    $c->name,
+                    $c->address,
+                    $c->phone,
+                    $c->npwp,
+                    $c->branch->name ?? '-',
+                    $c->sales->name ?? '-',
+                    $c->is_active ? 'Aktif' : 'Nonaktif',
+                ]);
+            }
+
+            fclose($out);
+        };
+
+        return response()->stream($callback, 200, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+        ]);
     }
 
     public function create()
