@@ -7,9 +7,10 @@ use App\Http\Requests\Admin\Master\SalesRequest;
 use App\Models\Sales;
 use App\Models\User;
 use App\Services\AuditLogger;
+use App\Support\ExcelTableExport;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
-use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Phase 2 - Master Data: Sales (Blueprint #32, #42 Definition of Done).
@@ -42,11 +43,12 @@ class SalesController extends Controller
     }
 
     /**
-     * Laporan Sales: unduh CSV mengikuti filter pencarian yang sedang
-     * aktif pada halaman index (kalau ada). Password TIDAK pernah
-     * ikut diekspor.
+     * Laporan Sales: unduh file .xls (HTML table berformat, bukan .xlsx
+     * biner -- lihat catatan lengkap di App\Support\ExcelTableExport)
+     * mengikuti filter pencarian yang sedang aktif pada halaman index
+     * (kalau ada). Password TIDAK pernah ikut diekspor.
      */
-    public function export(Request $request): StreamedResponse
+    public function export(Request $request): Response
     {
         $search = $request->query('q');
 
@@ -58,31 +60,23 @@ class SalesController extends Controller
             ->orderBy('id', 'desc')
             ->get();
 
-        $filename = 'laporan-sales-'.now()->format('Ymd_His').'.csv';
-
-        $callback = function () use ($items) {
-            $out = fopen('php://output', 'w');
-            fwrite($out, "\xEF\xBB\xBF");
-            fputcsv($out, ['Kode', 'Nama', 'Telepon', 'Branch', 'Email Login', 'Status']);
-
-            foreach ($items as $s) {
-                fputcsv($out, [
-                    $s->code,
-                    $s->name,
-                    $s->phone,
-                    $s->branch->name ?? '-',
-                    $s->user->email ?? '(belum ada akun login)',
-                    $s->is_active ? 'Aktif' : 'Nonaktif',
-                ]);
-            }
-
-            fclose($out);
-        };
-
-        return response()->stream($callback, 200, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+        $rows = $items->map(fn ($s) => [
+            $s->code,
+            $s->name,
+            $s->phone,
+            $s->branch->name ?? '-',
+            $s->user->email ?? '(belum ada akun login)',
+            $s->is_active ? 'Aktif' : 'Nonaktif',
         ]);
+
+        return ExcelTableExport::download(
+            title: 'Laporan Data Sales',
+            subtitle: ($search ? "Filter pencarian: \"{$search}\" | " : '').'Diunduh: '.now()->format('d M Y H:i').' | Total: '.$items->count().' sales',
+            columns: ['Kode', 'Nama', 'Telepon', 'Branch', 'Email Login', 'Status'],
+            rows: $rows,
+            textColumns: [0, 2], // Kode, Telepon - jaga angka 0 di depan
+            filenameBase: 'laporan-sales',
+        );
     }
 
     public function create()

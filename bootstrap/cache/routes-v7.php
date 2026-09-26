@@ -33,7 +33,7 @@ app('router')->setCompiledRoutes(
         array (
           0 => 
           array (
-            '_route' => 'generated::jLvOwe3VoELW8bKy',
+            '_route' => 'generated::LWyswuAr9dZFchmT',
           ),
           1 => NULL,
           2 => 
@@ -53,7 +53,7 @@ app('router')->setCompiledRoutes(
         array (
           0 => 
           array (
-            '_route' => 'generated::gSomI27DtzWp3xJ1',
+            '_route' => 'generated::qOVQ4DXtk4pW1Ry0',
           ),
           1 => NULL,
           2 => 
@@ -607,6 +607,26 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
+      '/admin/master/sales/export' => 
+      array (
+        0 => 
+        array (
+          0 => 
+          array (
+            '_route' => 'admin.master.sales.export',
+          ),
+          1 => NULL,
+          2 => 
+          array (
+            'GET' => 0,
+            'HEAD' => 1,
+          ),
+          3 => NULL,
+          4 => false,
+          5 => false,
+          6 => NULL,
+        ),
+      ),
       '/admin/master/sales' => 
       array (
         0 => 
@@ -650,6 +670,26 @@ app('router')->setCompiledRoutes(
           0 => 
           array (
             '_route' => 'admin.master.sales.create',
+          ),
+          1 => NULL,
+          2 => 
+          array (
+            'GET' => 0,
+            'HEAD' => 1,
+          ),
+          3 => NULL,
+          4 => false,
+          5 => false,
+          6 => NULL,
+        ),
+      ),
+      '/admin/master/customers/export' => 
+      array (
+        0 => 
+        array (
+          0 => 
+          array (
+            '_route' => 'admin.master.customers.export',
           ),
           1 => NULL,
           2 => 
@@ -1211,6 +1251,26 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
+      '/admin/sales/transactions/export' => 
+      array (
+        0 => 
+        array (
+          0 => 
+          array (
+            '_route' => 'admin.sales.transactions.export',
+          ),
+          1 => NULL,
+          2 => 
+          array (
+            'GET' => 0,
+            'HEAD' => 1,
+          ),
+          3 => NULL,
+          4 => false,
+          5 => false,
+          6 => NULL,
+        ),
+      ),
       '/admin/sales/invoices' => 
       array (
         0 => 
@@ -1258,6 +1318,26 @@ app('router')->setCompiledRoutes(
           0 => 
           array (
             '_route' => 'admin.sales.visit-plans.index',
+          ),
+          1 => NULL,
+          2 => 
+          array (
+            'GET' => 0,
+            'HEAD' => 1,
+          ),
+          3 => NULL,
+          4 => false,
+          5 => false,
+          6 => NULL,
+        ),
+      ),
+      '/admin/sales/route-map' => 
+      array (
+        0 => 
+        array (
+          0 => 
+          array (
+            '_route' => 'admin.sales.route-map.index',
           ),
           1 => NULL,
           2 => 
@@ -2292,7 +2372,7 @@ app('router')->setCompiledRoutes(
         array (
           0 => 
           array (
-            '_route' => 'generated::nOxQewoCzJG5WA4V',
+            '_route' => 'generated::PaafclgW1iQ4Ky97',
           ),
           1 => NULL,
           2 => 
@@ -2328,7 +2408,7 @@ app('router')->setCompiledRoutes(
         array (
           0 => 
           array (
-            '_route' => 'generated::0sgh6IxuCsZwnBwv',
+            '_route' => 'generated::grUmQFlQswWOlRJ8',
           ),
           1 => NULL,
           2 => 
@@ -2458,7 +2538,7 @@ app('router')->setCompiledRoutes(
         array (
           0 => 
           array (
-            '_route' => 'generated::n7AEfup0bniUYDzC',
+            '_route' => 'generated::1hUGZTmSTjcIdqox',
           ),
           1 => NULL,
           2 => 
@@ -2512,7 +2592,7 @@ app('router')->setCompiledRoutes(
     ),
     2 => 
     array (
-      0 => '{^(?|/a(?|dmin/(?|master/(?|c(?|ompanies/([^/]++)(?|/edit(*:59)|(*:66))|ategories/([^/]++)(?|/edit(*:100)|(*:108))|ustomers/([^/]++)(?|(*:137)|/edit(*:150)|(*:158)))|branches/([^/]++)(?|/edit(*:193)|(*:201))|warehouses/([^/]++)(?|/edit(*:237)|(*:245))|units/([^/]++)(?|/edit(*:276)|(*:284))|pr(?|oducts/([^/]++)(?|/edit(*:321)|(*:329))|ices/([^/]++)(?|/edit(*:359)|(*:367)))|employees/([^/]++)(?|/edit(*:403)|(*:411))|s(?|ales/([^/]++)(?|/edit(*:445)|(*:453))|uppliers/([^/]++)(?|/edit(*:487)|(*:495)))|vehicles/([^/]++)(?|/edit(*:530)|(*:538)))|inventory/adjustments/([^/]++)(?|/apply(*:587)|(*:595))|distribution/(?|stock\\-requests/([^/]++)(?|(*:647)|/(?|submit(*:665)|cancel(*:679))|(*:688))|b(?|kb/([^/]++)(?|(*:715)|/(?|cancel(*:733)|apply(*:746)))|tb/([^/]++)(?|(*:770)|/(?|cancel(*:788)|apply(*:801)|discrepancy(*:820)))|ranch\\-transfer/([^/]++)(?|(*:857)|/(?|cancel(*:875)|send(*:887)|receive(?|(*:905))))))|sales(?|/(?|customer\\-(?|taggings/(?|([^/]++)(?|(*:966)|/(?|approve(*:985)|reject(*:999)))|bulk\\-approve(*:1022))|assignments/([^/]++)(?|/edit(*:1060)|(*:1069)))|visit(?|s/([^/]++)(*:1098)|\\-plans/([^/]++)(?|(*:1126)))|transactions/([^/]++)(*:1158)|invoices/([^/]++)(*:1184))|\\-tasks/([^/]++)(?|/(?|app(?|ly(*:1225)|rove\\-variance(*:1248))|cancel(*:1264)|reassign(*:1281))|(*:1291)))|operations/(?|d(?|elivery\\-orders/(?|([^/]++)(?|(*:1350)|/dispatch(*:1368))|bulk\\-dispatch(*:1392)|([^/]++)/(?|deliver(*:1420)|cancel(*:1435)))|rivers/([^/]++)/toggle(*:1468))|routes/([^/]++)(?|/edit(*:1501)|(*:1510)))|finance/(?|invoices/([^/]++)/payments(?|/create(*:1568)|(*:1577))|settlements/([^/]++)(?|/(?|edit(*:1618)|apply(*:1632))|(*:1642))|cash\\-ledgers/([^/]++)(*:1674)))|pi/(?|admin/sales/([^/]++)/locations(*:1721)|sales/(?|tasks/([^/]++)/(?|documents(?|(*:1769)|/([^/]++)/download(*:1796))|st(?|ock(*:1814)|art\\-work(*:1832))|verify\\-stock(*:1855))|route/customer/([^/]++)(*:1888))))|/s(?|ales/(?|map/([^/]++)(*:1925)|visits/([^/]++)/check\\-out(*:1960)|transactions/([^/]++)(*:1990)|invoices/([^/]++)/payments(?|/create(*:2035)|(*:2044)))|torage/(.*)(?|(*:2069)))|/reset\\-password/([^/]++)(*:2105)|/verify\\-email/([^/]++)/([^/]++)(*:2146))/?$}sDu',
+      0 => '{^(?|/a(?|dmin/(?|master/(?|c(?|ompanies/([^/]++)(?|/edit(*:59)|(*:66))|ategories/([^/]++)(?|/edit(*:100)|(*:108))|ustomers/([^/]++)(?|(*:137)|/edit(*:150)|(*:158)))|branches/([^/]++)(?|/edit(*:193)|(*:201))|warehouses/([^/]++)(?|/edit(*:237)|(*:245))|units/([^/]++)(?|/edit(*:276)|(*:284))|pr(?|oducts/([^/]++)(?|/edit(*:321)|(*:329))|ices/([^/]++)(?|/edit(*:359)|(*:367)))|employees/([^/]++)(?|/edit(*:403)|(*:411))|s(?|ales/([^/]++)(?|/edit(*:445)|(*:453))|uppliers/([^/]++)(?|/edit(*:487)|(*:495)))|vehicles/([^/]++)(?|/edit(*:530)|(*:538)))|inventory/adjustments/([^/]++)(?|/apply(*:587)|(*:595))|distribution/(?|stock\\-requests/([^/]++)(?|(*:647)|/(?|submit(*:665)|cancel(*:679))|(*:688))|b(?|kb/([^/]++)(?|(*:715)|/(?|cancel(*:733)|apply(*:746)))|tb/([^/]++)(?|(*:770)|/(?|cancel(*:788)|apply(*:801)|discrepancy(*:820)))|ranch\\-transfer/([^/]++)(?|(*:857)|/(?|cancel(*:875)|send(*:887)|receive(?|(*:905))))))|sales(?|/(?|customer\\-(?|taggings/(?|([^/]++)(?|(*:966)|/(?|approve(*:985)|reject(*:999)))|bulk\\-approve(*:1022))|assignments/([^/]++)(?|/edit(*:1060)|(*:1069)))|visit(?|s/([^/]++)(*:1098)|\\-plans/([^/]++)(?|(*:1126)))|transactions/([^/]++)(?|/print(*:1167)|(*:1176))|invoices/([^/]++)(?|/print(*:1212)|(*:1221)))|\\-tasks/([^/]++)(?|/(?|app(?|ly(*:1263)|rove\\-variance(*:1286))|cancel(*:1302)|reassign(*:1319)|print\\-stock(*:1340))|(*:1350)))|operations/(?|d(?|elivery\\-orders/(?|([^/]++)(?|(*:1409)|/dispatch(*:1427))|bulk\\-dispatch(*:1451)|([^/]++)/(?|deliver(*:1479)|cancel(*:1494)))|rivers/([^/]++)/toggle(*:1527))|routes/([^/]++)(?|/(?|customers(?|/(?|export(*:1581)|([^/]++)(?|(*:1601))|import(*:1617))|(*:1627))|edit(*:1641))|(*:1651)))|finance/(?|invoices/([^/]++)/payments(?|/create(*:1709)|(*:1718))|settlements/([^/]++)(?|/(?|edit(*:1759)|apply(*:1773))|(*:1783))|cash\\-ledgers/([^/]++)(*:1815)))|pi/(?|admin/sales/([^/]++)/locations(*:1862)|sales/(?|tasks/([^/]++)/(?|documents(?|(*:1910)|/([^/]++)/download(*:1937))|st(?|ock(*:1955)|art\\-work(*:1973))|verify\\-stock(*:1996))|route/customer/([^/]++)(*:2029))))|/s(?|ales/(?|map/([^/]++)(*:2066)|visits/([^/]++)/check\\-out(*:2101)|transactions/([^/]++)(*:2131)|invoices/([^/]++)/payments(?|/create(*:2176)|(*:2185)))|torage/(.*)(?|(*:2210)))|/reset\\-password/([^/]++)(*:2246)|/verify\\-email/([^/]++)/([^/]++)(*:2287))/?$}sDu',
     ),
     3 => 
     array (
@@ -3915,7 +3995,30 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1158 => 
+      1167 => 
+      array (
+        0 => 
+        array (
+          0 => 
+          array (
+            '_route' => 'admin.sales.transactions.print',
+          ),
+          1 => 
+          array (
+            0 => 'transaction',
+          ),
+          2 => 
+          array (
+            'GET' => 0,
+            'HEAD' => 1,
+          ),
+          3 => NULL,
+          4 => false,
+          5 => false,
+          6 => NULL,
+        ),
+      ),
+      1176 => 
       array (
         0 => 
         array (
@@ -3938,7 +4041,30 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1184 => 
+      1212 => 
+      array (
+        0 => 
+        array (
+          0 => 
+          array (
+            '_route' => 'admin.sales.invoices.print',
+          ),
+          1 => 
+          array (
+            0 => 'invoice',
+          ),
+          2 => 
+          array (
+            'GET' => 0,
+            'HEAD' => 1,
+          ),
+          3 => NULL,
+          4 => false,
+          5 => false,
+          6 => NULL,
+        ),
+      ),
+      1221 => 
       array (
         0 => 
         array (
@@ -3961,7 +4087,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1225 => 
+      1263 => 
       array (
         0 => 
         array (
@@ -3983,7 +4109,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1248 => 
+      1286 => 
       array (
         0 => 
         array (
@@ -4005,7 +4131,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1264 => 
+      1302 => 
       array (
         0 => 
         array (
@@ -4027,7 +4153,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1281 => 
+      1319 => 
       array (
         0 => 
         array (
@@ -4049,7 +4175,30 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1291 => 
+      1340 => 
+      array (
+        0 => 
+        array (
+          0 => 
+          array (
+            '_route' => 'admin.sales-tasks.print-stock',
+          ),
+          1 => 
+          array (
+            0 => 'salesTask',
+          ),
+          2 => 
+          array (
+            'GET' => 0,
+            'HEAD' => 1,
+          ),
+          3 => NULL,
+          4 => false,
+          5 => false,
+          6 => NULL,
+        ),
+      ),
+      1350 => 
       array (
         0 => 
         array (
@@ -4072,7 +4221,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1350 => 
+      1409 => 
       array (
         0 => 
         array (
@@ -4095,7 +4244,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1368 => 
+      1427 => 
       array (
         0 => 
         array (
@@ -4117,7 +4266,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1392 => 
+      1451 => 
       array (
         0 => 
         array (
@@ -4138,7 +4287,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1420 => 
+      1479 => 
       array (
         0 => 
         array (
@@ -4160,7 +4309,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1435 => 
+      1494 => 
       array (
         0 => 
         array (
@@ -4182,7 +4331,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1468 => 
+      1527 => 
       array (
         0 => 
         array (
@@ -4204,7 +4353,117 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1501 => 
+      1581 => 
+      array (
+        0 => 
+        array (
+          0 => 
+          array (
+            '_route' => 'admin.operations.routes.customers.export',
+          ),
+          1 => 
+          array (
+            0 => 'item',
+          ),
+          2 => 
+          array (
+            'GET' => 0,
+            'HEAD' => 1,
+          ),
+          3 => NULL,
+          4 => false,
+          5 => false,
+          6 => NULL,
+        ),
+      ),
+      1601 => 
+      array (
+        0 => 
+        array (
+          0 => 
+          array (
+            '_route' => 'admin.operations.routes.customers.update',
+          ),
+          1 => 
+          array (
+            0 => 'item',
+            1 => 'routeCustomer',
+          ),
+          2 => 
+          array (
+            'PUT' => 0,
+          ),
+          3 => NULL,
+          4 => false,
+          5 => true,
+          6 => NULL,
+        ),
+        1 => 
+        array (
+          0 => 
+          array (
+            '_route' => 'admin.operations.routes.customers.destroy',
+          ),
+          1 => 
+          array (
+            0 => 'item',
+            1 => 'routeCustomer',
+          ),
+          2 => 
+          array (
+            'DELETE' => 0,
+          ),
+          3 => NULL,
+          4 => false,
+          5 => true,
+          6 => NULL,
+        ),
+      ),
+      1617 => 
+      array (
+        0 => 
+        array (
+          0 => 
+          array (
+            '_route' => 'admin.operations.routes.customers.import',
+          ),
+          1 => 
+          array (
+            0 => 'item',
+          ),
+          2 => 
+          array (
+            'POST' => 0,
+          ),
+          3 => NULL,
+          4 => false,
+          5 => false,
+          6 => NULL,
+        ),
+      ),
+      1627 => 
+      array (
+        0 => 
+        array (
+          0 => 
+          array (
+            '_route' => 'admin.operations.routes.customers.store',
+          ),
+          1 => 
+          array (
+            0 => 'item',
+          ),
+          2 => 
+          array (
+            'POST' => 0,
+          ),
+          3 => NULL,
+          4 => false,
+          5 => false,
+          6 => NULL,
+        ),
+      ),
+      1641 => 
       array (
         0 => 
         array (
@@ -4227,7 +4486,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1510 => 
+      1651 => 
       array (
         0 => 
         array (
@@ -4269,7 +4528,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1568 => 
+      1709 => 
       array (
         0 => 
         array (
@@ -4292,7 +4551,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1577 => 
+      1718 => 
       array (
         0 => 
         array (
@@ -4314,7 +4573,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1618 => 
+      1759 => 
       array (
         0 => 
         array (
@@ -4337,7 +4596,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1632 => 
+      1773 => 
       array (
         0 => 
         array (
@@ -4359,7 +4618,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1642 => 
+      1783 => 
       array (
         0 => 
         array (
@@ -4381,7 +4640,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1674 => 
+      1815 => 
       array (
         0 => 
         array (
@@ -4403,7 +4662,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1721 => 
+      1862 => 
       array (
         0 => 
         array (
@@ -4426,7 +4685,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1769 => 
+      1910 => 
       array (
         0 => 
         array (
@@ -4449,7 +4708,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1796 => 
+      1937 => 
       array (
         0 => 
         array (
@@ -4472,7 +4731,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1814 => 
+      1955 => 
       array (
         0 => 
         array (
@@ -4495,7 +4754,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1832 => 
+      1973 => 
       array (
         0 => 
         array (
@@ -4517,7 +4776,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1855 => 
+      1996 => 
       array (
         0 => 
         array (
@@ -4539,7 +4798,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1888 => 
+      2029 => 
       array (
         0 => 
         array (
@@ -4561,7 +4820,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1925 => 
+      2066 => 
       array (
         0 => 
         array (
@@ -4584,7 +4843,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1960 => 
+      2101 => 
       array (
         0 => 
         array (
@@ -4606,7 +4865,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1990 => 
+      2131 => 
       array (
         0 => 
         array (
@@ -4629,7 +4888,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      2035 => 
+      2176 => 
       array (
         0 => 
         array (
@@ -4652,7 +4911,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      2044 => 
+      2185 => 
       array (
         0 => 
         array (
@@ -4674,7 +4933,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      2069 => 
+      2210 => 
       array (
         0 => 
         array (
@@ -4716,7 +4975,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      2105 => 
+      2246 => 
       array (
         0 => 
         array (
@@ -4739,7 +4998,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      2146 => 
+      2287 => 
       array (
         0 => 
         array (
@@ -4815,7 +5074,7 @@ app('router')->setCompiledRoutes(
       'waitSeconds' => NULL,
       'withTrashed' => false,
     ),
-    'generated::jLvOwe3VoELW8bKy' => 
+    'generated::LWyswuAr9dZFchmT' => 
     array (
       'methods' => 
       array (
@@ -4851,8 +5110,8 @@ app('router')->setCompiledRoutes(
                     return response(\\Illuminate\\Support\\Facades\\View::file(\'E:\\\\EMPATRA DIGITECH\\\\POS-SALES\\\\vendor\\\\laravel\\\\framework\\\\src\\\\Illuminate\\\\Foundation\\\\Configuration\'.\'/../resources/health-up.blade.php\', [
                         \'exception\' => $exception,
                     ]), status: $status);
-                }";s:5:"scope";s:54:"Illuminate\\Foundation\\Configuration\\ApplicationBuilder";s:4:"this";N;s:4:"self";s:32:"00000000000007500000000000000000";}}',
-        'as' => 'generated::jLvOwe3VoELW8bKy',
+                }";s:5:"scope";s:54:"Illuminate\\Foundation\\Configuration\\ApplicationBuilder";s:4:"this";N;s:4:"self";s:32:"00000000000007680000000000000000";}}',
+        'as' => 'generated::LWyswuAr9dZFchmT',
       ),
       'fallback' => false,
       'defaults' => 
@@ -4868,7 +5127,7 @@ app('router')->setCompiledRoutes(
       'waitSeconds' => NULL,
       'withTrashed' => false,
     ),
-    'generated::gSomI27DtzWp3xJ1' => 
+    'generated::qOVQ4DXtk4pW1Ry0' => 
     array (
       'methods' => 
       array (
@@ -4884,13 +5143,13 @@ app('router')->setCompiledRoutes(
         ),
         'uses' => 'O:55:"Laravel\\SerializableClosure\\UnsignedSerializableClosure":1:{s:12:"serializable";O:46:"Laravel\\SerializableClosure\\Serializers\\Native":5:{s:3:"use";a:0:{}s:8:"function";s:44:"function () {
     return \\view(\'welcome\');
-}";s:5:"scope";s:37:"Illuminate\\Routing\\RouteFileRegistrar";s:4:"this";N;s:4:"self";s:32:"00000000000007520000000000000000";}}',
+}";s:5:"scope";s:37:"Illuminate\\Routing\\RouteFileRegistrar";s:4:"this";N;s:4:"self";s:32:"000000000000076a0000000000000000";}}',
         'namespace' => NULL,
         'prefix' => '',
         'where' => 
         array (
         ),
-        'as' => 'generated::gSomI27DtzWp3xJ1',
+        'as' => 'generated::qOVQ4DXtk4pW1Ry0',
       ),
       'fallback' => false,
       'defaults' => 
@@ -4934,7 +5193,7 @@ app('router')->setCompiledRoutes(
     }
 
     \\abort(403, \'Akun Anda belum memiliki role. Hubungi Administrator.\');
-}";s:5:"scope";s:37:"Illuminate\\Routing\\RouteFileRegistrar";s:4:"this";N;s:4:"self";s:32:"00000000000007560000000000000000";}}',
+}";s:5:"scope";s:37:"Illuminate\\Routing\\RouteFileRegistrar";s:4:"this";N;s:4:"self";s:32:"000000000000076e0000000000000000";}}',
         'namespace' => NULL,
         'prefix' => '',
         'where' => 
@@ -7060,6 +7319,47 @@ app('router')->setCompiledRoutes(
       'waitSeconds' => NULL,
       'withTrashed' => false,
     ),
+    'admin.master.sales.export' => 
+    array (
+      'methods' => 
+      array (
+        0 => 'GET',
+        1 => 'HEAD',
+      ),
+      'uri' => 'admin/master/sales/export',
+      'action' => 
+      array (
+        'middleware' => 
+        array (
+          0 => 'web',
+          1 => 'auth',
+          2 => 'verified',
+          3 => 'role:admin',
+          4 => 'permission:master-data.manage',
+        ),
+        'uses' => 'App\\Http\\Controllers\\Admin\\Master\\SalesController@export',
+        'controller' => 'App\\Http\\Controllers\\Admin\\Master\\SalesController@export',
+        'as' => 'admin.master.sales.export',
+        'namespace' => NULL,
+        'prefix' => 'admin/master',
+        'where' => 
+        array (
+        ),
+      ),
+      'fallback' => false,
+      'defaults' => 
+      array (
+      ),
+      'wheres' => 
+      array (
+      ),
+      'bindingFields' => 
+      array (
+      ),
+      'lockSeconds' => NULL,
+      'waitSeconds' => NULL,
+      'withTrashed' => false,
+    ),
     'admin.master.sales.index' => 
     array (
       'methods' => 
@@ -7284,6 +7584,47 @@ app('router')->setCompiledRoutes(
         'as' => 'admin.master.sales.destroy',
         'uses' => 'App\\Http\\Controllers\\Admin\\Master\\SalesController@destroy',
         'controller' => 'App\\Http\\Controllers\\Admin\\Master\\SalesController@destroy',
+        'namespace' => NULL,
+        'prefix' => 'admin/master',
+        'where' => 
+        array (
+        ),
+      ),
+      'fallback' => false,
+      'defaults' => 
+      array (
+      ),
+      'wheres' => 
+      array (
+      ),
+      'bindingFields' => 
+      array (
+      ),
+      'lockSeconds' => NULL,
+      'waitSeconds' => NULL,
+      'withTrashed' => false,
+    ),
+    'admin.master.customers.export' => 
+    array (
+      'methods' => 
+      array (
+        0 => 'GET',
+        1 => 'HEAD',
+      ),
+      'uri' => 'admin/master/customers/export',
+      'action' => 
+      array (
+        'middleware' => 
+        array (
+          0 => 'web',
+          1 => 'auth',
+          2 => 'verified',
+          3 => 'role:admin',
+          4 => 'permission:master-data.manage',
+        ),
+        'uses' => 'App\\Http\\Controllers\\Admin\\Master\\CustomerController@export',
+        'controller' => 'App\\Http\\Controllers\\Admin\\Master\\CustomerController@export',
+        'as' => 'admin.master.customers.export',
         'namespace' => NULL,
         'prefix' => 'admin/master',
         'where' => 
@@ -9699,6 +10040,88 @@ app('router')->setCompiledRoutes(
       'waitSeconds' => NULL,
       'withTrashed' => false,
     ),
+    'admin.sales.transactions.export' => 
+    array (
+      'methods' => 
+      array (
+        0 => 'GET',
+        1 => 'HEAD',
+      ),
+      'uri' => 'admin/sales/transactions/export',
+      'action' => 
+      array (
+        'middleware' => 
+        array (
+          0 => 'web',
+          1 => 'auth',
+          2 => 'verified',
+          3 => 'role:admin',
+          4 => 'permission:sales-management.view',
+        ),
+        'uses' => 'App\\Http\\Controllers\\Admin\\Sales\\SalesTransactionController@export',
+        'controller' => 'App\\Http\\Controllers\\Admin\\Sales\\SalesTransactionController@export',
+        'as' => 'admin.sales.transactions.export',
+        'namespace' => NULL,
+        'prefix' => 'admin/sales',
+        'where' => 
+        array (
+        ),
+      ),
+      'fallback' => false,
+      'defaults' => 
+      array (
+      ),
+      'wheres' => 
+      array (
+      ),
+      'bindingFields' => 
+      array (
+      ),
+      'lockSeconds' => NULL,
+      'waitSeconds' => NULL,
+      'withTrashed' => false,
+    ),
+    'admin.sales.transactions.print' => 
+    array (
+      'methods' => 
+      array (
+        0 => 'GET',
+        1 => 'HEAD',
+      ),
+      'uri' => 'admin/sales/transactions/{transaction}/print',
+      'action' => 
+      array (
+        'middleware' => 
+        array (
+          0 => 'web',
+          1 => 'auth',
+          2 => 'verified',
+          3 => 'role:admin',
+          4 => 'permission:sales-management.view',
+        ),
+        'uses' => 'App\\Http\\Controllers\\Admin\\Sales\\SalesTransactionController@print',
+        'controller' => 'App\\Http\\Controllers\\Admin\\Sales\\SalesTransactionController@print',
+        'as' => 'admin.sales.transactions.print',
+        'namespace' => NULL,
+        'prefix' => 'admin/sales',
+        'where' => 
+        array (
+        ),
+      ),
+      'fallback' => false,
+      'defaults' => 
+      array (
+      ),
+      'wheres' => 
+      array (
+      ),
+      'bindingFields' => 
+      array (
+      ),
+      'lockSeconds' => NULL,
+      'waitSeconds' => NULL,
+      'withTrashed' => false,
+    ),
     'admin.sales.transactions.show' => 
     array (
       'methods' => 
@@ -9761,6 +10184,47 @@ app('router')->setCompiledRoutes(
         'uses' => 'App\\Http\\Controllers\\Admin\\Sales\\InvoiceController@index',
         'controller' => 'App\\Http\\Controllers\\Admin\\Sales\\InvoiceController@index',
         'as' => 'admin.sales.invoices.index',
+        'namespace' => NULL,
+        'prefix' => 'admin/sales',
+        'where' => 
+        array (
+        ),
+      ),
+      'fallback' => false,
+      'defaults' => 
+      array (
+      ),
+      'wheres' => 
+      array (
+      ),
+      'bindingFields' => 
+      array (
+      ),
+      'lockSeconds' => NULL,
+      'waitSeconds' => NULL,
+      'withTrashed' => false,
+    ),
+    'admin.sales.invoices.print' => 
+    array (
+      'methods' => 
+      array (
+        0 => 'GET',
+        1 => 'HEAD',
+      ),
+      'uri' => 'admin/sales/invoices/{invoice}/print',
+      'action' => 
+      array (
+        'middleware' => 
+        array (
+          0 => 'web',
+          1 => 'auth',
+          2 => 'verified',
+          3 => 'role:admin',
+          4 => 'permission:sales-management.view',
+        ),
+        'uses' => 'App\\Http\\Controllers\\Admin\\Sales\\InvoiceController@print',
+        'controller' => 'App\\Http\\Controllers\\Admin\\Sales\\InvoiceController@print',
+        'as' => 'admin.sales.invoices.print',
         'namespace' => NULL,
         'prefix' => 'admin/sales',
         'where' => 
@@ -10045,6 +10509,47 @@ app('router')->setCompiledRoutes(
         'uses' => 'App\\Http\\Controllers\\Admin\\Sales\\VisitPlanController@edit',
         'controller' => 'App\\Http\\Controllers\\Admin\\Sales\\VisitPlanController@edit',
         'as' => 'admin.sales.visit-plans.edit',
+        'namespace' => NULL,
+        'prefix' => 'admin/sales',
+        'where' => 
+        array (
+        ),
+      ),
+      'fallback' => false,
+      'defaults' => 
+      array (
+      ),
+      'wheres' => 
+      array (
+      ),
+      'bindingFields' => 
+      array (
+      ),
+      'lockSeconds' => NULL,
+      'waitSeconds' => NULL,
+      'withTrashed' => false,
+    ),
+    'admin.sales.route-map.index' => 
+    array (
+      'methods' => 
+      array (
+        0 => 'GET',
+        1 => 'HEAD',
+      ),
+      'uri' => 'admin/sales/route-map',
+      'action' => 
+      array (
+        'middleware' => 
+        array (
+          0 => 'web',
+          1 => 'auth',
+          2 => 'verified',
+          3 => 'role:admin',
+          4 => 'permission:customer-assignment.view',
+        ),
+        'uses' => 'App\\Http\\Controllers\\Admin\\Sales\\MapController@index',
+        'controller' => 'App\\Http\\Controllers\\Admin\\Sales\\MapController@index',
+        'as' => 'admin.sales.route-map.index',
         'namespace' => NULL,
         'prefix' => 'admin/sales',
         'where' => 
@@ -10412,6 +10917,47 @@ app('router')->setCompiledRoutes(
         'uses' => 'App\\Http\\Controllers\\Admin\\Operations\\DeliveryRouteController@index',
         'controller' => 'App\\Http\\Controllers\\Admin\\Operations\\DeliveryRouteController@index',
         'as' => 'admin.operations.routes.index',
+        'namespace' => NULL,
+        'prefix' => 'admin/operations',
+        'where' => 
+        array (
+        ),
+      ),
+      'fallback' => false,
+      'defaults' => 
+      array (
+      ),
+      'wheres' => 
+      array (
+      ),
+      'bindingFields' => 
+      array (
+      ),
+      'lockSeconds' => NULL,
+      'waitSeconds' => NULL,
+      'withTrashed' => false,
+    ),
+    'admin.operations.routes.customers.export' => 
+    array (
+      'methods' => 
+      array (
+        0 => 'GET',
+        1 => 'HEAD',
+      ),
+      'uri' => 'admin/operations/routes/{item}/customers/export',
+      'action' => 
+      array (
+        'middleware' => 
+        array (
+          0 => 'web',
+          1 => 'auth',
+          2 => 'verified',
+          3 => 'role:admin',
+          4 => 'permission:operations.view',
+        ),
+        'uses' => 'App\\Http\\Controllers\\Admin\\Operations\\DeliveryRouteController@exportCustomers',
+        'controller' => 'App\\Http\\Controllers\\Admin\\Operations\\DeliveryRouteController@exportCustomers',
+        'as' => 'admin.operations.routes.customers.export',
         'namespace' => NULL,
         'prefix' => 'admin/operations',
         'where' => 
@@ -10897,6 +11443,166 @@ app('router')->setCompiledRoutes(
         'as' => 'admin.operations.routes.destroy',
         'uses' => 'App\\Http\\Controllers\\Admin\\Operations\\DeliveryRouteController@destroy',
         'controller' => 'App\\Http\\Controllers\\Admin\\Operations\\DeliveryRouteController@destroy',
+        'namespace' => NULL,
+        'prefix' => 'admin/operations',
+        'where' => 
+        array (
+        ),
+      ),
+      'fallback' => false,
+      'defaults' => 
+      array (
+      ),
+      'wheres' => 
+      array (
+      ),
+      'bindingFields' => 
+      array (
+      ),
+      'lockSeconds' => NULL,
+      'waitSeconds' => NULL,
+      'withTrashed' => false,
+    ),
+    'admin.operations.routes.customers.store' => 
+    array (
+      'methods' => 
+      array (
+        0 => 'POST',
+      ),
+      'uri' => 'admin/operations/routes/{item}/customers',
+      'action' => 
+      array (
+        'middleware' => 
+        array (
+          0 => 'web',
+          1 => 'auth',
+          2 => 'verified',
+          3 => 'role:admin',
+          4 => 'permission:operations.manage',
+        ),
+        'uses' => 'App\\Http\\Controllers\\Admin\\Operations\\DeliveryRouteController@storeCustomer',
+        'controller' => 'App\\Http\\Controllers\\Admin\\Operations\\DeliveryRouteController@storeCustomer',
+        'as' => 'admin.operations.routes.customers.store',
+        'namespace' => NULL,
+        'prefix' => 'admin/operations',
+        'where' => 
+        array (
+        ),
+      ),
+      'fallback' => false,
+      'defaults' => 
+      array (
+      ),
+      'wheres' => 
+      array (
+      ),
+      'bindingFields' => 
+      array (
+      ),
+      'lockSeconds' => NULL,
+      'waitSeconds' => NULL,
+      'withTrashed' => false,
+    ),
+    'admin.operations.routes.customers.update' => 
+    array (
+      'methods' => 
+      array (
+        0 => 'PUT',
+      ),
+      'uri' => 'admin/operations/routes/{item}/customers/{routeCustomer}',
+      'action' => 
+      array (
+        'middleware' => 
+        array (
+          0 => 'web',
+          1 => 'auth',
+          2 => 'verified',
+          3 => 'role:admin',
+          4 => 'permission:operations.manage',
+        ),
+        'uses' => 'App\\Http\\Controllers\\Admin\\Operations\\DeliveryRouteController@updateCustomer',
+        'controller' => 'App\\Http\\Controllers\\Admin\\Operations\\DeliveryRouteController@updateCustomer',
+        'as' => 'admin.operations.routes.customers.update',
+        'namespace' => NULL,
+        'prefix' => 'admin/operations',
+        'where' => 
+        array (
+        ),
+      ),
+      'fallback' => false,
+      'defaults' => 
+      array (
+      ),
+      'wheres' => 
+      array (
+      ),
+      'bindingFields' => 
+      array (
+      ),
+      'lockSeconds' => NULL,
+      'waitSeconds' => NULL,
+      'withTrashed' => false,
+    ),
+    'admin.operations.routes.customers.destroy' => 
+    array (
+      'methods' => 
+      array (
+        0 => 'DELETE',
+      ),
+      'uri' => 'admin/operations/routes/{item}/customers/{routeCustomer}',
+      'action' => 
+      array (
+        'middleware' => 
+        array (
+          0 => 'web',
+          1 => 'auth',
+          2 => 'verified',
+          3 => 'role:admin',
+          4 => 'permission:operations.manage',
+        ),
+        'uses' => 'App\\Http\\Controllers\\Admin\\Operations\\DeliveryRouteController@destroyCustomer',
+        'controller' => 'App\\Http\\Controllers\\Admin\\Operations\\DeliveryRouteController@destroyCustomer',
+        'as' => 'admin.operations.routes.customers.destroy',
+        'namespace' => NULL,
+        'prefix' => 'admin/operations',
+        'where' => 
+        array (
+        ),
+      ),
+      'fallback' => false,
+      'defaults' => 
+      array (
+      ),
+      'wheres' => 
+      array (
+      ),
+      'bindingFields' => 
+      array (
+      ),
+      'lockSeconds' => NULL,
+      'waitSeconds' => NULL,
+      'withTrashed' => false,
+    ),
+    'admin.operations.routes.customers.import' => 
+    array (
+      'methods' => 
+      array (
+        0 => 'POST',
+      ),
+      'uri' => 'admin/operations/routes/{item}/customers/import',
+      'action' => 
+      array (
+        'middleware' => 
+        array (
+          0 => 'web',
+          1 => 'auth',
+          2 => 'verified',
+          3 => 'role:admin',
+          4 => 'permission:operations.manage',
+        ),
+        'uses' => 'App\\Http\\Controllers\\Admin\\Operations\\DeliveryRouteController@importCustomers',
+        'controller' => 'App\\Http\\Controllers\\Admin\\Operations\\DeliveryRouteController@importCustomers',
+        'as' => 'admin.operations.routes.customers.import',
         'namespace' => NULL,
         'prefix' => 'admin/operations',
         'where' => 
@@ -11992,6 +12698,47 @@ app('router')->setCompiledRoutes(
         'uses' => 'App\\Http\\Controllers\\Admin\\Operations\\SalesTaskController@reassignSales',
         'controller' => 'App\\Http\\Controllers\\Admin\\Operations\\SalesTaskController@reassignSales',
         'as' => 'admin.sales-tasks.reassign',
+        'namespace' => NULL,
+        'prefix' => 'admin/sales-tasks',
+        'where' => 
+        array (
+        ),
+      ),
+      'fallback' => false,
+      'defaults' => 
+      array (
+      ),
+      'wheres' => 
+      array (
+      ),
+      'bindingFields' => 
+      array (
+      ),
+      'lockSeconds' => NULL,
+      'waitSeconds' => NULL,
+      'withTrashed' => false,
+    ),
+    'admin.sales-tasks.print-stock' => 
+    array (
+      'methods' => 
+      array (
+        0 => 'GET',
+        1 => 'HEAD',
+      ),
+      'uri' => 'admin/sales-tasks/{salesTask}/print-stock',
+      'action' => 
+      array (
+        'middleware' => 
+        array (
+          0 => 'web',
+          1 => 'auth',
+          2 => 'verified',
+          3 => 'role:admin',
+          4 => 'permission:sales-task.view',
+        ),
+        'uses' => 'App\\Http\\Controllers\\Admin\\Operations\\SalesTaskController@printStock',
+        'controller' => 'App\\Http\\Controllers\\Admin\\Operations\\SalesTaskController@printStock',
+        'as' => 'admin.sales-tasks.print-stock',
         'namespace' => NULL,
         'prefix' => 'admin/sales-tasks',
         'where' => 
@@ -13654,7 +14401,7 @@ app('router')->setCompiledRoutes(
       'waitSeconds' => NULL,
       'withTrashed' => false,
     ),
-    'generated::nOxQewoCzJG5WA4V' => 
+    'generated::PaafclgW1iQ4Ky97' => 
     array (
       'methods' => 
       array (
@@ -13675,7 +14422,7 @@ app('router')->setCompiledRoutes(
         'where' => 
         array (
         ),
-        'as' => 'generated::nOxQewoCzJG5WA4V',
+        'as' => 'generated::PaafclgW1iQ4Ky97',
       ),
       'fallback' => false,
       'defaults' => 
@@ -13729,7 +14476,7 @@ app('router')->setCompiledRoutes(
       'waitSeconds' => NULL,
       'withTrashed' => false,
     ),
-    'generated::0sgh6IxuCsZwnBwv' => 
+    'generated::grUmQFlQswWOlRJ8' => 
     array (
       'methods' => 
       array (
@@ -13750,7 +14497,7 @@ app('router')->setCompiledRoutes(
         'where' => 
         array (
         ),
-        'as' => 'generated::0sgh6IxuCsZwnBwv',
+        'as' => 'generated::grUmQFlQswWOlRJ8',
       ),
       'fallback' => false,
       'defaults' => 
@@ -14070,7 +14817,7 @@ app('router')->setCompiledRoutes(
       'waitSeconds' => NULL,
       'withTrashed' => false,
     ),
-    'generated::n7AEfup0bniUYDzC' => 
+    'generated::1hUGZTmSTjcIdqox' => 
     array (
       'methods' => 
       array (
@@ -14091,7 +14838,7 @@ app('router')->setCompiledRoutes(
         'where' => 
         array (
         ),
-        'as' => 'generated::n7AEfup0bniUYDzC',
+        'as' => 'generated::1hUGZTmSTjcIdqox',
       ),
       'fallback' => false,
       'defaults' => 
@@ -14197,7 +14944,7 @@ app('router')->setCompiledRoutes(
                         $config,
                         $isProduction
                     ))($request, $path);
-                }";s:5:"scope";s:47:"Illuminate\\Filesystem\\FilesystemServiceProvider";s:4:"this";N;s:4:"self";s:32:"00000000000007580000000000000000";}}',
+                }";s:5:"scope";s:47:"Illuminate\\Filesystem\\FilesystemServiceProvider";s:4:"this";N;s:4:"self";s:32:"00000000000007700000000000000000";}}',
         'as' => 'storage.local',
       ),
       'fallback' => false,
@@ -14230,7 +14977,7 @@ app('router')->setCompiledRoutes(
                         $config,
                         $isProduction
                     ))($request, $path);
-                }";s:5:"scope";s:47:"Illuminate\\Filesystem\\FilesystemServiceProvider";s:4:"this";N;s:4:"self";s:32:"000000000000083e0000000000000000";}}',
+                }";s:5:"scope";s:47:"Illuminate\\Filesystem\\FilesystemServiceProvider";s:4:"this";N;s:4:"self";s:32:"00000000000008620000000000000000";}}',
         'as' => 'storage.local.upload',
       ),
       'fallback' => false,

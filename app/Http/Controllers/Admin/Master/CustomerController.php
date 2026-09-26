@@ -7,8 +7,9 @@ use App\Http\Requests\Admin\Master\CustomerRequest;
 use App\Models\Customer;
 use App\Services\AuditLogger;
 use App\Services\CustomerAssignmentService;
+use App\Support\ExcelTableExport;
 use Illuminate\Http\Request;
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use Illuminate\Http\Response;
 
 /**
  * Phase 2 - Master Data: Customer (Blueprint #32, #42 Definition of Done).
@@ -39,10 +40,11 @@ class CustomerController extends Controller
     }
 
     /**
-     * Laporan Data Customer: unduh CSV mengikuti filter pencarian yang
-     * sedang aktif pada halaman index (kalau ada).
+     * Laporan Data Customer: unduh file .xls (HTML table berformat, bukan
+     * .xlsx biner -- lihat catatan lengkap di App\Support\ExcelTableExport)
+     * mengikuti filter pencarian yang sedang aktif pada halaman index (kalau ada).
      */
-    public function export(Request $request): StreamedResponse
+    public function export(Request $request): Response
     {
         $search = $request->query('q');
 
@@ -54,33 +56,25 @@ class CustomerController extends Controller
             ->orderBy('id', 'desc')
             ->get();
 
-        $filename = 'laporan-data-customer-'.now()->format('Ymd_His').'.csv';
-
-        $callback = function () use ($items) {
-            $out = fopen('php://output', 'w');
-            fwrite($out, "\xEF\xBB\xBF");
-            fputcsv($out, ['Kode', 'Nama', 'Alamat', 'Telepon', 'NPWP', 'Branch', 'Sales', 'Status']);
-
-            foreach ($items as $c) {
-                fputcsv($out, [
-                    $c->code,
-                    $c->name,
-                    $c->address,
-                    $c->phone,
-                    $c->npwp,
-                    $c->branch->name ?? '-',
-                    $c->sales->name ?? '-',
-                    $c->is_active ? 'Aktif' : 'Nonaktif',
-                ]);
-            }
-
-            fclose($out);
-        };
-
-        return response()->stream($callback, 200, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+        $rows = $items->map(fn ($c) => [
+            $c->code,
+            $c->name,
+            $c->address,
+            $c->phone,
+            $c->npwp,
+            $c->branch->name ?? '-',
+            $c->sales->name ?? '-',
+            $c->is_active ? 'Aktif' : 'Nonaktif',
         ]);
+
+        return ExcelTableExport::download(
+            title: 'Laporan Data Customer',
+            subtitle: ($search ? "Filter pencarian: \"{$search}\" | " : '').'Diunduh: '.now()->format('d M Y H:i').' | Total: '.$items->count().' customer',
+            columns: ['Kode', 'Nama', 'Alamat', 'Telepon', 'NPWP', 'Branch', 'Sales', 'Status'],
+            rows: $rows,
+            textColumns: [0, 3, 4], // Kode, Telepon, NPWP - jaga angka 0 di depan & angka panjang
+            filenameBase: 'laporan-data-customer',
+        );
     }
 
     public function create()
