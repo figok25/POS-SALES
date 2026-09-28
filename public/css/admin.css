@@ -17,8 +17,10 @@
     --adm-line: #e6eaf2;
     --adm-bg: #f3f6fb;
     --adm-fill: #f6f8fc;
+    --adm-surface: #fff;
     --adm-danger: #d64545;
     --adm-sidebar-w: 272px;
+    --adm-hover: #f1f5fd;
     --adm-shadow: 0 2px 10px rgba(60, 80, 130, 0.05);
     --adm-shadow-lg: 0 12px 28px rgba(60, 80, 130, 0.12);
 }
@@ -102,18 +104,138 @@ body.adm-body {
 .adm-nav::-webkit-scrollbar-thumb { background: #d5dbe8; border-radius: 999px; }
 .adm-nav::-webkit-scrollbar-track { background: transparent; }
 
-.adm-nav-group { margin-bottom: 18px; }
-.adm-nav-group:last-child { margin-bottom: 0; }
+/* ---- Pencarian menu ---- */
+.adm-search {
+    position: relative;
+    flex-shrink: 0;
+    padding: 12px 12px 0;
+}
+.adm-search svg {
+    position: absolute;
+    left: 24px;
+    top: 50%;
+    margin-top: 6px;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+    color: var(--adm-faint);
+    pointer-events: none;
+}
+.adm-search input {
+    width: 100%;
+    height: 40px;
+    padding: 0 34px 0 38px;
+    font-family: inherit;
+    font-size: 14px;
+    color: var(--adm-ink);
+    background: var(--adm-fill);
+    border: 1px solid var(--adm-line);
+    border-radius: 10px;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s, background-color 0.15s;
+    -webkit-appearance: none;
+    appearance: none;
+}
+.adm-search input::placeholder { color: var(--adm-faint); }
+.adm-search input::-webkit-search-cancel-button { -webkit-appearance: none; }
+.adm-search input:focus {
+    background: var(--adm-surface);
+    border-color: var(--adm-blue);
+    box-shadow: 0 0 0 4px rgba(123, 158, 232, 0.18);
+}
+.adm-search kbd {
+    position: absolute;
+    right: 22px;
+    top: 50%;
+    margin-top: 6px;
+    transform: translateY(-50%);
+    padding: 1px 7px;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--adm-faint);
+    border: 1px solid var(--adm-line);
+    border-radius: 6px;
+    pointer-events: none;
+}
+.adm-search input:focus ~ kbd,
+.adm-search input:not(:placeholder-shown) ~ kbd { display: none; }
+
+/* ---- Grup menu (dropdown) ---- */
+.adm-nav-group { margin-bottom: 4px; }
+.adm-nav-group.is-flat { margin-bottom: 10px; }
+.adm-nav-group:last-of-type { margin-bottom: 0; }
+.adm-nav .is-hidden { display: none !important; }
 
 .adm-nav-title {
-    margin: 0 0 6px;
-    padding: 0 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    margin: 0 0 2px;
+    padding: 9px 12px;
+    font-family: inherit;
     font-size: 11px;
     font-weight: 800;
     letter-spacing: 0.1em;
     text-transform: uppercase;
+    text-align: left;
     color: var(--adm-faint);
+    background: transparent;
+    border: 0;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background-color 0.15s, color 0.15s;
 }
+.adm-nav-title:hover { color: var(--adm-blue-deep); background: var(--adm-hover); }
+.adm-nav-title:focus-visible { outline: 2px solid var(--adm-blue); outline-offset: -2px; }
+.adm-nav-group.is-open > .adm-nav-title { color: var(--adm-body); }
+
+.adm-chevron {
+    flex-shrink: 0;
+    width: 15px;
+    height: 15px;
+    transition: transform 0.2s ease;
+}
+.adm-nav-group.is-open > .adm-nav-title .adm-chevron { transform: rotate(180deg); }
+
+/* Buka/tutup halus lewat grid-template-rows 0fr -> 1fr (tanpa hitung tinggi di JS). */
+.adm-nav-items {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.22s ease;
+}
+.adm-nav-items-inner {
+    min-height: 0;
+    overflow: hidden;
+    visibility: hidden;
+    transition: visibility 0s linear 0.22s;
+}
+.adm-nav-group.is-open > .adm-nav-items { grid-template-rows: 1fr; }
+.adm-nav-group.is-open > .adm-nav-items > .adm-nav-items-inner {
+    visibility: visible;
+    transition-delay: 0s;
+}
+.adm-nav.no-anim .adm-nav-items,
+.adm-nav.no-anim .adm-nav-items-inner,
+.adm-nav.no-anim .adm-chevron { transition: none; }
+
+/* Saat mencari: semua grup dipaksa terbuka supaya hasil terlihat. */
+.adm-nav.is-searching .adm-nav-group.is-collapsible > .adm-nav-items { grid-template-rows: 1fr; }
+.adm-nav.is-searching .adm-nav-group.is-collapsible > .adm-nav-items > .adm-nav-items-inner {
+    visibility: visible;
+    transition-delay: 0s;
+}
+.adm-nav.is-searching .adm-nav-group.is-collapsible > .adm-nav-title .adm-chevron { transform: rotate(180deg); }
+
+.adm-nav-empty {
+    margin: 18px 12px;
+    font-size: 13px;
+    text-align: center;
+    color: var(--adm-muted);
+}
+.adm-nav-empty[hidden] { display: none; }
 
 .adm-nav a {
     display: flex;
@@ -170,6 +292,29 @@ body.adm-body {
 }
 .adm-menu-btn:hover { background: #f1f5fd; color: var(--adm-blue-deep); }
 .adm-menu-btn svg { width: 20px; height: 20px; }
+
+/* ---- Tombol mode terang/gelap ---- */
+.adm-theme-btn {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--adm-line);
+    border-radius: 12px;
+    background: var(--adm-surface);
+    color: var(--adm-body);
+    cursor: pointer;
+    transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+.adm-theme-btn:hover { background: var(--adm-hover); color: var(--adm-blue-deep); }
+.adm-theme-btn:focus-visible { outline: 2px solid var(--adm-blue); outline-offset: 2px; }
+.adm-theme-btn svg { width: 19px; height: 19px; }
+/* Terang -> tampilkan ikon bulan (aksi: ke gelap); gelap -> ikon matahari. */
+.adm-theme-btn .adm-icon-sun { display: none; }
+html[data-theme="dark"] .adm-theme-btn .adm-icon-sun { display: block; }
+html[data-theme="dark"] .adm-theme-btn .adm-icon-moon { display: none; }
 
 .adm-title {
     flex: 1;
@@ -502,6 +647,146 @@ a.kpi:focus-visible { outline: 2px solid var(--adm-blue); outline-offset: 2px; }
 
 @media (max-width: 340px) {
     .kpi-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* --------------------------------------------------------------------------
+   Mode gelap (html[data-theme="dark"]) -- hanya untuk layar, cetak tetap terang.
+   Sebagian besar warna shell sudah lewat variabel, jadi cukup redefinisi
+   variabel + override elemen yang masih memakai warna literal.
+   -------------------------------------------------------------------------- */
+@media screen {
+    html[data-theme="dark"] {
+        color-scheme: dark;
+
+        --adm-blue: #6f93e6;
+        --adm-sky: #4fa8cf;
+        --adm-blue-deep: #8fb0ff;
+        --adm-ink: #e8ecf6;
+        --adm-body: #b7c0d3;
+        --adm-muted: #8b96ae;
+        --adm-faint: #6d788f;
+        --adm-line: #283148;
+        --adm-bg: #0e131f;
+        --adm-fill: #1a2133;
+        --adm-surface: #151b2a;
+        --adm-hover: rgba(111, 147, 230, 0.14);
+        --adm-danger: #ff8080;
+        --adm-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+        --adm-shadow-lg: 0 12px 28px rgba(0, 0, 0, 0.5);
+    }
+
+    /* Permukaan yang tadinya #fff literal */
+    html[data-theme="dark"] .adm-sidebar,
+    html[data-theme="dark"] .adm-topbar,
+    html[data-theme="dark"] .adm-menu-btn,
+    html[data-theme="dark"] .adm-logout,
+    html[data-theme="dark"] .dash-filter,
+    html[data-theme="dark"] .kpi,
+    html[data-theme="dark"] .panel,
+    html[data-theme="dark"] .adm-btn-ghost,
+    html[data-theme="dark"] .quick-link { background: var(--adm-surface); }
+
+    html[data-theme="dark"] .adm-nav { scrollbar-color: #33405c transparent; }
+    html[data-theme="dark"] .adm-nav::-webkit-scrollbar-thumb { background: #33405c; }
+    html[data-theme="dark"] .adm-brand-placeholder { border-color: #33405c; color: #56617a; }
+
+    html[data-theme="dark"] .adm-nav a:hover,
+    html[data-theme="dark"] .adm-menu-btn:hover,
+    html[data-theme="dark"] .adm-btn-ghost:hover,
+    html[data-theme="dark"] .quick-link:hover { background: var(--adm-hover); }
+    html[data-theme="dark"] .adm-logout:hover { background: rgba(255, 128, 128, 0.12); border-color: rgba(255, 128, 128, 0.35); }
+    html[data-theme="dark"] .adm-nav a.is-active { box-shadow: 0 6px 14px rgba(0, 0, 0, 0.4); }
+
+    html[data-theme="dark"] .dash-field input:focus,
+    html[data-theme="dark"] .dash-field select:focus { background-color: var(--adm-surface); }
+    html[data-theme="dark"] .adm-search input:focus { background: var(--adm-surface); }
+
+    html[data-theme="dark"] a.kpi:hover { border-color: #3a4867; }
+    html[data-theme="dark"] .quick-link:hover { border-color: #3a4867; }
+    html[data-theme="dark"] .row-item { border-bottom-color: var(--adm-line); }
+    html[data-theme="dark"] .row-code { color: #8fb0ff; }
+
+    /* Warna ikon KPI */
+    html[data-theme="dark"] .tone-blue   { --tone: #8fb0ff; --tone-bg: rgba(79, 123, 224, 0.18); }
+    html[data-theme="dark"] .tone-green  { --tone: #5fd1a0; --tone-bg: rgba(47, 158, 107, 0.18); }
+    html[data-theme="dark"] .tone-amber  { --tone: #f2b24d; --tone-bg: rgba(217, 138, 18, 0.18); }
+    html[data-theme="dark"] .tone-red    { --tone: #ff8080; --tone-bg: rgba(214, 69, 69, 0.18); }
+    html[data-theme="dark"] .tone-violet { --tone: #b19cff; --tone-bg: rgba(124, 92, 224, 0.20); }
+    html[data-theme="dark"] .tone-teal   { --tone: #56cbe3; --tone-bg: rgba(29, 159, 184, 0.18); }
+
+    html[data-theme="dark"] .badge-green { color: #6fdcab; background: rgba(47, 158, 107, 0.20); }
+    html[data-theme="dark"] .badge-red   { color: #ff9a9a; background: rgba(214, 69, 69, 0.20); }
+    html[data-theme="dark"] .badge-amber { color: #f5c26a; background: rgba(217, 138, 18, 0.20); }
+
+    /* ----------------------------------------------------------------------
+       Halaman isi yang masih memakai utility Tailwind (tabel, form, kartu,
+       badge). Di-scope ke .adm-content supaya tidak menyentuh halaman lain
+       dan tidak perlu mengedit puluhan blade satu per satu.
+       ---------------------------------------------------------------------- */
+    html[data-theme="dark"] .adm-content .bg-white { background-color: var(--adm-surface); }
+    html[data-theme="dark"] .adm-content .bg-gray-50 { background-color: #1a2133; }
+    html[data-theme="dark"] .adm-content .bg-gray-100 { background-color: #212a3f; }
+    html[data-theme="dark"] .adm-content .bg-gray-200 { background-color: #2a344c; }
+    html[data-theme="dark"] .adm-content .hover\:bg-gray-300:hover { background-color: #34405c; }
+    html[data-theme="dark"] .adm-content .hover\:bg-gray-50:hover,
+    html[data-theme="dark"] .adm-content .hover\:bg-gray-100:hover { background-color: #212a3f; }
+
+    html[data-theme="dark"] .adm-content .text-gray-900,
+    html[data-theme="dark"] .adm-content .text-gray-800 { color: var(--adm-ink); }
+    html[data-theme="dark"] .adm-content .text-gray-700,
+    html[data-theme="dark"] .adm-content .text-gray-600 { color: var(--adm-body); }
+    html[data-theme="dark"] .adm-content .text-gray-500,
+    html[data-theme="dark"] .adm-content .text-gray-400 { color: var(--adm-muted); }
+    html[data-theme="dark"] .adm-content .text-black { color: var(--adm-ink); }
+
+    html[data-theme="dark"] .adm-content .text-blue-600,
+    html[data-theme="dark"] .adm-content .text-blue-700,
+    html[data-theme="dark"] .adm-content .text-indigo-600,
+    html[data-theme="dark"] .adm-content .text-indigo-700 { color: #8fb0ff; }
+    html[data-theme="dark"] .adm-content .text-red-600,
+    html[data-theme="dark"] .adm-content .text-red-700 { color: #ff8f8f; }
+
+    /* Semua border di area isi mengikuti warna garis tema (termasuk border-b, divide, dsb). */
+    html[data-theme="dark"] .adm-content * { border-color: var(--adm-line); }
+
+    /* Field form */
+    html[data-theme="dark"] .adm-content input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+    html[data-theme="dark"] .adm-content select,
+    html[data-theme="dark"] .adm-content textarea {
+        color: var(--adm-ink);
+        background-color: var(--adm-fill);
+        border-color: var(--adm-line);
+    }
+    html[data-theme="dark"] .adm-content input::placeholder,
+    html[data-theme="dark"] .adm-content textarea::placeholder { color: var(--adm-faint); }
+    html[data-theme="dark"] .adm-content input:focus,
+    html[data-theme="dark"] .adm-content select:focus,
+    html[data-theme="dark"] .adm-content textarea:focus {
+        border-color: var(--adm-blue);
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(111, 147, 230, 0.25);
+    }
+    html[data-theme="dark"] .adm-content input:disabled,
+    html[data-theme="dark"] .adm-content select:disabled { opacity: 0.55; }
+
+    html[data-theme="dark"] .adm-content .shadow,
+    html[data-theme="dark"] .adm-content .shadow-sm,
+    html[data-theme="dark"] .adm-content .shadow-md { box-shadow: var(--adm-shadow); }
+
+    /* Badge / banner status berwarna pastel -> versi transparan di latar gelap */
+    html[data-theme="dark"] .adm-content .bg-green-100 { background-color: rgba(47, 158, 107, 0.20); }
+    html[data-theme="dark"] .adm-content .text-green-700,
+    html[data-theme="dark"] .adm-content .text-green-800 { color: #6fdcab; }
+    html[data-theme="dark"] .adm-content .bg-red-100 { background-color: rgba(214, 69, 69, 0.20); }
+    html[data-theme="dark"] .adm-content .text-red-800 { color: #ff9a9a; }
+    html[data-theme="dark"] .adm-content .bg-yellow-50,
+    html[data-theme="dark"] .adm-content .bg-yellow-100 { background-color: rgba(217, 168, 18, 0.16); }
+    html[data-theme="dark"] .adm-content .text-yellow-700,
+    html[data-theme="dark"] .adm-content .text-yellow-800 { color: #f5d27a; }
+    html[data-theme="dark"] .adm-content .bg-blue-100 { background-color: rgba(79, 123, 224, 0.20); }
+    html[data-theme="dark"] .adm-content .bg-indigo-100 { background-color: rgba(124, 92, 224, 0.20); }
+    html[data-theme="dark"] .adm-content .text-blue-800,
+    html[data-theme="dark"] .adm-content .text-indigo-800 { color: #a9bfff; }
 }
 
 @media print {
