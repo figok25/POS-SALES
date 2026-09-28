@@ -7,8 +7,11 @@ use App\Http\Controllers\Sales\NativeTokenController;
 use Illuminate\Support\Facades\Route;
 use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
 
+// Halaman awal langsung ke login. Kalau user sudah login, middleware
+// 'guest' pada route login otomatis meneruskan ke /dashboard, lalu ke
+// dashboard admin/sales sesuai role (lihat route 'dashboard' di bawah).
 Route::get('/', function () {
-    return view('welcome');
+    return redirect()->route('login');
 });
 
 /*
