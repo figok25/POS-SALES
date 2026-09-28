@@ -5,118 +5,223 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ config('app.name', 'POS & Sales') }} - Admin</title>
+
+    <link rel="preconnect" href="https://fonts.bunny.net">
+    <link href="https://fonts.bunny.net/css?family=nunito:400,600,700,800&display=swap" rel="stylesheet" />
+
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+
+    {{-- Stylesheet statis shell admin (sidebar/topbar/dashboard). Dimuat SETELAH
+         Tailwind supaya menang saat specificity sama. ?v= untuk cache-busting. --}}
+    <link rel="stylesheet" href="{{ asset('css/admin.css') }}?v={{ @filemtime(public_path('css/admin.css')) }}">
+
+    @stack('styles')
 </head>
-<body class="font-sans antialiased bg-gray-100">
-    <div class="min-h-screen flex">
-        {{-- Sidebar: struktur menu mengikuti Blueprint #47 Admin Navigation --}}
-        <aside class="w-64 bg-gray-900 text-gray-200 flex-shrink-0 hidden md:block">
-            <div class="px-4 py-4 text-lg font-semibold text-white border-b border-gray-800">
-                {{ config('app.name', 'POS & Sales') }}
-            </div>
-            <nav class="px-2 py-4 space-y-4 text-sm">
-                <a href="{{ route('admin.dashboard') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Dashboard</a>
+<body class="adm-body">
+@php
+    /*
+     * Struktur menu mengikuti Blueprint #47 Admin Navigation.
+     * Format item: [label, nama route | null (placeholder), ]
+     * Item aktif otomatis ditandai (route .index -> seluruh route se-resource,
+     * mis. admin.master.products.* ikut aktif di halaman create/edit/show).
+     */
+    $menu = [
+        ['title' => null, 'items' => [
+            ['Dashboard', 'admin.dashboard'],
+        ]],
+        ['title' => 'Master Data', 'items' => [
+            ['Company', 'admin.master.companies.index'],
+            ['Branch', 'admin.master.branches.index'],
+            ['Warehouse', 'admin.master.warehouses.index'],
+            ['Product', 'admin.master.products.index'],
+            ['Category', 'admin.master.categories.index'],
+            ['Unit', 'admin.master.units.index'],
+            ['Price', 'admin.master.prices.index'],
+            ['Customer', 'admin.master.customers.index'],
+            ['Employee', 'admin.master.employees.index'],
+            ['Sales', 'admin.master.sales.index'],
+            ['Vehicle', 'admin.master.vehicles.index'],
+            ['Supplier', 'admin.master.suppliers.index'],
+        ]],
+        ['title' => 'Inventory', 'items' => [
+            ['Stock', 'admin.inventory.stock.index'],
+            ['Stock Movement', 'admin.inventory.movements.index'],
+            ['Stock Adjustment', 'admin.inventory.adjustments.index'],
+        ]],
+        ['title' => 'Distribution', 'items' => [
+            ['Permintaan Barang', 'admin.distribution.stock-requests.index'],
+            ['BKB Distribusi', 'admin.distribution.bkb.index'],
+            ['BTB Distribusi', 'admin.distribution.btb.index'],
+            ['Branch Transfer (BKB/BTB Cabang)', 'admin.distribution.branch-transfer.index'],
+        ]],
+        ['title' => 'Sales', 'items' => [
+            ['Sales Management', 'admin.master.sales.index'],
+            ['Customer', 'admin.master.customers.index'],
+            ['Customer Assignment', 'admin.sales.customer-assignments.index'],
+            ['Visit Plan (Rute Kanvas)', 'admin.sales.visit-plans.index'],
+            ['Rute Toko per Sales', 'admin.sales.route-map.index'],
+            ['Tagging Toko', 'admin.sales.customer-taggings.index'],
+            ['Visit', 'admin.sales.visits.index'],
+            ['Transaksi Penjualan', 'admin.sales.transactions.index'],
+            ['Invoice', 'admin.sales.invoices.index'],
+        ]],
+        ['title' => 'Finance', 'items' => [
+            ['Invoice', 'admin.sales.invoices.index'],
+            ['Payment', 'admin.finance.payments.index'],
+            ['Settlement', 'admin.finance.settlements.index'],
+            ['Income & Expense', 'admin.finance.cash-ledgers.index'],
+        ]],
+        ['title' => 'Operations', 'items' => [
+            ['Sales Task', 'admin.sales-tasks.index'],
+            ['Live Monitoring Sales', 'admin.operations.live-monitoring.index'],
+            ['Delivery Order', 'admin.operations.delivery-orders.index'],
+            ['Manajemen Rute', 'admin.operations.routes.index'],
+            ['Vehicle', 'admin.master.vehicles.index'],
+            ['Driver', 'admin.operations.drivers.index'],
+            ['Monitoring', 'admin.operations.monitoring.index'],
+        ]],
+        ['title' => null, 'items' => [
+            ['Reports', 'admin.reports.index'],
+        ]],
+        ['title' => 'System', 'items' => [
+            ['Users', null],
+            ['Roles', null],
+            ['Permissions', null],
+            ['Audit Log', null],
+            ['Settings', null],
+        ]],
+    ];
 
-                <div>
-                    <p class="px-2 text-xs uppercase tracking-wide text-gray-500 mb-1">Master Data</p>
-                    <a href="{{ route('admin.master.companies.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Company</a>
-                    <a href="{{ route('admin.master.branches.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Branch</a>
-                    <a href="{{ route('admin.master.warehouses.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Warehouse</a>
-                    <a href="{{ route('admin.master.products.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Product</a>
-                    <a href="{{ route('admin.master.categories.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Category</a>
-                    <a href="{{ route('admin.master.units.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Unit</a>
-                    <a href="{{ route('admin.master.prices.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Price</a>
-                    <a href="{{ route('admin.master.customers.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Customer</a>
-                    <a href="{{ route('admin.master.employees.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Employee</a>
-                    <a href="{{ route('admin.master.sales.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Sales</a>
-                    <a href="{{ route('admin.master.vehicles.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Vehicle</a>
-                    <a href="{{ route('admin.master.suppliers.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Supplier</a>
-                </div>
+    // Beberapa menu muncul di 2 grup (Customer, Invoice, Vehicle, Sales) --
+    // tandai aktif hanya pada kemunculan PERTAMA supaya tidak dobel.
+    $activeTaken = false;
 
-                <div>
-                    <p class="px-2 text-xs uppercase tracking-wide text-gray-500 mb-1">Inventory</p>
-                    <a href="{{ route('admin.inventory.stock.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Stock</a>
-                    <a href="{{ route('admin.inventory.movements.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Stock Movement</a>
-                    <a href="{{ route('admin.inventory.adjustments.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Stock Adjustment</a>
-                </div>
+    $hasLogo = file_exists(public_path('images/logo.png')) ? 'images/logo.png'
+        : (file_exists(public_path('images/logo.svg')) ? 'images/logo.svg' : null);
 
-                <div>
-                    <p class="px-2 text-xs uppercase tracking-wide text-gray-500 mb-1">Distribution</p>
-                    <a href="{{ route('admin.distribution.stock-requests.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Permintaan Barang</a>
-                    <a href="{{ route('admin.distribution.bkb.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">BKB Distribusi</a>
-                    <a href="{{ route('admin.distribution.btb.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">BTB Distribusi</a>
-                    <a href="{{ route('admin.distribution.branch-transfer.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Branch Transfer (BKB/BTB Cabang)</a>
-                </div>
+    $userName = auth()->user()->name ?? 'Admin';
+    $userInitial = mb_strtoupper(mb_substr($userName, 0, 1));
+@endphp
 
-                <div>
-                    <p class="px-2 text-xs uppercase tracking-wide text-gray-500 mb-1">Sales</p>
-                    <a href="{{ route('admin.master.sales.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Sales Management</a>
-                    <a href="{{ route('admin.master.customers.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Customer</a>
-                    <a href="{{ route('admin.sales.customer-assignments.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Customer Assignment</a>
-                    <a href="{{ route('admin.sales.visit-plans.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Visit Plan (Rute Kanvas)</a>
-                    <a href="{{ route('admin.sales.route-map.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Rute Toko per Sales</a>
-                    <a href="{{ route('admin.sales.customer-taggings.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Tagging Toko</a>
-                    <a href="{{ route('admin.sales.visits.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Visit</a>
-                    <a href="{{ route('admin.sales.transactions.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Transaksi Penjualan</a>
-                    <a href="{{ route('admin.sales.invoices.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Invoice</a>
-                </div>
-
-                <div>
-                    <p class="px-2 text-xs uppercase tracking-wide text-gray-500 mb-1">Finance</p>
-                    <a href="{{ route('admin.sales.invoices.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Invoice</a>
-                    <a href="{{ route('admin.finance.payments.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Payment</a>
-                    <a href="{{ route('admin.finance.settlements.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Settlement</a>
-                    <a href="{{ route('admin.finance.cash-ledgers.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Income & Expense</a>
-                </div>
-
-                <div>
-                    <p class="px-2 text-xs uppercase tracking-wide text-gray-500 mb-1">Operations</p>
-                    <a href="{{ route('admin.sales-tasks.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Sales Task</a>
-                    <a href="{{ route('admin.operations.live-monitoring.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Live Monitoring Sales</a>
-                    <a href="{{ route('admin.operations.delivery-orders.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Delivery Order</a>
-                    <a href="{{ route('admin.operations.routes.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Manajemen Rute</a>
-                    <a href="{{ route('admin.master.vehicles.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Vehicle</a>
-                    <a href="{{ route('admin.operations.drivers.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Driver</a>
-                    <a href="{{ route('admin.operations.monitoring.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Monitoring</a>
-                </div>
-
-                <a href="{{ route('admin.reports.index') }}" class="block px-2 py-1.5 rounded hover:bg-gray-800">Reports</a>
-
-                <div>
-                    <p class="px-2 text-xs uppercase tracking-wide text-gray-500 mb-1">System</p>
-                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Users</a>
-                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Roles</a>
-                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Permissions</a>
-                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Audit Log</a>
-                    <a href="#" class="block px-2 py-1.5 rounded hover:bg-gray-800">Settings</a>
-                </div>
-            </nav>
-        </aside>
-
-        <div class="flex-1 flex flex-col min-w-0">
-            <header class="bg-white shadow-sm">
-                <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-                    <div>
-                        @isset($header)
-                            <h2 class="font-semibold text-xl text-gray-800">{{ $header }}</h2>
-                        @endisset
-                    </div>
-                    <div class="flex items-center gap-4 text-sm">
-                        <span class="text-gray-600">{{ auth()->user()->name }} <span class="text-xs text-gray-400">(Admin)</span></span>
-                        <form method="POST" action="{{ route('logout') }}">
-                            @csrf
-                            <button type="submit" class="text-red-600 hover:underline">Logout</button>
-                        </form>
-                    </div>
-                </div>
-            </header>
-
-            <main class="flex-1 p-6">
-                <div class="max-w-7xl mx-auto">
-                    {{ $slot }}
-                </div>
-            </main>
+<div class="adm-shell">
+    {{-- Sidebar: scroll sendiri, terpisah dari scroll halaman. Di layar
+         <= 900px berubah jadi drawer (dibuka lewat tombol hamburger). --}}
+    <aside class="adm-sidebar" id="adm-sidebar" aria-label="Menu utama">
+        <div class="adm-brand">
+            <a href="{{ route('admin.dashboard') }}" aria-label="{{ config('app.name') }} - Dashboard">
+                @if ($hasLogo)
+                    <img src="{{ asset($hasLogo) }}" alt="{{ config('app.name') }}">
+                @else
+                    <span class="adm-brand-placeholder">LOGO</span>
+                @endif
+            </a>
         </div>
+
+        <nav class="adm-nav" id="adm-nav">
+            @foreach ($menu as $group)
+                <div class="adm-nav-group">
+                    @if ($group['title'])
+                        <p class="adm-nav-title">{{ $group['title'] }}</p>
+                    @endif
+
+                    @foreach ($group['items'] as [$label, $routeName])
+                        @php
+                            $isActive = false;
+                            if ($routeName && ! $activeTaken) {
+                                $pattern = $routeName === 'admin.dashboard'
+                                    ? $routeName
+                                    : preg_replace('/\.index$/', '.*', $routeName);
+                                $isActive = request()->routeIs($pattern);
+                                if ($isActive) {
+                                    $activeTaken = true;
+                                }
+                            }
+                        @endphp
+                        <a href="{{ $routeName ? route($routeName) : '#' }}"
+                           class="{{ $isActive ? 'is-active' : '' }}"
+                           @if ($isActive) aria-current="page" @endif>{{ $label }}</a>
+                    @endforeach
+                </div>
+            @endforeach
+        </nav>
+    </aside>
+
+    <div class="adm-overlay" id="adm-overlay"></div>
+
+    <div class="adm-main">
+        <header class="adm-topbar">
+            <button type="button" class="adm-menu-btn" id="adm-menu-btn"
+                    aria-label="Buka menu" aria-controls="adm-sidebar" aria-expanded="false">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>
+                </svg>
+            </button>
+
+            <h2 class="adm-title">@isset($header){{ $header }}@endisset</h2>
+
+            <div class="adm-user">
+                <span class="adm-avatar" aria-hidden="true">{{ $userInitial }}</span>
+                <span class="adm-user-text">
+                    <span class="adm-user-name">{{ $userName }}</span>
+                    <span class="adm-user-role">Admin</span>
+                </span>
+                <form method="POST" action="{{ route('logout') }}">
+                    @csrf
+                    <button type="submit" class="adm-logout" aria-label="Logout">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+                        </svg>
+                        <span>Logout</span>
+                    </button>
+                </form>
+            </div>
+        </header>
+
+        <main class="adm-content">
+            <div class="adm-container">
+                {{ $slot }}
+            </div>
+        </main>
     </div>
+</div>
+
+@stack('scripts')
+
+<script>
+    (function () {
+        var sidebar = document.getElementById('adm-sidebar');
+        var overlay = document.getElementById('adm-overlay');
+        var btn = document.getElementById('adm-menu-btn');
+        var nav = document.getElementById('adm-nav');
+        if (!sidebar || !overlay || !btn) return;
+
+        function setOpen(open) {
+            sidebar.classList.toggle('is-open', open);
+            overlay.classList.toggle('is-open', open);
+            btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+            btn.setAttribute('aria-label', open ? 'Tutup menu' : 'Buka menu');
+        }
+
+        btn.addEventListener('click', function () {
+            setOpen(!sidebar.classList.contains('is-open'));
+        });
+        overlay.addEventListener('click', function () { setOpen(false); });
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') setOpen(false);
+        });
+
+        // Kembali ke layout desktop -> pastikan drawer tertutup.
+        var mq = window.matchMedia('(min-width: 901px)');
+        var onChange = function (e) { if (e.matches) setOpen(false); };
+        if (mq.addEventListener) mq.addEventListener('change', onChange);
+        else if (mq.addListener) mq.addListener(onChange);
+
+        // Sidebar panjang: gulung otomatis supaya menu aktif terlihat.
+        var active = nav && nav.querySelector('a.is-active');
+        if (active) {
+            nav.scrollTop = Math.max(0, active.offsetTop - nav.clientHeight / 2);
+        }
+    })();
+</script>
 </body>
 </html>
