@@ -42,10 +42,80 @@
         @endforeach
     </div>
 
-    <div class="bg-white rounded-lg shadow p-3 text-sm font-semibold flex justify-between">
+    <div class="bg-white rounded-lg shadow p-3 text-sm font-semibold flex justify-between mb-4">
         <span>Total</span>
         <span>Rp {{ number_format($transaction->total, 0, ',', '.') }}</span>
     </div>
 
+    <button type="button" id="btn-print-struk" class="w-full bg-emerald-600 text-white rounded-lg py-2.5 text-sm mb-1">
+        🖨️ Cetak Struk (Bluetooth)
+    </button>
+    <p id="print-struk-message" class="text-center text-xs mb-3"></p>
+    <a href="{{ route('sales.printer.index') }}" class="block text-center text-xs text-gray-400 mb-4">Atur Printer</a>
+
     <a href="{{ route('sales.transactions.index') }}" class="block text-center text-sm text-gray-500 mt-4">&larr; Kembali ke riwayat</a>
+
+    @php
+    $paymentStatusLabel = null;
+    $outstandingLabel = null;
+
+    if ($transaction->invoice) {
+        $paymentStatusLabel = match ($transaction->invoice->status) {
+            'paid' => 'Lunas',
+            'partial' => 'Sebagian',
+            default => 'Belum Bayar',
+        };
+
+        if (! $transaction->invoice->isFullyPaid()) {
+            $outstandingLabel = 'Rp '.number_format($transaction->invoice->outstanding(), 0, ',', '.');
+        }
+    }
+
+    $printPayload = [
+        'company_name' => $transaction->sales?->branch?->company?->name,
+        'company_address' => $transaction->sales?->branch?->company?->address,
+        'company_phone' => $transaction->sales?->branch?->company?->phone,
+        'code' => $transaction->code,
+        'date' => $transaction->created_at->format('d/m/Y H:i'),
+        'sales_name' => $transaction->sales->name ?? null,
+        'customer_name' => $transaction->customer->name ?? null,
+        'subtotal' => $transaction->subtotal,
+        'discount' => $transaction->discount,
+        'tax' => $transaction->tax,
+        'total' => $transaction->total,
+        'payment_status' => $paymentStatusLabel,
+        'outstanding_label' => $outstandingLabel,
+        'items' => $transaction->items->map(function ($line) {
+            return [
+                'name' => $line->product->name ?? '-',
+                'quantity' => $line->quantity,
+                'price' => $line->price,
+                'subtotal' => $line->subtotal,
+            ];
+        })->values()->toArray(),
+    ];
+@endphp
+
+    @include('sales.printer._script')
+<script>
+    (function () {
+        var payload = @json($printPayload);
+
+        var btn = document.getElementById('btn-print-struk');
+        var msg = document.getElementById('print-struk-message');
+
+        btn.addEventListener('click', function () {
+            msg.textContent = 'Menghubungkan printer...';
+            msg.className = 'text-center text-xs mb-3 text-gray-500';
+
+            window.ThermalPrinter.printReceipt(payload).then(function () {
+                msg.textContent = 'Struk terkirim ke printer.';
+                msg.className = 'text-center text-xs mb-3 text-green-600';
+            }).catch(function (err) {
+                msg.textContent = err.message || 'Gagal mencetak struk.';
+                msg.className = 'text-center text-xs mb-3 text-red-600';
+            });
+        });
+    })();
+</script>
 </x-sales-layout>

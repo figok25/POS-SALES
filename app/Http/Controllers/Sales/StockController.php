@@ -18,15 +18,15 @@ class StockController extends Controller
 
     public function index()
     {
-        $sales = $this->currentSales();
+        $sales = $this->currentSales()->load('branch.company');
 
         $items = Stock::where('location_type', Stock::LOCATION_SALES)
             ->where('location_id', $sales->id)
             ->where('quantity', '>', 0)
-            ->with('product')
+            ->with('product.unit')
             ->orderBy('id')
             ->get();
 
-        return view('sales.stock.index', compact('items'));
+        return view('sales.stock.index', compact('items', 'sales'));
     }
 }

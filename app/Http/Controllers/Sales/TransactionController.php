@@ -92,7 +92,7 @@ class TransactionController extends Controller
             abort(403);
         }
 
-        $transaction->load('items.product', 'customer', 'invoice');
+        $transaction->load('items.product', 'customer', 'invoice', 'sales.branch.company');
 
         return view('sales.transactions.show', compact('transaction'));
     }

@@ -12,6 +12,7 @@
 use App\Http\Controllers\Sales\CustomerTaggingController;
 use App\Http\Controllers\Sales\MapController;
 use App\Http\Controllers\Sales\PaymentController;
+use App\Http\Controllers\Sales\PrinterController;
 use App\Http\Controllers\Sales\ReturnStockController;
 use App\Http\Controllers\Sales\StockController;
 use App\Http\Controllers\Sales\TaskPageController;
@@ -64,6 +65,12 @@ Route::middleware('permission:sales-transaction.view')->prefix('transactions')->
 Route::middleware(['permission:sales-stock.view', 'active_sales_task'])->group(function () {
     Route::get('stock', [StockController::class, 'index'])->name('stock.index');
 });
+
+// Fase 9 - Pengaturan Printer Bluetooth Thermal (Blueprint #12.7).
+// Sengaja TIDAK diberi middleware permission/active_sales_task -- ini
+// halaman pairing & test printer, bukan fitur bisnis, jadi harus selalu
+// bisa diakses oleh Sales kapan pun (termasuk saat belum ada Task aktif).
+Route::get('printer', [PrinterController::class, 'index'])->name('printer.index');
 
 // Business Flow Update v3.1 (Blueprint #13.11, #13.12) - Return Stock:
 // Sales submit stock sisa, otomatis membuat BTB Distribusi (WAITING_CHECK)
