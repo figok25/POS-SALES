@@ -2,7 +2,10 @@
     <div class="p-6">
         <div class="flex items-center justify-between mb-4">
             <h1 class="text-xl font-semibold">Sales Report</h1>
-            <a href="{{ route('admin.reports.index') }}" class="text-sm text-blue-700 hover:underline">&larr; Reports</a>
+            <div class="flex items-center gap-4">
+                <x-report-export />
+                <a href="{{ route('admin.reports.index') }}" class="text-sm text-blue-700 hover:underline">&larr; Reports</a>
+            </div>
         </div>
 
         <form method="GET" class="mb-4 flex gap-2 items-end">
