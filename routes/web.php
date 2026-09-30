@@ -79,8 +79,9 @@ Route::middleware(['auth', 'verified', 'role:admin'])
         // Live Sales Field Operations - Sales Task / Penugasan (Blueprint #14)
         Route::prefix('sales-tasks')->name('sales-tasks.')->group(base_path('routes/admin_sales_tasks.php'));
 
-        // Placeholder group untuk modul-modul berikutnya:
-        // Route::prefix('system')->name('system.')->group(...);
+        // System: Users, Roles, Permissions, Audit Log (Settings menyusul,
+        // belum ada spesifikasi/tabel)
+        Route::prefix('system')->name('system.')->group(base_path('routes/admin_system.php'));
     });
 
 /*

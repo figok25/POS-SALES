@@ -102,10 +102,10 @@
             ['Reports', 'admin.reports.index'],
         ]],
         ['title' => 'System', 'items' => [
-            ['Users', null],
-            ['Roles', null],
-            ['Permissions', null],
-            ['Audit Log', null],
+            ['Users', 'admin.system.users.index'],
+            ['Roles', 'admin.system.roles.index'],
+            ['Permissions', 'admin.system.permissions.index'],
+            ['Audit Log', 'admin.system.audit-log.index'],
             ['Settings', null],
         ]],
     ];

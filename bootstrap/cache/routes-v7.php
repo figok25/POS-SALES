@@ -33,7 +33,7 @@ app('router')->setCompiledRoutes(
         array (
           0 => 
           array (
-            '_route' => 'generated::qY2IVyZnK1MmcXy4',
+            '_route' => 'generated::U6R7IySD09FevCMF',
           ),
           1 => NULL,
           2 => 
@@ -53,7 +53,7 @@ app('router')->setCompiledRoutes(
         array (
           0 => 
           array (
-            '_route' => 'generated::lebahPEa2T4wIHwY',
+            '_route' => 'generated::wvcUATreryqS7JBI',
           ),
           1 => NULL,
           2 => 
@@ -1851,6 +1851,122 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
+      '/admin/system/users' => 
+      array (
+        0 => 
+        array (
+          0 => 
+          array (
+            '_route' => 'admin.system.users.index',
+          ),
+          1 => NULL,
+          2 => 
+          array (
+            'GET' => 0,
+            'HEAD' => 1,
+          ),
+          3 => NULL,
+          4 => false,
+          5 => false,
+          6 => NULL,
+        ),
+        1 => 
+        array (
+          0 => 
+          array (
+            '_route' => 'admin.system.users.store',
+          ),
+          1 => NULL,
+          2 => 
+          array (
+            'POST' => 0,
+          ),
+          3 => NULL,
+          4 => false,
+          5 => false,
+          6 => NULL,
+        ),
+      ),
+      '/admin/system/users/create' => 
+      array (
+        0 => 
+        array (
+          0 => 
+          array (
+            '_route' => 'admin.system.users.create',
+          ),
+          1 => NULL,
+          2 => 
+          array (
+            'GET' => 0,
+            'HEAD' => 1,
+          ),
+          3 => NULL,
+          4 => false,
+          5 => false,
+          6 => NULL,
+        ),
+      ),
+      '/admin/system/roles' => 
+      array (
+        0 => 
+        array (
+          0 => 
+          array (
+            '_route' => 'admin.system.roles.index',
+          ),
+          1 => NULL,
+          2 => 
+          array (
+            'GET' => 0,
+            'HEAD' => 1,
+          ),
+          3 => NULL,
+          4 => false,
+          5 => false,
+          6 => NULL,
+        ),
+      ),
+      '/admin/system/permissions' => 
+      array (
+        0 => 
+        array (
+          0 => 
+          array (
+            '_route' => 'admin.system.permissions.index',
+          ),
+          1 => NULL,
+          2 => 
+          array (
+            'GET' => 0,
+            'HEAD' => 1,
+          ),
+          3 => NULL,
+          4 => false,
+          5 => false,
+          6 => NULL,
+        ),
+      ),
+      '/admin/system/audit-log' => 
+      array (
+        0 => 
+        array (
+          0 => 
+          array (
+            '_route' => 'admin.system.audit-log.index',
+          ),
+          1 => NULL,
+          2 => 
+          array (
+            'GET' => 0,
+            'HEAD' => 1,
+          ),
+          3 => NULL,
+          4 => false,
+          5 => false,
+          6 => NULL,
+        ),
+      ),
       '/api/admin/live-sales' => 
       array (
         0 => 
@@ -2392,7 +2508,7 @@ app('router')->setCompiledRoutes(
         array (
           0 => 
           array (
-            '_route' => 'generated::T59JyFuuTbST78UZ',
+            '_route' => 'generated::Zcb6GxmecfyqFvwI',
           ),
           1 => NULL,
           2 => 
@@ -2428,7 +2544,7 @@ app('router')->setCompiledRoutes(
         array (
           0 => 
           array (
-            '_route' => 'generated::1VyVBm4HKD7aOprH',
+            '_route' => 'generated::G7tSr1o4rXSgDB3F',
           ),
           1 => NULL,
           2 => 
@@ -2558,7 +2674,7 @@ app('router')->setCompiledRoutes(
         array (
           0 => 
           array (
-            '_route' => 'generated::hsFqRNx3yrtuRbTZ',
+            '_route' => 'generated::aG6RxL9F68DC9ntC',
           ),
           1 => NULL,
           2 => 
@@ -2612,7 +2728,7 @@ app('router')->setCompiledRoutes(
     ),
     2 => 
     array (
-      0 => '{^(?|/a(?|dmin/(?|master/(?|c(?|ompanies/([^/]++)(?|/edit(*:59)|(*:66))|ategories/([^/]++)(?|/edit(*:100)|(*:108))|ustomers/([^/]++)(?|(*:137)|/edit(*:150)|(*:158)))|branches/([^/]++)(?|/edit(*:193)|(*:201))|warehouses/([^/]++)(?|/edit(*:237)|(*:245))|units/([^/]++)(?|/edit(*:276)|(*:284))|pr(?|oducts/([^/]++)(?|/edit(*:321)|(*:329))|ices/([^/]++)(?|/edit(*:359)|(*:367)))|employees/([^/]++)(?|/edit(*:403)|(*:411))|s(?|ales/([^/]++)(?|/edit(*:445)|(*:453))|uppliers/([^/]++)(?|/edit(*:487)|(*:495)))|vehicles/([^/]++)(?|/edit(*:530)|(*:538)))|inventory/adjustments/([^/]++)(?|/apply(*:587)|(*:595))|distribution/(?|stock\\-requests/([^/]++)(?|(*:647)|/(?|submit(*:665)|cancel(*:679))|(*:688))|b(?|kb/([^/]++)(?|(*:715)|/(?|cancel(*:733)|apply(*:746)))|tb/([^/]++)(?|(*:770)|/(?|cancel(*:788)|apply(*:801)|discrepancy(*:820)))|ranch\\-transfer/([^/]++)(?|(*:857)|/(?|cancel(*:875)|send(*:887)|receive(?|(*:905))))))|sales(?|/(?|customer\\-(?|taggings/(?|([^/]++)(?|(*:966)|/(?|approve(*:985)|reject(*:999)))|bulk\\-approve(*:1022))|assignments/([^/]++)(?|/edit(*:1060)|(*:1069)))|visit(?|s/([^/]++)(*:1098)|\\-plans/([^/]++)(?|(*:1126)))|transactions/([^/]++)(?|/print(*:1167)|(*:1176))|invoices/([^/]++)(?|/print(*:1212)|(*:1221)))|\\-tasks/([^/]++)(?|/(?|app(?|ly(*:1263)|rove\\-variance(*:1286))|cancel(*:1302)|reassign(*:1319)|print\\-stock(*:1340))|(*:1350)))|operations/(?|d(?|elivery\\-orders/(?|([^/]++)(?|(*:1409)|/dispatch(*:1427))|bulk\\-dispatch(*:1451)|([^/]++)/(?|deliver(*:1479)|cancel(*:1494)))|rivers/([^/]++)/toggle(*:1527))|routes/([^/]++)(?|/(?|customers(?|/(?|export(*:1581)|([^/]++)(?|(*:1601))|import(*:1617))|(*:1627))|edit(*:1641))|(*:1651)))|finance/(?|invoices/([^/]++)/payments(?|/create(*:1709)|(*:1718))|settlements/([^/]++)(?|/(?|edit(*:1759)|apply(*:1773))|(*:1783))|cash\\-ledgers/([^/]++)(*:1815)))|pi/(?|admin/sales/([^/]++)/locations(*:1862)|sales/(?|tasks/([^/]++)/(?|documents(?|(*:1910)|/([^/]++)/download(*:1937))|st(?|ock(*:1955)|art\\-work(*:1973))|verify\\-stock(*:1996))|route/customer/([^/]++)(*:2029))))|/s(?|ales/(?|map/([^/]++)(*:2066)|visits/([^/]++)/check\\-out(*:2101)|transactions/([^/]++)(*:2131)|invoices/([^/]++)/payments(?|/create(*:2176)|(*:2185)))|torage/(.*)(?|(*:2210)))|/reset\\-password/([^/]++)(*:2246)|/verify\\-email/([^/]++)/([^/]++)(*:2287))/?$}sDu',
+      0 => '{^(?|/a(?|dmin/(?|master/(?|c(?|ompanies/([^/]++)(?|/edit(*:59)|(*:66))|ategories/([^/]++)(?|/edit(*:100)|(*:108))|ustomers/([^/]++)(?|(*:137)|/edit(*:150)|(*:158)))|branches/([^/]++)(?|/edit(*:193)|(*:201))|warehouses/([^/]++)(?|/edit(*:237)|(*:245))|units/([^/]++)(?|/edit(*:276)|(*:284))|pr(?|oducts/([^/]++)(?|/edit(*:321)|(*:329))|ices/([^/]++)(?|/edit(*:359)|(*:367)))|employees/([^/]++)(?|/edit(*:403)|(*:411))|s(?|ales/([^/]++)(?|/edit(*:445)|(*:453))|uppliers/([^/]++)(?|/edit(*:487)|(*:495)))|vehicles/([^/]++)(?|/edit(*:530)|(*:538)))|inventory/adjustments/([^/]++)(?|/apply(*:587)|(*:595))|distribution/(?|stock\\-requests/([^/]++)(?|(*:647)|/(?|submit(*:665)|cancel(*:679))|(*:688))|b(?|kb/([^/]++)(?|(*:715)|/(?|cancel(*:733)|apply(*:746)))|tb/([^/]++)(?|(*:770)|/(?|cancel(*:788)|apply(*:801)|discrepancy(*:820)))|ranch\\-transfer/([^/]++)(?|(*:857)|/(?|cancel(*:875)|send(*:887)|receive(?|(*:905))))))|s(?|ales(?|/(?|customer\\-(?|taggings/(?|([^/]++)(?|(*:969)|/(?|approve(*:988)|reject(*:1002)))|bulk\\-approve(*:1026))|assignments/([^/]++)(?|/edit(*:1064)|(*:1073)))|visit(?|s/([^/]++)(*:1102)|\\-plans/([^/]++)(?|(*:1130)))|transactions/([^/]++)(?|/print(*:1171)|(*:1180))|invoices/([^/]++)(?|/print(*:1216)|(*:1225)))|\\-tasks/([^/]++)(?|/(?|app(?|ly(*:1267)|rove\\-variance(*:1290))|cancel(*:1306)|reassign(*:1323)|print\\-stock(*:1344))|(*:1354)))|ystem/(?|users/([^/]++)(?|/edit(*:1396)|(*:1405))|roles/([^/]++)(?|/edit(*:1437)|(*:1446))|audit\\-log/([^/]++)(*:1475)))|operations/(?|d(?|elivery\\-orders/(?|([^/]++)(?|(*:1534)|/dispatch(*:1552))|bulk\\-dispatch(*:1576)|([^/]++)/(?|deliver(*:1604)|cancel(*:1619)))|rivers/([^/]++)/toggle(*:1652))|routes/([^/]++)(?|/(?|customers(?|/(?|export(*:1706)|([^/]++)(?|(*:1726))|import(*:1742))|(*:1752))|edit(*:1766))|(*:1776)))|finance/(?|invoices/([^/]++)/payments(?|/create(*:1834)|(*:1843))|settlements/([^/]++)(?|/(?|edit(*:1884)|apply(*:1898))|(*:1908))|cash\\-ledgers/([^/]++)(*:1940)))|pi/(?|admin/sales/([^/]++)/locations(*:1987)|sales/(?|tasks/([^/]++)/(?|documents(?|(*:2035)|/([^/]++)/download(*:2062))|st(?|ock(*:2080)|art\\-work(*:2098))|verify\\-stock(*:2121))|route/customer/([^/]++)(*:2154))))|/s(?|ales/(?|map/([^/]++)(*:2191)|visits/([^/]++)/check\\-out(*:2226)|transactions/([^/]++)(*:2256)|invoices/([^/]++)/payments(?|/create(*:2301)|(*:2310)))|torage/(.*)(?|(*:2335)))|/reset\\-password/([^/]++)(*:2371)|/verify\\-email/([^/]++)/([^/]++)(*:2412))/?$}sDu',
     ),
     3 => 
     array (
@@ -3817,7 +3933,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      966 => 
+      969 => 
       array (
         0 => 
         array (
@@ -3840,7 +3956,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      985 => 
+      988 => 
       array (
         0 => 
         array (
@@ -3862,7 +3978,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      999 => 
+      1002 => 
       array (
         0 => 
         array (
@@ -3884,7 +4000,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1022 => 
+      1026 => 
       array (
         0 => 
         array (
@@ -3905,7 +4021,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1060 => 
+      1064 => 
       array (
         0 => 
         array (
@@ -3928,7 +4044,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1069 => 
+      1073 => 
       array (
         0 => 
         array (
@@ -3950,7 +4066,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1098 => 
+      1102 => 
       array (
         0 => 
         array (
@@ -3973,7 +4089,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1126 => 
+      1130 => 
       array (
         0 => 
         array (
@@ -4015,7 +4131,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1167 => 
+      1171 => 
       array (
         0 => 
         array (
@@ -4038,7 +4154,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1176 => 
+      1180 => 
       array (
         0 => 
         array (
@@ -4061,7 +4177,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1212 => 
+      1216 => 
       array (
         0 => 
         array (
@@ -4084,7 +4200,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1221 => 
+      1225 => 
       array (
         0 => 
         array (
@@ -4107,7 +4223,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1263 => 
+      1267 => 
       array (
         0 => 
         array (
@@ -4129,7 +4245,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1286 => 
+      1290 => 
       array (
         0 => 
         array (
@@ -4151,7 +4267,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1302 => 
+      1306 => 
       array (
         0 => 
         array (
@@ -4173,7 +4289,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1319 => 
+      1323 => 
       array (
         0 => 
         array (
@@ -4195,7 +4311,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1340 => 
+      1344 => 
       array (
         0 => 
         array (
@@ -4218,7 +4334,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1350 => 
+      1354 => 
       array (
         0 => 
         array (
@@ -4241,7 +4357,140 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1409 => 
+      1396 => 
+      array (
+        0 => 
+        array (
+          0 => 
+          array (
+            '_route' => 'admin.system.users.edit',
+          ),
+          1 => 
+          array (
+            0 => 'item',
+          ),
+          2 => 
+          array (
+            'GET' => 0,
+            'HEAD' => 1,
+          ),
+          3 => NULL,
+          4 => false,
+          5 => false,
+          6 => NULL,
+        ),
+      ),
+      1405 => 
+      array (
+        0 => 
+        array (
+          0 => 
+          array (
+            '_route' => 'admin.system.users.update',
+          ),
+          1 => 
+          array (
+            0 => 'item',
+          ),
+          2 => 
+          array (
+            'PUT' => 0,
+            'PATCH' => 1,
+          ),
+          3 => NULL,
+          4 => false,
+          5 => true,
+          6 => NULL,
+        ),
+        1 => 
+        array (
+          0 => 
+          array (
+            '_route' => 'admin.system.users.destroy',
+          ),
+          1 => 
+          array (
+            0 => 'item',
+          ),
+          2 => 
+          array (
+            'DELETE' => 0,
+          ),
+          3 => NULL,
+          4 => false,
+          5 => true,
+          6 => NULL,
+        ),
+      ),
+      1437 => 
+      array (
+        0 => 
+        array (
+          0 => 
+          array (
+            '_route' => 'admin.system.roles.edit',
+          ),
+          1 => 
+          array (
+            0 => 'role',
+          ),
+          2 => 
+          array (
+            'GET' => 0,
+            'HEAD' => 1,
+          ),
+          3 => NULL,
+          4 => false,
+          5 => false,
+          6 => NULL,
+        ),
+      ),
+      1446 => 
+      array (
+        0 => 
+        array (
+          0 => 
+          array (
+            '_route' => 'admin.system.roles.update',
+          ),
+          1 => 
+          array (
+            0 => 'role',
+          ),
+          2 => 
+          array (
+            'PUT' => 0,
+          ),
+          3 => NULL,
+          4 => false,
+          5 => true,
+          6 => NULL,
+        ),
+      ),
+      1475 => 
+      array (
+        0 => 
+        array (
+          0 => 
+          array (
+            '_route' => 'admin.system.audit-log.show',
+          ),
+          1 => 
+          array (
+            0 => 'auditLog',
+          ),
+          2 => 
+          array (
+            'GET' => 0,
+            'HEAD' => 1,
+          ),
+          3 => NULL,
+          4 => false,
+          5 => true,
+          6 => NULL,
+        ),
+      ),
+      1534 => 
       array (
         0 => 
         array (
@@ -4264,7 +4513,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1427 => 
+      1552 => 
       array (
         0 => 
         array (
@@ -4286,7 +4535,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1451 => 
+      1576 => 
       array (
         0 => 
         array (
@@ -4307,7 +4556,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1479 => 
+      1604 => 
       array (
         0 => 
         array (
@@ -4329,7 +4578,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1494 => 
+      1619 => 
       array (
         0 => 
         array (
@@ -4351,7 +4600,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1527 => 
+      1652 => 
       array (
         0 => 
         array (
@@ -4373,7 +4622,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1581 => 
+      1706 => 
       array (
         0 => 
         array (
@@ -4396,7 +4645,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1601 => 
+      1726 => 
       array (
         0 => 
         array (
@@ -4439,7 +4688,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1617 => 
+      1742 => 
       array (
         0 => 
         array (
@@ -4461,7 +4710,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1627 => 
+      1752 => 
       array (
         0 => 
         array (
@@ -4483,7 +4732,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1641 => 
+      1766 => 
       array (
         0 => 
         array (
@@ -4506,7 +4755,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1651 => 
+      1776 => 
       array (
         0 => 
         array (
@@ -4548,7 +4797,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1709 => 
+      1834 => 
       array (
         0 => 
         array (
@@ -4571,7 +4820,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1718 => 
+      1843 => 
       array (
         0 => 
         array (
@@ -4593,7 +4842,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1759 => 
+      1884 => 
       array (
         0 => 
         array (
@@ -4616,7 +4865,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1773 => 
+      1898 => 
       array (
         0 => 
         array (
@@ -4638,7 +4887,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1783 => 
+      1908 => 
       array (
         0 => 
         array (
@@ -4660,7 +4909,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1815 => 
+      1940 => 
       array (
         0 => 
         array (
@@ -4682,7 +4931,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1862 => 
+      1987 => 
       array (
         0 => 
         array (
@@ -4705,7 +4954,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1910 => 
+      2035 => 
       array (
         0 => 
         array (
@@ -4728,7 +4977,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1937 => 
+      2062 => 
       array (
         0 => 
         array (
@@ -4751,7 +5000,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1955 => 
+      2080 => 
       array (
         0 => 
         array (
@@ -4774,7 +5023,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1973 => 
+      2098 => 
       array (
         0 => 
         array (
@@ -4796,7 +5045,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      1996 => 
+      2121 => 
       array (
         0 => 
         array (
@@ -4818,7 +5067,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      2029 => 
+      2154 => 
       array (
         0 => 
         array (
@@ -4840,7 +5089,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      2066 => 
+      2191 => 
       array (
         0 => 
         array (
@@ -4863,7 +5112,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      2101 => 
+      2226 => 
       array (
         0 => 
         array (
@@ -4885,7 +5134,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      2131 => 
+      2256 => 
       array (
         0 => 
         array (
@@ -4908,7 +5157,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      2176 => 
+      2301 => 
       array (
         0 => 
         array (
@@ -4931,7 +5180,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      2185 => 
+      2310 => 
       array (
         0 => 
         array (
@@ -4953,7 +5202,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      2210 => 
+      2335 => 
       array (
         0 => 
         array (
@@ -4995,7 +5244,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      2246 => 
+      2371 => 
       array (
         0 => 
         array (
@@ -5018,7 +5267,7 @@ app('router')->setCompiledRoutes(
           6 => NULL,
         ),
       ),
-      2287 => 
+      2412 => 
       array (
         0 => 
         array (
@@ -5094,7 +5343,7 @@ app('router')->setCompiledRoutes(
       'waitSeconds' => NULL,
       'withTrashed' => false,
     ),
-    'generated::qY2IVyZnK1MmcXy4' => 
+    'generated::U6R7IySD09FevCMF' => 
     array (
       'methods' => 
       array (
@@ -5104,7 +5353,7 @@ app('router')->setCompiledRoutes(
       'uri' => 'up',
       'action' => 
       array (
-        'uses' => 'O:55:"Laravel\\SerializableClosure\\UnsignedSerializableClosure":1:{s:12:"serializable";O:46:"Laravel\\SerializableClosure\\Serializers\\Native":5:{s:3:"use";a:0:{}s:8:"function";s:1134:"function (\\Illuminate\\Http\\Request $request) {
+        'uses' => 'O:55:"Laravel\\SerializableClosure\\UnsignedSerializableClosure":1:{s:12:"serializable";O:46:"Laravel\\SerializableClosure\\Serializers\\Native":5:{s:3:"use";a:0:{}s:8:"function";s:1124:"function (\\Illuminate\\Http\\Request $request) {
                     $exception = null;
 
                     try {
@@ -5127,11 +5376,11 @@ app('router')->setCompiledRoutes(
                         ], $status);
                     }
 
-                    return response(\\Illuminate\\Support\\Facades\\View::file(\'E:\\\\EMPATRA DIGITECH\\\\POS-SALES\\\\vendor\\\\laravel\\\\framework\\\\src\\\\Illuminate\\\\Foundation\\\\Configuration\'.\'/../resources/health-up.blade.php\', [
+                    return response(\\Illuminate\\Support\\Facades\\View::file(\'D:\\\\Proyek\\\\Pos-Sales\\\\vendor\\\\laravel\\\\framework\\\\src\\\\Illuminate\\\\Foundation\\\\Configuration\'.\'/../resources/health-up.blade.php\', [
                         \'exception\' => $exception,
                     ]), status: $status);
-                }";s:5:"scope";s:54:"Illuminate\\Foundation\\Configuration\\ApplicationBuilder";s:4:"this";N;s:4:"self";s:32:"000000000000076a0000000000000000";}}',
-        'as' => 'generated::qY2IVyZnK1MmcXy4',
+                }";s:5:"scope";s:54:"Illuminate\\Foundation\\Configuration\\ApplicationBuilder";s:4:"this";N;s:4:"self";s:32:"00000000000004750000000000000000";}}',
+        'as' => 'generated::U6R7IySD09FevCMF',
       ),
       'fallback' => false,
       'defaults' => 
@@ -5147,7 +5396,7 @@ app('router')->setCompiledRoutes(
       'waitSeconds' => NULL,
       'withTrashed' => false,
     ),
-    'generated::lebahPEa2T4wIHwY' => 
+    'generated::wvcUATreryqS7JBI' => 
     array (
       'methods' => 
       array (
@@ -5163,13 +5412,13 @@ app('router')->setCompiledRoutes(
         ),
         'uses' => 'O:55:"Laravel\\SerializableClosure\\UnsignedSerializableClosure":1:{s:12:"serializable";O:46:"Laravel\\SerializableClosure\\Serializers\\Native":5:{s:3:"use";a:0:{}s:8:"function";s:55:"function () {
     return \\redirect()->route(\'login\');
-}";s:5:"scope";s:37:"Illuminate\\Routing\\RouteFileRegistrar";s:4:"this";N;s:4:"self";s:32:"000000000000076c0000000000000000";}}',
+}";s:5:"scope";s:37:"Illuminate\\Routing\\RouteFileRegistrar";s:4:"this";N;s:4:"self";s:32:"00000000000004710000000000000000";}}',
         'namespace' => NULL,
         'prefix' => '',
         'where' => 
         array (
         ),
-        'as' => 'generated::lebahPEa2T4wIHwY',
+        'as' => 'generated::wvcUATreryqS7JBI',
       ),
       'fallback' => false,
       'defaults' => 
@@ -5213,7 +5462,7 @@ app('router')->setCompiledRoutes(
     }
 
     \\abort(403, \'Akun Anda belum memiliki role. Hubungi Administrator.\');
-}";s:5:"scope";s:37:"Illuminate\\Routing\\RouteFileRegistrar";s:4:"this";N;s:4:"self";s:32:"00000000000007700000000000000000";}}',
+}";s:5:"scope";s:37:"Illuminate\\Routing\\RouteFileRegistrar";s:4:"this";N;s:4:"self";s:32:"000000000000046d0000000000000000";}}',
         'namespace' => NULL,
         'prefix' => '',
         'where' => 
@@ -12820,6 +13069,495 @@ app('router')->setCompiledRoutes(
       'waitSeconds' => NULL,
       'withTrashed' => false,
     ),
+    'admin.system.users.index' => 
+    array (
+      'methods' => 
+      array (
+        0 => 'GET',
+        1 => 'HEAD',
+      ),
+      'uri' => 'admin/system/users',
+      'action' => 
+      array (
+        'middleware' => 
+        array (
+          0 => 'web',
+          1 => 'auth',
+          2 => 'verified',
+          3 => 'role:admin',
+          4 => 'permission:system.manage',
+        ),
+        'as' => 'admin.system.users.index',
+        'uses' => 'App\\Http\\Controllers\\Admin\\System\\UserController@index',
+        'controller' => 'App\\Http\\Controllers\\Admin\\System\\UserController@index',
+        'namespace' => NULL,
+        'prefix' => 'admin/system',
+        'where' => 
+        array (
+        ),
+      ),
+      'fallback' => false,
+      'defaults' => 
+      array (
+      ),
+      'wheres' => 
+      array (
+      ),
+      'bindingFields' => 
+      array (
+      ),
+      'lockSeconds' => NULL,
+      'waitSeconds' => NULL,
+      'withTrashed' => false,
+    ),
+    'admin.system.users.create' => 
+    array (
+      'methods' => 
+      array (
+        0 => 'GET',
+        1 => 'HEAD',
+      ),
+      'uri' => 'admin/system/users/create',
+      'action' => 
+      array (
+        'middleware' => 
+        array (
+          0 => 'web',
+          1 => 'auth',
+          2 => 'verified',
+          3 => 'role:admin',
+          4 => 'permission:system.manage',
+        ),
+        'as' => 'admin.system.users.create',
+        'uses' => 'App\\Http\\Controllers\\Admin\\System\\UserController@create',
+        'controller' => 'App\\Http\\Controllers\\Admin\\System\\UserController@create',
+        'namespace' => NULL,
+        'prefix' => 'admin/system',
+        'where' => 
+        array (
+        ),
+      ),
+      'fallback' => false,
+      'defaults' => 
+      array (
+      ),
+      'wheres' => 
+      array (
+      ),
+      'bindingFields' => 
+      array (
+      ),
+      'lockSeconds' => NULL,
+      'waitSeconds' => NULL,
+      'withTrashed' => false,
+    ),
+    'admin.system.users.store' => 
+    array (
+      'methods' => 
+      array (
+        0 => 'POST',
+      ),
+      'uri' => 'admin/system/users',
+      'action' => 
+      array (
+        'middleware' => 
+        array (
+          0 => 'web',
+          1 => 'auth',
+          2 => 'verified',
+          3 => 'role:admin',
+          4 => 'permission:system.manage',
+        ),
+        'as' => 'admin.system.users.store',
+        'uses' => 'App\\Http\\Controllers\\Admin\\System\\UserController@store',
+        'controller' => 'App\\Http\\Controllers\\Admin\\System\\UserController@store',
+        'namespace' => NULL,
+        'prefix' => 'admin/system',
+        'where' => 
+        array (
+        ),
+      ),
+      'fallback' => false,
+      'defaults' => 
+      array (
+      ),
+      'wheres' => 
+      array (
+      ),
+      'bindingFields' => 
+      array (
+      ),
+      'lockSeconds' => NULL,
+      'waitSeconds' => NULL,
+      'withTrashed' => false,
+    ),
+    'admin.system.users.edit' => 
+    array (
+      'methods' => 
+      array (
+        0 => 'GET',
+        1 => 'HEAD',
+      ),
+      'uri' => 'admin/system/users/{item}/edit',
+      'action' => 
+      array (
+        'middleware' => 
+        array (
+          0 => 'web',
+          1 => 'auth',
+          2 => 'verified',
+          3 => 'role:admin',
+          4 => 'permission:system.manage',
+        ),
+        'as' => 'admin.system.users.edit',
+        'uses' => 'App\\Http\\Controllers\\Admin\\System\\UserController@edit',
+        'controller' => 'App\\Http\\Controllers\\Admin\\System\\UserController@edit',
+        'namespace' => NULL,
+        'prefix' => 'admin/system',
+        'where' => 
+        array (
+        ),
+      ),
+      'fallback' => false,
+      'defaults' => 
+      array (
+      ),
+      'wheres' => 
+      array (
+      ),
+      'bindingFields' => 
+      array (
+      ),
+      'lockSeconds' => NULL,
+      'waitSeconds' => NULL,
+      'withTrashed' => false,
+    ),
+    'admin.system.users.update' => 
+    array (
+      'methods' => 
+      array (
+        0 => 'PUT',
+        1 => 'PATCH',
+      ),
+      'uri' => 'admin/system/users/{item}',
+      'action' => 
+      array (
+        'middleware' => 
+        array (
+          0 => 'web',
+          1 => 'auth',
+          2 => 'verified',
+          3 => 'role:admin',
+          4 => 'permission:system.manage',
+        ),
+        'as' => 'admin.system.users.update',
+        'uses' => 'App\\Http\\Controllers\\Admin\\System\\UserController@update',
+        'controller' => 'App\\Http\\Controllers\\Admin\\System\\UserController@update',
+        'namespace' => NULL,
+        'prefix' => 'admin/system',
+        'where' => 
+        array (
+        ),
+      ),
+      'fallback' => false,
+      'defaults' => 
+      array (
+      ),
+      'wheres' => 
+      array (
+      ),
+      'bindingFields' => 
+      array (
+      ),
+      'lockSeconds' => NULL,
+      'waitSeconds' => NULL,
+      'withTrashed' => false,
+    ),
+    'admin.system.users.destroy' => 
+    array (
+      'methods' => 
+      array (
+        0 => 'DELETE',
+      ),
+      'uri' => 'admin/system/users/{item}',
+      'action' => 
+      array (
+        'middleware' => 
+        array (
+          0 => 'web',
+          1 => 'auth',
+          2 => 'verified',
+          3 => 'role:admin',
+          4 => 'permission:system.manage',
+        ),
+        'as' => 'admin.system.users.destroy',
+        'uses' => 'App\\Http\\Controllers\\Admin\\System\\UserController@destroy',
+        'controller' => 'App\\Http\\Controllers\\Admin\\System\\UserController@destroy',
+        'namespace' => NULL,
+        'prefix' => 'admin/system',
+        'where' => 
+        array (
+        ),
+      ),
+      'fallback' => false,
+      'defaults' => 
+      array (
+      ),
+      'wheres' => 
+      array (
+      ),
+      'bindingFields' => 
+      array (
+      ),
+      'lockSeconds' => NULL,
+      'waitSeconds' => NULL,
+      'withTrashed' => false,
+    ),
+    'admin.system.roles.index' => 
+    array (
+      'methods' => 
+      array (
+        0 => 'GET',
+        1 => 'HEAD',
+      ),
+      'uri' => 'admin/system/roles',
+      'action' => 
+      array (
+        'middleware' => 
+        array (
+          0 => 'web',
+          1 => 'auth',
+          2 => 'verified',
+          3 => 'role:admin',
+          4 => 'permission:system.manage',
+        ),
+        'uses' => 'App\\Http\\Controllers\\Admin\\System\\RoleController@index',
+        'controller' => 'App\\Http\\Controllers\\Admin\\System\\RoleController@index',
+        'as' => 'admin.system.roles.index',
+        'namespace' => NULL,
+        'prefix' => 'admin/system',
+        'where' => 
+        array (
+        ),
+      ),
+      'fallback' => false,
+      'defaults' => 
+      array (
+      ),
+      'wheres' => 
+      array (
+      ),
+      'bindingFields' => 
+      array (
+      ),
+      'lockSeconds' => NULL,
+      'waitSeconds' => NULL,
+      'withTrashed' => false,
+    ),
+    'admin.system.roles.edit' => 
+    array (
+      'methods' => 
+      array (
+        0 => 'GET',
+        1 => 'HEAD',
+      ),
+      'uri' => 'admin/system/roles/{role}/edit',
+      'action' => 
+      array (
+        'middleware' => 
+        array (
+          0 => 'web',
+          1 => 'auth',
+          2 => 'verified',
+          3 => 'role:admin',
+          4 => 'permission:system.manage',
+        ),
+        'uses' => 'App\\Http\\Controllers\\Admin\\System\\RoleController@edit',
+        'controller' => 'App\\Http\\Controllers\\Admin\\System\\RoleController@edit',
+        'as' => 'admin.system.roles.edit',
+        'namespace' => NULL,
+        'prefix' => 'admin/system',
+        'where' => 
+        array (
+        ),
+      ),
+      'fallback' => false,
+      'defaults' => 
+      array (
+      ),
+      'wheres' => 
+      array (
+      ),
+      'bindingFields' => 
+      array (
+      ),
+      'lockSeconds' => NULL,
+      'waitSeconds' => NULL,
+      'withTrashed' => false,
+    ),
+    'admin.system.roles.update' => 
+    array (
+      'methods' => 
+      array (
+        0 => 'PUT',
+      ),
+      'uri' => 'admin/system/roles/{role}',
+      'action' => 
+      array (
+        'middleware' => 
+        array (
+          0 => 'web',
+          1 => 'auth',
+          2 => 'verified',
+          3 => 'role:admin',
+          4 => 'permission:system.manage',
+        ),
+        'uses' => 'App\\Http\\Controllers\\Admin\\System\\RoleController@update',
+        'controller' => 'App\\Http\\Controllers\\Admin\\System\\RoleController@update',
+        'as' => 'admin.system.roles.update',
+        'namespace' => NULL,
+        'prefix' => 'admin/system',
+        'where' => 
+        array (
+        ),
+      ),
+      'fallback' => false,
+      'defaults' => 
+      array (
+      ),
+      'wheres' => 
+      array (
+      ),
+      'bindingFields' => 
+      array (
+      ),
+      'lockSeconds' => NULL,
+      'waitSeconds' => NULL,
+      'withTrashed' => false,
+    ),
+    'admin.system.permissions.index' => 
+    array (
+      'methods' => 
+      array (
+        0 => 'GET',
+        1 => 'HEAD',
+      ),
+      'uri' => 'admin/system/permissions',
+      'action' => 
+      array (
+        'middleware' => 
+        array (
+          0 => 'web',
+          1 => 'auth',
+          2 => 'verified',
+          3 => 'role:admin',
+          4 => 'permission:system.manage',
+        ),
+        'uses' => 'App\\Http\\Controllers\\Admin\\System\\PermissionController@index',
+        'controller' => 'App\\Http\\Controllers\\Admin\\System\\PermissionController@index',
+        'as' => 'admin.system.permissions.index',
+        'namespace' => NULL,
+        'prefix' => 'admin/system',
+        'where' => 
+        array (
+        ),
+      ),
+      'fallback' => false,
+      'defaults' => 
+      array (
+      ),
+      'wheres' => 
+      array (
+      ),
+      'bindingFields' => 
+      array (
+      ),
+      'lockSeconds' => NULL,
+      'waitSeconds' => NULL,
+      'withTrashed' => false,
+    ),
+    'admin.system.audit-log.index' => 
+    array (
+      'methods' => 
+      array (
+        0 => 'GET',
+        1 => 'HEAD',
+      ),
+      'uri' => 'admin/system/audit-log',
+      'action' => 
+      array (
+        'middleware' => 
+        array (
+          0 => 'web',
+          1 => 'auth',
+          2 => 'verified',
+          3 => 'role:admin',
+          4 => 'permission:audit-log.view',
+        ),
+        'uses' => 'App\\Http\\Controllers\\Admin\\System\\AuditLogController@index',
+        'controller' => 'App\\Http\\Controllers\\Admin\\System\\AuditLogController@index',
+        'as' => 'admin.system.audit-log.index',
+        'namespace' => NULL,
+        'prefix' => 'admin/system',
+        'where' => 
+        array (
+        ),
+      ),
+      'fallback' => false,
+      'defaults' => 
+      array (
+      ),
+      'wheres' => 
+      array (
+      ),
+      'bindingFields' => 
+      array (
+      ),
+      'lockSeconds' => NULL,
+      'waitSeconds' => NULL,
+      'withTrashed' => false,
+    ),
+    'admin.system.audit-log.show' => 
+    array (
+      'methods' => 
+      array (
+        0 => 'GET',
+        1 => 'HEAD',
+      ),
+      'uri' => 'admin/system/audit-log/{auditLog}',
+      'action' => 
+      array (
+        'middleware' => 
+        array (
+          0 => 'web',
+          1 => 'auth',
+          2 => 'verified',
+          3 => 'role:admin',
+          4 => 'permission:audit-log.view',
+        ),
+        'uses' => 'App\\Http\\Controllers\\Admin\\System\\AuditLogController@show',
+        'controller' => 'App\\Http\\Controllers\\Admin\\System\\AuditLogController@show',
+        'as' => 'admin.system.audit-log.show',
+        'namespace' => NULL,
+        'prefix' => 'admin/system',
+        'where' => 
+        array (
+        ),
+      ),
+      'fallback' => false,
+      'defaults' => 
+      array (
+      ),
+      'wheres' => 
+      array (
+      ),
+      'bindingFields' => 
+      array (
+      ),
+      'lockSeconds' => NULL,
+      'waitSeconds' => NULL,
+      'withTrashed' => false,
+    ),
     'api.admin.live-sales' => 
     array (
       'methods' => 
@@ -14461,7 +15199,7 @@ app('router')->setCompiledRoutes(
       'waitSeconds' => NULL,
       'withTrashed' => false,
     ),
-    'generated::T59JyFuuTbST78UZ' => 
+    'generated::Zcb6GxmecfyqFvwI' => 
     array (
       'methods' => 
       array (
@@ -14482,7 +15220,7 @@ app('router')->setCompiledRoutes(
         'where' => 
         array (
         ),
-        'as' => 'generated::T59JyFuuTbST78UZ',
+        'as' => 'generated::Zcb6GxmecfyqFvwI',
       ),
       'fallback' => false,
       'defaults' => 
@@ -14536,7 +15274,7 @@ app('router')->setCompiledRoutes(
       'waitSeconds' => NULL,
       'withTrashed' => false,
     ),
-    'generated::1VyVBm4HKD7aOprH' => 
+    'generated::G7tSr1o4rXSgDB3F' => 
     array (
       'methods' => 
       array (
@@ -14557,7 +15295,7 @@ app('router')->setCompiledRoutes(
         'where' => 
         array (
         ),
-        'as' => 'generated::1VyVBm4HKD7aOprH',
+        'as' => 'generated::G7tSr1o4rXSgDB3F',
       ),
       'fallback' => false,
       'defaults' => 
@@ -14877,7 +15615,7 @@ app('router')->setCompiledRoutes(
       'waitSeconds' => NULL,
       'withTrashed' => false,
     ),
-    'generated::hsFqRNx3yrtuRbTZ' => 
+    'generated::aG6RxL9F68DC9ntC' => 
     array (
       'methods' => 
       array (
@@ -14898,7 +15636,7 @@ app('router')->setCompiledRoutes(
         'where' => 
         array (
         ),
-        'as' => 'generated::hsFqRNx3yrtuRbTZ',
+        'as' => 'generated::aG6RxL9F68DC9ntC',
       ),
       'fallback' => false,
       'defaults' => 
@@ -14998,13 +15736,13 @@ app('router')->setCompiledRoutes(
       'uri' => 'storage/{path}',
       'action' => 
       array (
-        'uses' => 'O:55:"Laravel\\SerializableClosure\\UnsignedSerializableClosure":1:{s:12:"serializable";O:46:"Laravel\\SerializableClosure\\Serializers\\Native":5:{s:3:"use";a:3:{s:4:"disk";s:5:"local";s:6:"config";a:5:{s:6:"driver";s:5:"local";s:4:"root";s:49:"E:\\EMPATRA DIGITECH\\POS-SALES\\storage\\app/private";s:5:"serve";b:1;s:5:"throw";b:0;s:6:"report";b:0;}s:12:"isProduction";b:0;}s:8:"function";s:323:"function (\\Illuminate\\Http\\Request $request, string $path) use ($disk, $config, $isProduction) {
+        'uses' => 'O:55:"Laravel\\SerializableClosure\\UnsignedSerializableClosure":1:{s:12:"serializable";O:46:"Laravel\\SerializableClosure\\Serializers\\Native":5:{s:3:"use";a:3:{s:4:"disk";s:5:"local";s:6:"config";a:5:{s:6:"driver";s:5:"local";s:4:"root";s:39:"D:\\Proyek\\Pos-Sales\\storage\\app/private";s:5:"serve";b:1;s:5:"throw";b:0;s:6:"report";b:0;}s:12:"isProduction";b:0;}s:8:"function";s:323:"function (\\Illuminate\\Http\\Request $request, string $path) use ($disk, $config, $isProduction) {
                     return (new \\Illuminate\\Filesystem\\ServeFile(
                         $disk,
                         $config,
                         $isProduction
                     ))($request, $path);
-                }";s:5:"scope";s:47:"Illuminate\\Filesystem\\FilesystemServiceProvider";s:4:"this";N;s:4:"self";s:32:"00000000000007720000000000000000";}}',
+                }";s:5:"scope";s:47:"Illuminate\\Filesystem\\FilesystemServiceProvider";s:4:"this";N;s:4:"self";s:32:"00000000000004720000000000000000";}}',
         'as' => 'storage.local',
       ),
       'fallback' => false,
@@ -15031,13 +15769,13 @@ app('router')->setCompiledRoutes(
       'uri' => 'storage/{path}',
       'action' => 
       array (
-        'uses' => 'O:55:"Laravel\\SerializableClosure\\UnsignedSerializableClosure":1:{s:12:"serializable";O:46:"Laravel\\SerializableClosure\\Serializers\\Native":5:{s:3:"use";a:3:{s:4:"disk";s:5:"local";s:6:"config";a:5:{s:6:"driver";s:5:"local";s:4:"root";s:49:"E:\\EMPATRA DIGITECH\\POS-SALES\\storage\\app/private";s:5:"serve";b:1;s:5:"throw";b:0;s:6:"report";b:0;}s:12:"isProduction";b:0;}s:8:"function";s:325:"function (\\Illuminate\\Http\\Request $request, string $path) use ($disk, $config, $isProduction) {
+        'uses' => 'O:55:"Laravel\\SerializableClosure\\UnsignedSerializableClosure":1:{s:12:"serializable";O:46:"Laravel\\SerializableClosure\\Serializers\\Native":5:{s:3:"use";a:3:{s:4:"disk";s:5:"local";s:6:"config";a:5:{s:6:"driver";s:5:"local";s:4:"root";s:39:"D:\\Proyek\\Pos-Sales\\storage\\app/private";s:5:"serve";b:1;s:5:"throw";b:0;s:6:"report";b:0;}s:12:"isProduction";b:0;}s:8:"function";s:325:"function (\\Illuminate\\Http\\Request $request, string $path) use ($disk, $config, $isProduction) {
                     return (new \\Illuminate\\Filesystem\\ReceiveFile(
                         $disk,
                         $config,
                         $isProduction
                     ))($request, $path);
-                }";s:5:"scope";s:47:"Illuminate\\Filesystem\\FilesystemServiceProvider";s:4:"this";N;s:4:"self";s:32:"00000000000008650000000000000000";}}',
+                }";s:5:"scope";s:47:"Illuminate\\Filesystem\\FilesystemServiceProvider";s:4:"this";N;s:4:"self";s:32:"00000000000005740000000000000000";}}',
         'as' => 'storage.local.upload',
       ),
       'fallback' => false,
