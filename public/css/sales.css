@@ -1,0 +1,530 @@
+/* ==========================================================================
+   Sales App - shell (topbar + bottom nav) & komponen halaman
+   Stylesheet statis (tanpa build), dimuat SETELAH Tailwind (app.css) di
+   layouts/sales.blade.php. Sengaja memakai palet warna & bahasa desain yang
+   SAMA dengan public/css/admin.css (variabel --adm-*) supaya Sales App dan
+   Admin Panel terasa satu produk, hanya shell-nya yang disesuaikan untuk
+   pemakaian satu tangan di HP (topbar ringkas + bottom nav, bukan sidebar).
+   Semua class berawalan sls- supaya tidak bentrok dengan utility Tailwind
+   yang masih dipakai di beberapa halaman.
+   ========================================================================== */
+
+:root {
+    --sls-blue: #7b9ee8;
+    --sls-sky: #8ec9e8;
+    --sls-blue-deep: #4f7be0;
+    --sls-ink: #2b3345;
+    --sls-body: #566076;
+    --sls-muted: #8b95a7;
+    --sls-faint: #a3acbd;
+    --sls-line: #e6eaf2;
+    --sls-bg: #f3f6fb;
+    --sls-fill: #f6f8fc;
+    --sls-surface: #fff;
+    --sls-green: #2f9e6b;
+    --sls-green-bg: #e6f6ee;
+    --sls-amber: #d98a12;
+    --sls-amber-bg: #fdf3e0;
+    --sls-red: #d64545;
+    --sls-red-bg: #fdeaea;
+    --sls-blue-bg: #eaf0fd;
+    --sls-shadow: 0 2px 10px rgba(60, 80, 130, 0.06);
+    --sls-shadow-lg: 0 12px 28px rgba(60, 80, 130, 0.14);
+    --sls-topbar-h: 60px;
+    --sls-banner-h: 34px;
+    --sls-bottomnav-h: 64px;
+}
+
+/* --------------------------------------------------------------------------
+   Shell dasar
+   -------------------------------------------------------------------------- */
+body.sls-body {
+    margin: 0;
+    min-height: 100vh;
+    min-height: 100dvh;
+    font-family: 'Nunito', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+    color: var(--sls-ink);
+    background: var(--sls-bg);
+    -webkit-font-smoothing: antialiased;
+    padding-bottom: calc(var(--sls-bottomnav-h) + env(safe-area-inset-bottom, 0px));
+}
+
+.sls-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    background: var(--sls-surface);
+    border-bottom: 1px solid var(--sls-line);
+    padding-top: env(safe-area-inset-top, 0px);
+}
+
+.sls-topbar-row {
+    height: var(--sls-topbar-h);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 16px;
+}
+
+.sls-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+.sls-brand-mark {
+    width: 34px;
+    height: 34px;
+    border-radius: 11px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    background: linear-gradient(135deg, var(--sls-blue) 0%, var(--sls-sky) 100%);
+    font-weight: 800;
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+.sls-brand-name {
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--sls-ink);
+    line-height: 1.15;
+}
+.sls-brand-role {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--sls-muted);
+}
+
+.sls-title {
+    flex: 1;
+    min-width: 0;
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--sls-ink);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: right;
+}
+
+.sls-logout-btn {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--sls-line);
+    border-radius: 11px;
+    background: #fff;
+    color: var(--sls-red);
+    cursor: pointer;
+}
+.sls-logout-btn svg { width: 17px; height: 17px; }
+.sls-logout-btn:active { background: var(--sls-red-bg); }
+
+/* ---- Banner status tugas (di bawah topbar) ---- */
+.sls-banner {
+    display: block;
+    padding: 8px 16px;
+    font-size: 12px;
+    font-weight: 700;
+    text-decoration: none;
+    line-height: 1.3;
+}
+.sls-banner strong { font-weight: 800; }
+.sls-banner-arrow { float: right; font-weight: 800; opacity: .85; }
+.sls-banner.tone-gray   { background: #eef1f6; color: var(--sls-body); }
+.sls-banner.tone-amber  { background: var(--sls-amber-bg); color: #9a6a0d; }
+.sls-banner.tone-blue   { background: var(--sls-blue-bg); color: var(--sls-blue-deep); }
+.sls-banner.tone-green  { background: var(--sls-green-bg); color: #23855a; }
+.sls-banner.tone-red    { background: var(--sls-red-bg); color: #c23a3a; }
+
+/* ---- Konten ---- */
+.sls-content {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 16px 16px calc(20px + env(safe-area-inset-bottom, 0px));
+}
+
+/* ---- Bottom nav ---- */
+.sls-bottomnav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 30;
+    display: flex;
+    background: var(--sls-surface);
+    border-top: 1px solid var(--sls-line);
+    box-shadow: 0 -4px 16px rgba(60, 80, 130, 0.08);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.sls-nav-item {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    height: var(--sls-bottomnav-h);
+    padding: 6px 2px;
+    font-size: 10.5px;
+    font-weight: 700;
+    color: var(--sls-faint);
+    text-decoration: none;
+    transition: color 0.15s;
+}
+.sls-nav-item svg { width: 21px; height: 21px; }
+.sls-nav-item span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.sls-nav-item:active { color: var(--sls-blue-deep); }
+.sls-nav-item.is-active { color: var(--sls-blue-deep); }
+.sls-nav-item.is-active svg { filter: drop-shadow(0 2px 4px rgba(79, 123, 224, 0.35)); }
+
+/* --------------------------------------------------------------------------
+   Kartu & baris
+   -------------------------------------------------------------------------- */
+.sls-card {
+    background: var(--sls-surface);
+    border: 1px solid var(--sls-line);
+    border-radius: 16px;
+    box-shadow: var(--sls-shadow);
+    margin-bottom: 14px;
+}
+.sls-card-pad { padding: 16px; }
+.sls-card-pad-sm { padding: 12px; }
+
+.sls-card-title { margin: 0 0 4px; font-size: 14px; font-weight: 800; color: var(--sls-ink); }
+.sls-card-note { margin: 0; font-size: 12.5px; color: var(--sls-muted); }
+
+.sls-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 11px 16px;
+    border-bottom: 1px solid #f0f2f7;
+    font-size: 13.5px;
+    text-decoration: none;
+    color: inherit;
+}
+.sls-row:last-child { border-bottom: 0; }
+.sls-row-label { color: var(--sls-muted); flex-shrink: 0; }
+.sls-row-value { font-weight: 700; color: var(--sls-ink); text-align: right; }
+a.sls-row:active { background: var(--sls-fill); }
+
+.sls-list { border-radius: 16px; overflow: hidden; }
+
+.sls-empty { padding: 30px 16px; text-align: center; font-size: 13.5px; color: var(--sls-muted); }
+
+.sls-divider { height: 1px; background: var(--sls-line); margin: 10px 0; border: 0; }
+
+/* --------------------------------------------------------------------------
+   Tombol
+   -------------------------------------------------------------------------- */
+.sls-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    height: 46px;
+    padding: 0 18px;
+    border-radius: 13px;
+    border: 0;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 800;
+    text-decoration: none;
+    cursor: pointer;
+    transition: filter 0.15s, box-shadow 0.15s, background-color 0.15s, opacity 0.15s;
+}
+.sls-btn:disabled { opacity: .55; cursor: not-allowed; }
+.sls-btn svg { width: 18px; height: 18px; flex-shrink: 0; }
+.sls-btn-sm { height: 38px; font-size: 13px; }
+.sls-btn-auto { width: auto; }
+
+.sls-btn-primary {
+    color: #fff;
+    background: linear-gradient(90deg, var(--sls-blue) 0%, var(--sls-sky) 100%);
+    box-shadow: 0 6px 16px rgba(123, 158, 232, 0.35);
+}
+.sls-btn-primary:active { filter: brightness(1.05); }
+
+.sls-btn-success { color: #fff; background: linear-gradient(90deg, #2f9e6b 0%, #3fbb85 100%); box-shadow: 0 6px 16px rgba(47, 158, 107, 0.3); }
+.sls-btn-danger  { color: #fff; background: linear-gradient(90deg, #d64545 0%, #e46a6a 100%); box-shadow: 0 6px 16px rgba(214, 69, 69, 0.3); }
+.sls-btn-amber   { color: #fff; background: linear-gradient(90deg, #d98a12 0%, #eba63f 100%); box-shadow: 0 6px 16px rgba(217, 138, 18, 0.3); }
+
+.sls-btn-outline { color: var(--sls-body); background: #fff; border: 1px solid var(--sls-line); box-shadow: none; }
+.sls-btn-outline:active { background: var(--sls-fill); }
+
+.sls-btn-ghost { color: var(--sls-blue-deep); background: transparent; box-shadow: none; height: auto; padding: 6px 4px; font-weight: 700; }
+.sls-btn-text-muted { color: var(--sls-muted); background: transparent; box-shadow: none; height: auto; padding: 6px 4px; font-weight: 700; font-size: 12.5px; }
+
+.sls-fab-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border-radius: 999px;
+    font-size: 12.5px;
+    font-weight: 800;
+    color: #fff;
+    text-decoration: none;
+    background: linear-gradient(90deg, var(--sls-blue) 0%, var(--sls-sky) 100%);
+    box-shadow: 0 4px 12px rgba(123, 158, 232, 0.35);
+}
+
+/* --------------------------------------------------------------------------
+   Badge & alert
+   -------------------------------------------------------------------------- */
+.sls-badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 800; white-space: nowrap; }
+.sls-badge-green { color: #23855a; background: var(--sls-green-bg); }
+.sls-badge-red   { color: #c23a3a; background: var(--sls-red-bg); }
+.sls-badge-amber { color: #b4730a; background: var(--sls-amber-bg); }
+.sls-badge-gray  { color: var(--sls-muted); background: #eef1f6; }
+.sls-badge-blue  { color: var(--sls-blue-deep); background: var(--sls-blue-bg); }
+
+.sls-alert { padding: 12px 14px; border-radius: 13px; font-size: 13px; line-height: 1.45; margin-bottom: 14px; }
+.sls-alert ul { margin: 0; padding-left: 18px; }
+.sls-alert-success { background: var(--sls-green-bg); color: #23855a; }
+.sls-alert-error   { background: var(--sls-red-bg); color: #c23a3a; }
+.sls-alert-warning { background: var(--sls-amber-bg); color: #9a6a0d; }
+.sls-alert-info    { background: var(--sls-blue-bg); color: var(--sls-blue-deep); }
+
+/* --------------------------------------------------------------------------
+   Form
+   -------------------------------------------------------------------------- */
+.sls-field { margin-bottom: 14px; }
+.sls-field:last-child { margin-bottom: 0; }
+.sls-label { display: block; margin-bottom: 6px; font-size: 12.5px; font-weight: 700; color: var(--sls-muted); }
+
+.sls-input, .sls-select, .sls-textarea {
+    width: 100%;
+    padding: 10px 12px;
+    font-family: inherit;
+    font-size: 14px;
+    color: var(--sls-ink);
+    background: var(--sls-fill);
+    border: 1px solid var(--sls-line);
+    border-radius: 11px;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s, background-color 0.15s;
+    -webkit-appearance: none;
+    appearance: none;
+}
+.sls-select { height: 42px; }
+.sls-input::placeholder, .sls-textarea::placeholder { color: var(--sls-faint); }
+.sls-input:focus, .sls-select:focus, .sls-textarea:focus {
+    background: #fff;
+    border-color: var(--sls-blue);
+    box-shadow: 0 0 0 4px rgba(123, 158, 232, 0.18);
+}
+
+/* --------------------------------------------------------------------------
+   Dashboard: stat & quick actions
+   -------------------------------------------------------------------------- */
+.sls-greet { margin: 0; font-size: 15px; color: var(--sls-ink); }
+.sls-greet-sub { margin: 3px 0 0; font-size: 12.5px; color: var(--sls-muted); }
+
+.sls-stat-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
+.sls-stat {
+    padding: 14px;
+    background: #fff;
+    border: 1px solid var(--sls-line);
+    border-radius: 15px;
+    box-shadow: var(--sls-shadow);
+}
+.sls-stat-label { margin: 0; font-size: 11.5px; font-weight: 700; color: var(--sls-muted); }
+.sls-stat-value { margin: 4px 0 0; font-size: 19px; font-weight: 800; color: var(--sls-ink); line-height: 1.2; overflow-wrap: anywhere; }
+
+.sls-quick-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
+.sls-quick {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 14px;
+    border-radius: 15px;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--sls-ink);
+    background: #fff;
+    border: 1px solid var(--sls-line);
+    box-shadow: var(--sls-shadow);
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+.sls-quick:active { transform: translateY(1px); }
+.sls-quick-icon {
+    width: 38px;
+    height: 38px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    color: var(--tone);
+    background: var(--tone-bg);
+}
+.sls-quick-icon svg { width: 19px; height: 19px; }
+.sls-quick.is-solid { color: #fff; background: linear-gradient(135deg, var(--tone) 0%, var(--tone-2) 100%); border-color: transparent; box-shadow: 0 8px 18px var(--tone-shadow); }
+.sls-quick.is-solid .sls-quick-icon { color: #fff; background: rgba(255,255,255,0.22); }
+
+.tone-blue    { --tone: #4f7be0; --tone-bg: #eaf0fd; --tone-2: #7b9ee8; --tone-shadow: rgba(79,123,224,.35); }
+.tone-green   { --tone: #2f9e6b; --tone-bg: #e6f6ee; --tone-2: #3fbb85; --tone-shadow: rgba(47,158,107,.32); }
+.tone-amber   { --tone: #d98a12; --tone-bg: #fdf3e0; --tone-2: #eba63f; --tone-shadow: rgba(217,138,18,.32); }
+.tone-red     { --tone: #d64545; --tone-bg: #fdeaea; --tone-2: #e46a6a; --tone-shadow: rgba(214,69,69,.32); }
+.tone-violet  { --tone: #7c5ce0; --tone-bg: #f0ebfd; --tone-2: #9c85ea; --tone-shadow: rgba(124,92,224,.32); }
+.tone-teal    { --tone: #1d9fb8; --tone-bg: #e3f5f9; --tone-2: #4fbccf; --tone-shadow: rgba(29,159,184,.32); }
+
+/* --------------------------------------------------------------------------
+   Status besar (Tracking on/off, Task locked, dsb)
+   -------------------------------------------------------------------------- */
+.sls-status-hero { padding: 28px 16px; text-align: center; }
+.sls-status-dot { width: 14px; height: 14px; border-radius: 50%; display: inline-block; margin-bottom: 10px; }
+.sls-status-dot.on { background: #2f9e6b; box-shadow: 0 0 0 6px rgba(47,158,107,.18); animation: sls-pulse 1.8s infinite; }
+.sls-status-dot.off { background: #c3cbdb; }
+@keyframes sls-pulse { 0%,100% { box-shadow: 0 0 0 6px rgba(47,158,107,.18); } 50% { box-shadow: 0 0 0 10px rgba(47,158,107,.06); } }
+.sls-status-title { margin: 0; font-size: 16px; font-weight: 800; color: var(--sls-ink); }
+.sls-status-sub { margin: 4px 0 0; font-size: 12px; color: var(--sls-muted); }
+
+/* --------------------------------------------------------------------------
+   Peta: pemilih hari & legenda
+   -------------------------------------------------------------------------- */
+.sls-daypicker { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; }
+.sls-day {
+    flex-shrink: 0;
+    min-width: 52px;
+    text-align: center;
+    padding: 8px 10px;
+    border-radius: 12px;
+    text-decoration: none;
+    background: var(--sls-fill);
+    color: var(--sls-body);
+}
+.sls-day-label { display: block; font-size: 12px; font-weight: 800; }
+.sls-day-date { display: block; font-size: 10px; margin-top: 2px; color: var(--sls-faint); }
+.sls-day.is-today { background: var(--sls-blue-bg); color: var(--sls-blue-deep); }
+.sls-day.is-today .sls-day-date { color: var(--sls-blue-deep); opacity: .8; }
+.sls-day.is-selected { background: linear-gradient(90deg, var(--sls-blue) 0%, var(--sls-sky) 100%); color: #fff; box-shadow: 0 6px 14px rgba(123,158,232,.35); }
+.sls-day.is-selected .sls-day-date { color: rgba(255,255,255,.85); }
+
+.sls-legend { display: flex; align-items: center; gap: 16px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--sls-line); font-size: 11.5px; color: var(--sls-body); }
+.sls-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.sls-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+.sls-map-box { width: 100%; height: 220px; border-radius: 15px; box-shadow: var(--sls-shadow); margin-bottom: 14px; background: var(--sls-fill); overflow: hidden; }
+
+/* --------------------------------------------------------------------------
+   Halaman transaksi: baris produk dinamis, ringkasan total
+   -------------------------------------------------------------------------- */
+.sls-lineitem { border: 1px solid var(--sls-line); border-radius: 13px; padding: 10px; margin-bottom: 8px; }
+.sls-total-row { display: flex; align-items: baseline; justify-content: space-between; border-top: 1px dashed var(--sls-line); padding-top: 10px; font-size: 14px; font-weight: 800; }
+.sls-total-row .amount { font-size: 17px; color: var(--sls-blue-deep); }
+
+/* --------------------------------------------------------------------------
+   Utilitas kecil
+   -------------------------------------------------------------------------- */
+.sls-section-title { margin: 4px 0 10px; font-size: 12.5px; font-weight: 800; color: var(--sls-muted); text-transform: uppercase; letter-spacing: .04em; }
+.sls-center { text-align: center; }
+.sls-mb-0 { margin-bottom: 0 !important; }
+
+/* --------------------------------------------------------------------------
+   Responsive kecil (layar sangat sempit)
+   -------------------------------------------------------------------------- */
+@media (max-width: 360px) {
+    .sls-nav-item span { font-size: 9.5px; }
+    .sls-stat-grid, .sls-quick-grid { gap: 8px; }
+}
+
+
+/* ========================================================================== 
+   Sales UI refresh
+   --------------------------------------------------------------------------
+   Menyamakan visual Sales dengan Admin tanpa mengubah business logic.
+   Utility Tailwind lama yang masih dipakai halaman Sales diberi treatment
+   melalui .sls-content agar seluruh halaman terasa sebagai satu aplikasi.
+   ========================================================================== */
+.sls-brand-mark { text-decoration: none; }
+.sls-brand-mark:active { transform: scale(.97); }
+.sls-topbar-row { max-width: 680px; margin: 0 auto; }
+.sls-title { text-transform: none; letter-spacing: -.01em; }
+.sls-content { max-width: 680px; padding-top: 18px; }
+.sls-bottomnav { max-width: 680px; margin: 0 auto; left: 0; right: 0; border-left: 1px solid var(--sls-line); border-right: 1px solid var(--sls-line); }
+
+.sls-welcome { margin-bottom: 18px; background: linear-gradient(135deg, #ffffff 0%, #f8faff 100%); }
+.sls-welcome-row { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.sls-profile-chip { width:40px; height:40px; border-radius:13px; display:flex; align-items:center; justify-content:center; flex:0 0 40px; color:#fff; background:linear-gradient(135deg,var(--sls-blue-deep),var(--sls-sky)); font-size:15px; font-weight:800; text-decoration:none; box-shadow:0 6px 14px rgba(79,123,224,.22); }
+.sls-section-head { display:flex; align-items:flex-end; justify-content:space-between; gap:10px; margin: 0 2px 10px; }
+.sls-section-head-action { margin-top: 2px; }
+.sls-section-caption { margin:-7px 0 0; color:var(--sls-muted); font-size:11.5px; }
+.sls-stat { position:relative; overflow:hidden; }
+.sls-stat::after { content:""; position:absolute; width:62px; height:62px; border-radius:50%; right:-22px; top:-24px; background:var(--tone-bg); opacity:.75; }
+.sls-stat-top { display:flex; align-items:center; justify-content:space-between; gap:8px; position:relative; z-index:1; }
+.sls-stat-icon { width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:10px; background:var(--tone-bg); font-size:15px; }
+.sls-stat-trend { font-size:9.5px; color:var(--sls-muted); font-weight:800; position:relative; z-index:1; }
+.sls-stat-label { margin-top:9px; }
+.sls-stat-money { font-size:16px; }
+.sls-quick { min-height:116px; justify-content:space-between; }
+.sls-quick span:nth-child(2) { line-height:1.2; }
+.sls-quick small { color:var(--sls-muted); font-size:10.5px; font-weight:600; line-height:1.3; }
+.sls-quick.is-solid small { color:rgba(255,255,255,.78); }
+.sls-quick:hover { transform:translateY(-1px); box-shadow:var(--sls-shadow-lg); }
+.sls-card-head { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:14px 16px; border-bottom:1px solid var(--sls-line); }
+.sls-card-head .sls-card-title { margin:0; }
+.sls-card-link { color:var(--sls-blue-deep); font-size:11.5px; font-weight:800; text-decoration:none; white-space:nowrap; }
+.sls-stock-preview { overflow:hidden; }
+.sls-stock-list { padding:0 16px; }
+.sls-stock-item { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:11px 0; border-bottom:1px solid #f0f2f7; }
+.sls-stock-item:last-child { border-bottom:0; }
+.sls-stock-name { font-size:13px; color:var(--sls-body); }
+.sls-stock-qty { min-width:42px; padding:4px 8px; border-radius:8px; background:var(--sls-blue-bg); color:var(--sls-blue-deep); text-align:center; font-size:12px; font-weight:800; }
+
+/* Legacy Tailwind markup -> Sales design system */
+.sls-content .bg-white { background:var(--sls-surface); }
+.sls-content .rounded-lg { border-radius:15px; }
+.sls-content .shadow, .sls-content .shadow-sm, .sls-content .shadow-md { box-shadow:var(--sls-shadow); }
+.sls-content .text-gray-900, .sls-content .text-gray-800 { color:var(--sls-ink); }
+.sls-content .text-gray-700, .sls-content .text-gray-600 { color:var(--sls-body); }
+.sls-content .text-gray-500, .sls-content .text-gray-400 { color:var(--sls-muted); }
+.sls-content .border { border-color:var(--sls-line); }
+.sls-content input:not([type=checkbox]):not([type=radio]), .sls-content select, .sls-content textarea { border-color:var(--sls-line); border-radius:11px; }
+.sls-content input:not([type=checkbox]):not([type=radio]):focus, .sls-content select:focus, .sls-content textarea:focus { border-color:var(--sls-blue); box-shadow:0 0 0 4px rgba(123,158,232,.18); outline:none; }
+.sls-content .bg-blue-600, .sls-content .bg-indigo-600 { background:linear-gradient(90deg,var(--sls-blue),var(--sls-sky)); }
+.sls-content .bg-blue-600:hover, .sls-content .bg-indigo-600:hover, .sls-content .hover\:bg-blue-700:hover { background:linear-gradient(90deg,var(--sls-blue-deep),var(--sls-blue)); }
+.sls-content .bg-emerald-600 { background:linear-gradient(90deg,#2f9e6b,#3fbb85); }
+.sls-content .bg-red-600 { background:linear-gradient(90deg,#d64545,#e46a6a); }
+.sls-content .text-blue-600, .sls-content .text-indigo-600 { color:var(--sls-blue-deep); }
+.sls-content .text-green-600, .sls-content .text-green-700 { color:#23855a; }
+.sls-content .bg-green-100 { background:var(--sls-green-bg); }
+.sls-content .text-green-800 { color:#23855a; }
+.sls-content .bg-red-100 { background:var(--sls-red-bg); }
+.sls-content .text-red-800, .sls-content .text-red-700 { color:#c23a3a; }
+.sls-content .bg-yellow-50, .sls-content .bg-yellow-100 { background:var(--sls-amber-bg); }
+.sls-content .text-yellow-800, .sls-content .text-yellow-700 { color:#9a6a0d; }
+.sls-content .bg-gray-50, .sls-content .bg-gray-100 { background:var(--sls-fill); }
+.sls-content .divide-y > :not([hidden]) ~ :not([hidden]) { border-color:#f0f2f7; }
+.sls-content button, .sls-content a.bg-blue-600, .sls-content a.bg-indigo-600, .sls-content button.bg-blue-600, .sls-content button.bg-emerald-600, .sls-content button.bg-red-600 { transition:transform .15s, box-shadow .15s, filter .15s; }
+.sls-content button:active, .sls-content a.bg-blue-600:active, .sls-content a.bg-indigo-600:active { transform:translateY(1px); }
+
+@media (min-width: 681px) {
+    body.sls-body { padding-bottom:0; }
+    .sls-content { padding-left:0; padding-right:0; }
+    .sls-bottomnav { bottom:14px; border:1px solid var(--sls-line); border-radius:18px; width:min(520px,calc(100% - 28px)); box-shadow:0 10px 28px rgba(60,80,130,.14); }
+    .sls-topbar { box-shadow:0 1px 8px rgba(60,80,130,.04); }
+}
+
+@media (max-width: 430px) {
+    .sls-content { padding-left:13px; padding-right:13px; }
+    .sls-stat { padding:12px; }
+    .sls-stat-value { font-size:18px; }
+    .sls-quick { min-height:108px; padding:12px; }
+    .sls-quick-icon { width:35px; height:35px; }
+}
