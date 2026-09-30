@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ config('app.name', 'POS & Sales') }} - Admin</title>
+    <title>{{ $__admAppName ?? config('app.name', 'POS & Sales') }} - Admin</title>
 
     {{-- Pasang tema SEBELUM stylesheet & body digambar supaya tidak berkedip
          terang dulu saat mode gelap. Urutan prioritas: pilihan user
@@ -106,7 +106,7 @@
             ['Roles', 'admin.system.roles.index'],
             ['Permissions', 'admin.system.permissions.index'],
             ['Audit Log', 'admin.system.audit-log.index'],
-            ['Settings', null],
+            ['Settings', 'admin.system.settings.edit'],
         ]],
     ];
 
@@ -152,6 +152,25 @@
     $hasLogo = file_exists(public_path('images/logo.png')) ? 'images/logo.png'
         : (file_exists(public_path('images/logo.svg')) ? 'images/logo.svg' : null);
 
+    // Nama aplikasi & logo dari System > Settings (App\Models\AppSetting,
+    // singleton). Dibungkus try/catch supaya layout tidak ikut error kalau
+    // tabel `app_settings` belum sempat di-migrate di server ini -- seluruh
+    // shell admin (termasuk halaman lain) memuat layout ini, jadi ini WAJIB
+    // aman-gagal (fail-safe), bukan cuma halaman Settings-nya sendiri.
+    $__admAppSetting = null;
+    try {
+        $__admAppSetting = \App\Models\AppSetting::query()->first();
+    } catch (\Throwable $e) {
+        $__admAppSetting = null;
+    }
+    $__admAppName = $__admAppSetting?->app_name ?: config('app.name', 'POS & Sales');
+    $__admLogoUrl = $__admAppSetting?->logo_path ? $__admAppSetting->logoUrl() : null;
+    // Fallback lama (file statis di public/images) tetap didukung kalau
+    // Admin belum sempat upload lewat Settings.
+    if (! $__admLogoUrl) {
+        $__admLogoUrl = $hasLogo ? asset($hasLogo) : null;
+    }
+
     $userName = auth()->user()->name ?? 'Admin';
     $userInitial = mb_strtoupper(mb_substr($userName, 0, 1));
 @endphp
@@ -161,11 +180,11 @@
          <= 900px berubah jadi drawer (dibuka lewat tombol hamburger). --}}
     <aside class="adm-sidebar" id="adm-sidebar" aria-label="Menu utama">
         <div class="adm-brand">
-            <a href="{{ route('admin.dashboard') }}" aria-label="{{ config('app.name') }} - Dashboard">
-                @if ($hasLogo)
-                    <img src="{{ asset($hasLogo) }}" alt="{{ config('app.name') }}">
+            <a href="{{ route('admin.dashboard') }}" aria-label="{{ $__admAppName }} - Dashboard">
+                @if ($__admLogoUrl)
+                    <img src="{{ $__admLogoUrl }}" alt="{{ $__admAppName }}">
                 @else
-                    <span class="adm-brand-placeholder">LOGO</span>
+                    <span class="adm-brand-placeholder">{{ Illuminate\Support\Str::limit(strtoupper($__admAppName), 16, '') }}</span>
                 @endif
             </a>
         </div>
