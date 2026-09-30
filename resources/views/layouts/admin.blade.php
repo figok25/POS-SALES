@@ -31,7 +31,7 @@
 
     {{-- Stylesheet statis shell admin (sidebar/topbar/dashboard). Dimuat SETELAH
          Tailwind supaya menang saat specificity sama. ?v= untuk cache-busting. --}}
-    <link rel="stylesheet" href="{{ asset('css/admin.css') }}?v={{ @filemtime(public_path('css/admin.css')) }}">
+    @vite('resources/css/app.css')
 
     @stack('styles')
 </head>
