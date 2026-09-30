@@ -1,6 +1,4 @@
 @php
-    // Setelah validasi gagal, Laravel redirect balik membawa old input.
-    // Dari hidden field _mode kita tahu modal mana yang harus dibuka lagi.
     $reopen = $errors->any() ? old('_mode') : null;      // 'create' | 'edit' | null
     $editId = $reopen === 'edit' ? old('_edit_id') : null;
     $formUrl = $editId
