@@ -17,7 +17,7 @@
         <div class="panel">
             {{-- Filter --}}
             <form method="GET" class="frm-toolbar" role="search">
-                <select name="movement_type" class="frm-input is-select" style="width:auto; height:40px;" onchange="this.form.submit()">
+                <select name="movement_type" class="frm-input is-select is-filter" aria-label="Filter tipe" onchange="this.form.submit()">
                     <option value="">Semua Tipe</option>
                     @foreach ($movementTypes as $type)
                         <option value="{{ $type }}" @selected($movementType === $type)>{{ $type }}</option>
@@ -55,8 +55,8 @@
                                 <th>Product</th>
                                 <th>Lokasi</th>
                                 <th>Arah</th>
-                                <th class="is-end">Qty</th>
-                                <th class="is-end">Saldo Setelah</th>
+                                <th class="is-num">Qty</th>
+                                <th class="is-num">Saldo Setelah</th>
                                 <th>Tipe</th>
                                 <th>User</th>
                             </tr>
@@ -64,20 +64,20 @@
                         <tbody>
                             @foreach ($items as $item)
                                 <tr>
-                                    <td style="white-space:nowrap;">{{ $item->created_at->format('d/m/Y H:i') }}</td>
-                                    <td class="frm-name">{{ $item->product->name ?? '-' }}</td>
-                                    <td>{{ ucfirst($item->location_type) }}: {{ $item->locationName() }}</td>
+                                    <td class="frm-nowrap">{{ $item->created_at->format('d/m/Y H:i') }}</td>
+                                    <td><div class="frm-name">{{ $item->product->name ?? '-' }}</div></td>
+                                    <td data-label="Lokasi">{{ ucfirst($item->location_type) }}: {{ $item->locationName() }}</td>
                                     <td>
                                         @if ($item->direction === 'in')
                                             <span class="frm-status is-on">Masuk</span>
                                         @else
-                                            <span class="frm-status" style="color: var(--adm-danger); background: var(--adm-danger-bg);">Keluar</span>
+                                            <span class="frm-status is-danger">Keluar</span>
                                         @endif
                                     </td>
-                                    <td class="is-end">{{ number_format($item->quantity, 2) }}</td>
-                                    <td class="is-end">{{ number_format($item->balance_after, 2) }}</td>
+                                    <td class="is-num" data-label="Qty"><span class="frm-num">{{ number_format($item->quantity, 2) }}</span></td>
+                                    <td class="is-num" data-label="Saldo setelah"><span class="frm-num">{{ number_format($item->balance_after, 2) }}</span></td>
                                     <td><span class="frm-code">{{ $item->movement_type }}</span></td>
-                                    <td>{{ $item->user->name ?? '-' }}</td>
+                                    <td data-label="User">{{ $item->user->name ?? '-' }}</td>
                                 </tr>
                             @endforeach
                         </tbody>

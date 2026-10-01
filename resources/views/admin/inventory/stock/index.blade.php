@@ -22,7 +22,7 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
                     <input type="search" name="q" value="{{ $search }}" placeholder="Cari product / SKU..." autocomplete="off" aria-label="Cari product">
                 </div>
-                <select name="location_type" class="frm-input is-select" style="width:auto; height:40px;" onchange="this.form.submit()">
+                <select name="location_type" class="frm-input is-select is-filter" aria-label="Filter lokasi" onchange="this.form.submit()">
                     <option value="">Semua Lokasi</option>
                     <option value="warehouse" @selected($locationType === 'warehouse')>Warehouse</option>
                     <option value="sales" @selected($locationType === 'sales')>Sales</option>
@@ -64,17 +64,17 @@
                                 <th>Product</th>
                                 <th>SKU</th>
                                 <th>Lokasi</th>
-                                <th class="is-end">Quantity</th>
+                                <th class="is-num">Quantity</th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach ($items as $item)
                                 <tr>
-                                    <td class="frm-name">{{ $item->product->name ?? '-' }}</td>
+                                    <td><div class="frm-name">{{ $item->product->name ?? '-' }}</div></td>
                                     <td><span class="frm-code">{{ $item->product->sku ?? '-' }}</span></td>
-                                    <td>{{ $item->locationLabel() }}</td>
-                                    <td class="is-end" style="font-weight: 800; {{ $item->quantity < 0 ? 'color: var(--adm-danger);' : '' }}">
-                                        {{ number_format($item->quantity, 2) }}
+                                    <td data-label="Lokasi">{{ $item->locationLabel() }}</td>
+                                    <td class="is-num" data-label="Quantity">
+                                        <span class="frm-num is-strong {{ $item->quantity < 0 ? 'is-neg' : '' }}">{{ number_format($item->quantity, 2) }}</span>
                                     </td>
                                 </tr>
                             @endforeach

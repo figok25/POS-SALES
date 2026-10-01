@@ -11,7 +11,7 @@
         <div class="frm-head">
             <div>
                 <h1 class="frm-title">Stock Adjustment</h1>
-                <p class="frm-sub">Koreksi stok manual. Draft -> Apply (stok baru berubah setelah di-Apply).</p>
+                <p class="frm-sub">Koreksi stok manual. Draft → Apply (stok baru berubah setelah di-Apply).</p>
             </div>
             <button type="button" class="adm-btn adm-btn-primary" data-modal-create>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
@@ -30,7 +30,7 @@
         @endif
 
         @if (session('error'))
-            <div class="frm-alert" role="alert" style="color: var(--adm-danger); background: var(--adm-danger-bg);">
+            <div class="frm-alert is-error" role="alert">
                 <span class="frm-alert-text">{{ session('error') }}</span>
             </div>
         @endif
@@ -38,7 +38,7 @@
         <div class="panel">
             {{-- Filter --}}
             <form method="GET" class="frm-toolbar" role="search">
-                <select name="status" class="frm-input is-select" style="width:auto; height:40px;" onchange="this.form.submit()">
+                <select name="status" class="frm-input is-select is-filter" aria-label="Filter status" onchange="this.form.submit()">
                     <option value="">Semua Status</option>
                     <option value="draft" @selected($status === 'draft')>Draft</option>
                     <option value="applied" @selected($status === 'applied')>Applied</option>
@@ -76,7 +76,7 @@
                                 <th>Product</th>
                                 <th>Lokasi</th>
                                 <th>Tipe</th>
-                                <th class="is-end">Qty</th>
+                                <th class="is-num">Qty</th>
                                 <th>Status</th>
                                 <th class="is-end">Aksi</th>
                             </tr>
@@ -84,13 +84,19 @@
                         <tbody>
                             @foreach ($items as $item)
                                 <tr>
-                                    <td class="frm-name">{{ $item->product->name ?? '-' }}</td>
-                                    <td>{{ ucfirst($item->location_type) }}: {{ $item->locationName() }}</td>
-                                    <td>{{ $item->type === 'in' ? 'Masuk' : 'Keluar' }}</td>
-                                    <td class="is-end">{{ number_format($item->quantity, 2) }}</td>
+                                    <td><div class="frm-name">{{ $item->product->name ?? '-' }}</div></td>
+                                    <td data-label="Lokasi">{{ ucfirst($item->location_type) }}: {{ $item->locationName() }}</td>
+                                    <td data-label="Tipe">
+                                        @if ($item->type === 'in')
+                                            <span class="frm-status is-on">Masuk</span>
+                                        @else
+                                            <span class="frm-status is-danger">Keluar</span>
+                                        @endif
+                                    </td>
+                                    <td class="is-num" data-label="Qty"><span class="frm-num">{{ number_format($item->quantity, 2) }}</span></td>
                                     <td class="frm-cell-status">
                                         @if ($item->status === 'draft')
-                                            <span class="frm-status" style="color:#b4730a; background:#fdf3e0;">Draft</span>
+                                            <span class="frm-status is-warn">Draft</span>
                                         @elseif ($item->status === 'applied')
                                             <span class="frm-status is-on">Applied</span>
                                         @else
@@ -100,12 +106,12 @@
                                     <td class="is-end">
                                         @if ($item->status === 'draft')
                                             <div class="frm-actions">
-                                                <form action="{{ route('admin.inventory.adjustments.apply', $item) }}" method="POST" onsubmit="return confirm('Apply dokumen ini? Stok akan berubah.')">
-                                                    @csrf
-                                                    <button type="submit" class="frm-icon-btn" title="Apply" aria-label="Apply dokumen">
-                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
-                                                    </button>
-                                                </form>
+                                                <button type="button" class="frm-icon-btn" title="Apply" aria-label="Apply dokumen"
+                                                    data-modal-apply
+                                                    data-url="{{ route('admin.inventory.adjustments.apply', $item) }}"
+                                                    data-summary="{{ $item->type === 'in' ? 'Tambah' : 'Kurangi' }} {{ number_format($item->quantity, 2) }} · {{ $item->product->name ?? '-' }} · {{ ucfirst($item->location_type) }}: {{ $item->locationName() }}">
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+                                                </button>
                                                 <button type="button" class="frm-icon-btn is-danger" title="Hapus draft" aria-label="Hapus draft"
                                                     data-modal-delete
                                                     data-url="{{ route('admin.inventory.adjustments.destroy', $item) }}">
@@ -136,7 +142,7 @@
 
             <div class="frm-modal-head">
                 <div>
-                    <h2 class="frm-modal-title" id="adjustmentModalTitle">Buat draft Stock Adjustment</h2>
+                    <h2 class="frm-modal-title" id="adjustmentModalTitle">Buat draft stock adjustment</h2>
                     <p class="frm-modal-desc">Dokumen tersimpan sebagai Draft. Stok baru berubah setelah di-Apply.</p>
                 </div>
                 <button type="button" class="frm-icon-btn frm-modal-close" aria-label="Tutup" data-modal-close>
@@ -161,9 +167,8 @@
                     <div class="frm-field">
                         <label class="frm-label" for="adjLocationType">Tipe Lokasi <span class="frm-req">*</span></label>
                         <select id="adjLocationType" name="location_type" required
-                            class="frm-input is-select @error('location_type') is-invalid @enderror" @error('location_type') aria-invalid="true" @enderror
-                            onchange="window.__toggleAdjLocation()">
-                            <option value="">Pilih tipe</option>
+                            class="frm-input is-select @error('location_type') is-invalid @enderror" @error('location_type') aria-invalid="true" @enderror>
+                            <option value="">Pilih tipe lokasi</option>
                             <option value="warehouse" @selected(old('location_type') === 'warehouse')>Warehouse</option>
                             <option value="sales" @selected(old('location_type') === 'sales')>Sales</option>
                         </select>
@@ -172,36 +177,39 @@
 
                     <div class="frm-field">
                         <label class="frm-label" for="adjType">Tipe Adjustment <span class="frm-req">*</span></label>
-                        <select id="adjType" name="type" required class="frm-input is-select">
-                            <option value="in" @selected(old('type') === 'in')>Stok Masuk (+)</option>
+                        <select id="adjType" name="type" required
+                            class="frm-input is-select @error('type') is-invalid @enderror" @error('type') aria-invalid="true" @enderror>
+                            <option value="in" @selected(old('type', 'in') === 'in')>Stok Masuk (+)</option>
                             <option value="out" @selected(old('type') === 'out')>Stok Keluar (-)</option>
                         </select>
+                        @error('type') <p class="frm-error">{{ $message }}</p> @enderror
                     </div>
 
-                    <div class="frm-field is-full" id="adjWarehouseField" style="display:none">
+                    <div class="frm-field is-full" id="adjWarehouseField" hidden>
                         <label class="frm-label" for="adjWarehouse">Warehouse <span class="frm-req">*</span></label>
-                        <select id="adjWarehouse" class="frm-input is-select" onchange="window.__syncAdjLocationId(this.value)">
+                        <select id="adjWarehouse" class="frm-input is-select @error('location_id') is-invalid @enderror">
                             <option value="">Pilih warehouse</option>
                             @foreach ($warehouses as $w)
-                                <option value="{{ $w->id }}">{{ $w->name }}</option>
+                                <option value="{{ $w->id }}" @selected(old('location_type') === 'warehouse' && old('location_id') == $w->id)>{{ $w->name }}</option>
                             @endforeach
                         </select>
+                        @error('location_id') <p class="frm-error">{{ $message }}</p> @enderror
                     </div>
 
-                    <div class="frm-field is-full" id="adjSalesField" style="display:none">
+                    <div class="frm-field is-full" id="adjSalesField" hidden>
                         <label class="frm-label" for="adjSales">Sales <span class="frm-req">*</span></label>
-                        <select id="adjSales" class="frm-input is-select" onchange="window.__syncAdjLocationId(this.value)">
+                        <select id="adjSales" class="frm-input is-select @error('location_id') is-invalid @enderror">
                             <option value="">Pilih sales</option>
                             @foreach ($salesList as $s)
-                                <option value="{{ $s->id }}">{{ $s->name }}</option>
+                                <option value="{{ $s->id }}" @selected(old('location_type') === 'sales' && old('location_id') == $s->id)>{{ $s->name }}</option>
                             @endforeach
                         </select>
+                        @error('location_id') <p class="frm-error">{{ $message }}</p> @enderror
                     </div>
 
                     <input type="hidden" id="adjLocationId" name="location_id" value="{{ old('location_id') }}">
-                    @error('location_id') <p class="frm-error" style="grid-column: 1 / -1;">{{ $message }}</p> @enderror
 
-                    <div class="frm-field">
+                    <div class="frm-field is-full">
                         <label class="frm-label" for="adjQuantity">Quantity <span class="frm-req">*</span></label>
                         <input id="adjQuantity" type="number" step="0.01" min="0.01" name="quantity" value="{{ old('quantity') }}" required
                             class="frm-input @error('quantity') is-invalid @enderror" @error('quantity') aria-invalid="true" @enderror>
@@ -210,7 +218,8 @@
 
                     <div class="frm-field is-full">
                         <label class="frm-label" for="adjReason">Alasan</label>
-                        <textarea id="adjReason" name="reason" rows="3" class="frm-input is-area">{{ old('reason') }}</textarea>
+                        <textarea id="adjReason" name="reason" rows="3"
+                            class="frm-input is-area @error('reason') is-invalid @enderror" @error('reason') aria-invalid="true" @enderror>{{ old('reason') }}</textarea>
                         @error('reason') <p class="frm-error">{{ $message }}</p> @enderror
                     </div>
                 </div>
@@ -219,6 +228,26 @@
             <div class="frm-modal-foot">
                 <button type="button" class="adm-btn adm-btn-ghost" data-modal-close>Batal</button>
                 <button type="submit" class="adm-btn adm-btn-primary" data-submit>Simpan draft</button>
+            </div>
+        </form>
+    </dialog>
+
+    {{-- ====================== Modal: konfirmasi apply ====================== --}}
+    <dialog class="frm-modal is-sm" id="applyModal" aria-labelledby="applyModalTitle">
+        <form method="POST" class="frm-modal-form" id="applyForm">
+            @csrf
+
+            <div class="frm-modal-body frm-confirm">
+                <div class="frm-confirm-icon is-ok">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></svg>
+                </div>
+                <h2 class="frm-modal-title" id="applyModalTitle">Apply adjustment?</h2>
+                <p class="frm-confirm-text">Stok akan berubah: <strong data-apply-summary></strong>.</p>
+            </div>
+
+            <div class="frm-modal-foot">
+                <button type="button" class="adm-btn adm-btn-ghost" data-modal-close>Batal</button>
+                <button type="submit" class="adm-btn adm-btn-primary" data-submit>Apply</button>
             </div>
         </form>
     </dialog>
@@ -233,8 +262,8 @@
                 <div class="frm-confirm-icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/></svg>
                 </div>
-                <h2 class="frm-modal-title" id="deleteModalTitle">Hapus draft ini?</h2>
-                <p class="frm-confirm-text">Draft Stock Adjustment akan dihapus. Tindakan ini tidak bisa dibatalkan.</p>
+                <h2 class="frm-modal-title" id="deleteModalTitle">Hapus draft?</h2>
+                <p class="frm-confirm-text">Draft stock adjustment akan dihapus dari daftar. Tindakan ini tidak bisa dibatalkan.</p>
             </div>
 
             <div class="frm-modal-foot">
@@ -248,19 +277,36 @@
         (function () {
             var modal = document.getElementById('adjustmentModal');
             var form = document.getElementById('adjustmentForm');
+            var applyModal = document.getElementById('applyModal');
+            var applyForm = document.getElementById('applyForm');
             var delModal = document.getElementById('deleteModal');
             var delForm = document.getElementById('deleteForm');
 
-            // ---- Toggle Warehouse/Sales mengikuti Tipe Lokasi (sama seperti halaman create lama) ----
-            window.__toggleAdjLocation = function () {
-                var type = document.getElementById('adjLocationType').value;
-                document.getElementById('adjWarehouseField').style.display = type === 'warehouse' ? 'block' : 'none';
-                document.getElementById('adjSalesField').style.display = type === 'sales' ? 'block' : 'none';
-                document.getElementById('adjLocationId').value = '';
-            };
-            window.__syncAdjLocationId = function (value) {
-                document.getElementById('adjLocationId').value = value;
-            };
+            var typeSelect = document.getElementById('adjLocationType');
+            var whField = document.getElementById('adjWarehouseField');
+            var whSelect = document.getElementById('adjWarehouse');
+            var salesField = document.getElementById('adjSalesField');
+            var salesSelect = document.getElementById('adjSales');
+            var locationId = document.getElementById('adjLocationId');
+
+            // Tampilkan pilihan Warehouse/Sales sesuai Tipe Lokasi.
+            // keepValue = true dipakai saat modal dibuka ulang setelah validasi gagal.
+            function toggleLocation(keepValue) {
+                var type = typeSelect.value;
+                whField.hidden = type !== 'warehouse';
+                salesField.hidden = type !== 'sales';
+                whSelect.required = type === 'warehouse';
+                salesSelect.required = type === 'sales';
+                if (!keepValue) {
+                    whSelect.value = '';
+                    salesSelect.value = '';
+                    locationId.value = '';
+                }
+            }
+
+            typeSelect.addEventListener('change', function () { toggleLocation(false); });
+            whSelect.addEventListener('change', function () { locationId.value = whSelect.value; });
+            salesSelect.addEventListener('change', function () { locationId.value = salesSelect.value; });
 
             function clearErrors() {
                 form.querySelectorAll('.frm-error').forEach(function (el) { el.remove(); });
@@ -270,20 +316,28 @@
                 });
             }
 
-            function openModal() {
-                modal.showModal();
-                document.getElementById('adjProduct').focus();
+            // Kosongkan form secara eksplisit: form.reset() akan mengembalikan nilai
+            // "selected" dari old input yang dirender server setelah validasi gagal.
+            function clearForm() {
+                form.querySelectorAll('select').forEach(function (el) { el.selectedIndex = 0; });
+                form.querySelectorAll('input[type="number"], textarea').forEach(function (el) { el.value = ''; });
+                locationId.value = '';
+                toggleLocation(false);
             }
 
             document.addEventListener('click', function (e) {
-                var btn = e.target.closest('[data-modal-create], [data-modal-delete], [data-modal-close], [data-alert-close]');
+                var btn = e.target.closest('[data-modal-create], [data-modal-apply], [data-modal-delete], [data-modal-close], [data-alert-close]');
                 if (!btn) return;
 
                 if (btn.hasAttribute('data-modal-create')) {
                     clearErrors();
-                    form.reset();
-                    window.__toggleAdjLocation();
-                    openModal();
+                    clearForm();
+                    modal.showModal();
+                    document.getElementById('adjProduct').focus();
+                } else if (btn.hasAttribute('data-modal-apply')) {
+                    applyForm.action = btn.dataset.url;
+                    applyModal.querySelector('[data-apply-summary]').textContent = btn.dataset.summary;
+                    applyModal.showModal();
                 } else if (btn.hasAttribute('data-modal-delete')) {
                     delForm.action = btn.dataset.url;
                     delModal.showModal();
@@ -294,32 +348,33 @@
                 }
             });
 
-            // Konfirmasi hapus boleh ditutup lewat klik di luar; form input tidak.
-            var downOnBackdrop = false;
-            delModal.addEventListener('mousedown', function (e) { downOnBackdrop = e.target === delModal; });
-            delModal.addEventListener('click', function (e) {
-                if (downOnBackdrop && e.target === delModal) delModal.close();
+            // Konfirmasi boleh ditutup lewat klik di luar; form input tidak (supaya isian tidak hilang tanpa sengaja).
+            [applyModal, delModal].forEach(function (dlg) {
+                var downOnBackdrop = false;
+                dlg.addEventListener('mousedown', function (e) { downOnBackdrop = e.target === dlg; });
+                dlg.addEventListener('click', function (e) {
+                    if (downOnBackdrop && e.target === dlg) dlg.close();
+                });
             });
 
             // Cegah kirim ganda
-            [form, delForm].forEach(function (f) {
+            var labels = new Map();
+            [form, applyForm, delForm].forEach(function (f) {
+                var b = f.querySelector('[data-submit]');
+                labels.set(b, b.textContent);
                 f.addEventListener('submit', function () {
-                    var b = f.querySelector('[data-submit]');
                     b.disabled = true;
                     b.textContent = 'Memproses…';
                 });
             });
             window.addEventListener('pageshow', function (e) {
                 if (!e.persisted) return;
-                form.querySelector('[data-submit]').disabled = false;
-                form.querySelector('[data-submit]').textContent = 'Simpan draft';
-                delForm.querySelector('[data-submit]').disabled = false;
-                delForm.querySelector('[data-submit]').textContent = 'Hapus';
+                labels.forEach(function (text, b) { b.disabled = false; b.textContent = text; });
             });
 
             // Buka lagi modal jika validasi server gagal (hanya ada mode create, tidak ada edit)
             if (modal.dataset.reopen) {
-                window.__toggleAdjLocation();
+                toggleLocation(true);
                 modal.showModal();
                 var bad = form.querySelector('.is-invalid');
                 if (bad) bad.focus();

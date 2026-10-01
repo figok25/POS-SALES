@@ -201,6 +201,19 @@ a.frm-name:focus-visible { outline: 2px solid var(--adm-blue); outline-offset: 2
 }
 .frm-status.is-on  { color: var(--adm-success); background: var(--adm-success-bg); }
 .frm-status.is-off { color: var(--adm-neutral); background: var(--adm-neutral-bg); }
+.frm-status.is-danger { color: var(--adm-danger); background: var(--adm-danger-bg); }
+.frm-status.is-warn { color: var(--adm-warning); background: var(--adm-warning-bg); }
+
+/* Warna peringatan (badge Draft, dsb.) -- lengkap dengan versi mode gelap */
+:root { --adm-warning: #b4730a; --adm-warning-bg: #fdf3e0; }
+html[data-theme="dark"] { --adm-warning: #f0b95c; --adm-warning-bg: rgba(240, 185, 92, 0.14); }
+
+/* Sel angka: rata kanan di desktop, rata kiri + berlabel di kartu mobile */
+.frm-table .is-num { text-align: right; }
+.frm-num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.frm-num.is-strong { font-weight: 800; }
+.frm-num.is-neg { color: var(--adm-danger); }
+.frm-nowrap { white-space: nowrap; }
 
 .frm-actions { display: inline-flex; gap: 4px; }
 .frm-icon-btn {
@@ -316,6 +329,7 @@ a.frm-name:focus-visible { outline: 2px solid var(--adm-blue); outline-offset: 2
     border-radius: 50%;
 }
 .frm-confirm-icon svg { width: 24px; height: 24px; }
+.frm-confirm-icon.is-ok { color: var(--adm-success); background: var(--adm-success-bg); }
 .frm-confirm-text { margin: 8px 0 0; font-size: 14px; line-height: 1.55; color: var(--adm-body); }
 .frm-confirm-text strong { color: var(--adm-ink); overflow-wrap: anywhere; }
 .frm-modal.is-sm .frm-modal-foot { justify-content: center; }
@@ -407,6 +421,10 @@ a.frm-name:focus-visible { outline: 2px solid var(--adm-blue); outline-offset: 2
 }
 
 .frm-error { margin: 0; font-size: 12.5px; font-weight: 600; color: var(--adm-danger); }
+.frm-field[hidden] { display: none; }
+
+/* Dropdown filter di toolbar (mis. Semua Lokasi / Semua Status) */
+.frm-input.is-filter { width: auto; min-width: 168px; height: 40px; }
 
 /* ---- Switch ---- */
 .frm-switch { display: inline-flex; align-items: center; gap: 12px; cursor: pointer; }
@@ -510,6 +528,17 @@ a.frm-name:focus-visible { outline: 2px solid var(--adm-blue); outline-offset: 2
     .frm-table td.is-end { position: absolute; top: 10px; right: 10px; padding: 0; }
     .frm-clamp { max-width: 100%; }
     .frm-table td.frm-cell-status { margin-top: 6px; }
+    .frm-table td.is-num { text-align: left; }
+    .frm-table td[data-label]::before {
+        content: attr(data-label);
+        display: inline-block;
+        min-width: 96px;
+        margin-right: 8px;
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--adm-muted);
+    }
+    .frm-input.is-filter { flex: 1 1 160px; }
 
     .frm-pager { padding: 12px 14px; }
 }
