@@ -4,13 +4,17 @@ namespace App\Http\Controllers\Admin\Master;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\Master\SalesRequest;
+use App\Models\Branch;
 use App\Models\Sales;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Support\ExcelTableExport;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Phase 2 - Master Data: Sales (Blueprint #32, #42 Definition of Done).
@@ -23,23 +27,30 @@ use Illuminate\Support\Facades\DB;
  * Sales\NativeTokenController) atau apa pun di sisi Sales App/mobile;
  * ini hanya menambah/mengganti email & password akun yang sudah dipakai
  * Sales App untuk login sejak awal.
+ *
+ * Tambah/edit/hapus memakai modal di halaman index, jadi tidak ada create()
+ * dan edit(). Daftarkan route export SEBELUM resource:
+ *
+ *   Route::get('sales/export', [SalesController::class, 'export'])->name('sales.export');
+ *   Route::resource('sales', SalesController::class)->except(['create', 'edit', 'show']);
  */
 class SalesController extends Controller
 {
     public function index(Request $request)
     {
-        $search = $request->query('q');
+        $search = trim((string) $request->query('q', ''));
 
         $items = Sales::query()
             ->with(['branch', 'user'])
-            ->when($search, fn ($query) => $query
-                ->where('code', 'like', "%{$search}%")
-                ->orWhere('name', 'like', "%{$search}%"))
-            ->orderBy('id', 'desc')
+            ->tap(fn (Builder $query) => $this->applySearch($query, $search))
+            ->orderByDesc('id')
             ->paginate(15)
             ->withQueryString();
 
-        return view('admin.master.sales.index', compact('items', 'search'));
+        // Dipakai dropdown Branch di modal tambah/edit.
+        $branchs = Branch::orderBy('name')->get(['id', 'name']);
+
+        return view('admin.master.sales.index', compact('items', 'search', 'branchs'));
     }
 
     /**
@@ -50,14 +61,12 @@ class SalesController extends Controller
      */
     public function export(Request $request): Response
     {
-        $search = $request->query('q');
+        $search = trim((string) $request->query('q', ''));
 
         $items = Sales::query()
             ->with(['branch', 'user'])
-            ->when($search, fn ($query) => $query
-                ->where('code', 'like', "%{$search}%")
-                ->orWhere('name', 'like', "%{$search}%"))
-            ->orderBy('id', 'desc')
+            ->tap(fn (Builder $query) => $this->applySearch($query, $search))
+            ->orderByDesc('id')
             ->get();
 
         $rows = $items->map(fn ($s) => [
@@ -71,7 +80,7 @@ class SalesController extends Controller
 
         return ExcelTableExport::download(
             title: 'Laporan Data Sales',
-            subtitle: ($search ? "Filter pencarian: \"{$search}\" | " : '').'Diunduh: '.now()->format('d M Y H:i').' | Total: '.$items->count().' sales',
+            subtitle: ($search !== '' ? "Filter pencarian: \"{$search}\" | " : '').'Diunduh: '.now()->format('d M Y H:i').' | Total: '.$items->count().' sales',
             columns: ['Kode', 'Nama', 'Telepon', 'Branch', 'Email Login', 'Status'],
             rows: $rows,
             textColumns: [0, 2], // Kode, Telepon - jaga angka 0 di depan
@@ -79,19 +88,14 @@ class SalesController extends Controller
         );
     }
 
-    public function create()
-    {
-        $branchs = \App\Models\Branch::orderBy('name')->get();
-
-        return view('admin.master.sales.create', compact('branchs'));
-    }
-
     public function store(SalesRequest $request)
     {
-        $data = $request->validated();
-        $email = $data['email'] ?? null;
-        $password = $data['password'] ?? null;
-        unset($data['email'], $data['password']);
+        [$data, $email, $password] = $this->payload($request);
+
+        // Akun baru butuh email DAN password; email saja akan gagal di database.
+        if ($email && ! $password) {
+            throw ValidationException::withMessages(['password' => 'Password wajib diisi untuk membuat akun login.']);
+        }
 
         $item = DB::transaction(function () use ($data, $email, $password) {
             $sales = Sales::create($data);
@@ -114,37 +118,33 @@ class SalesController extends Controller
         return redirect()->route('admin.master.sales.index')->with('status', 'Sales berhasil ditambahkan.'.($email ? ' Akun login sudah dibuat.' : ''));
     }
 
-    public function edit(Sales $item)
-    {
-        $branchs = \App\Models\Branch::orderBy('name')->get();
-        $item->load('user');
-
-        return view('admin.master.sales.edit', compact('item', 'branchs'));
-    }
-
     public function update(SalesRequest $request, Sales $item)
     {
         $before = $item->toArray();
 
-        $data = $request->validated();
-        $email = $data['email'] ?? null;
-        $password = $data['password'] ?? null;
-        unset($data['email'], $data['password']);
+        [$data, $email, $password] = $this->payload($request);
+
+        // Belum punya akun: email dan password harus diisi bersamaan.
+        if (! $item->user && ($email xor $password)) {
+            throw ValidationException::withMessages([
+                $email ? 'password' : 'email' => 'Email dan password harus diisi bersamaan untuk membuat akun login.',
+            ]);
+        }
 
         DB::transaction(function () use ($item, $data, $email, $password) {
             $item->update($data);
 
             if ($item->user) {
                 // Sudah punya akun login sebelumnya: update kalau diisi,
-                // biarkan tidak berubah kalau field dikosongkan.
+                // biarkan tidak berubah kalau field dikosongkan. Nama akun
+                // ikut nama sales supaya tidak berbeda.
                 $updates = array_filter([
+                    'name' => $item->name,
                     'email' => $email,
                     'password' => $password,
                 ], fn ($v) => ! empty($v));
 
-                if (! empty($updates)) {
-                    $item->user->update($updates);
-                }
+                $item->user->update($updates);
             } elseif ($email && $password) {
                 // Belum punya akun login, Admin baru mengisinya sekarang.
                 $user = User::create([
@@ -165,10 +165,45 @@ class SalesController extends Controller
     public function destroy(Sales $item)
     {
         $before = $item->toArray();
-        $item->delete();
+
+        try {
+            $item->delete();
+        } catch (QueryException $e) {
+            // Masih punya customer, visit, transaksi, dll.
+            return redirect()->route('admin.master.sales.index')
+                ->withErrors(['delete' => 'Sales tidak bisa dihapus karena masih dipakai data lain.']);
+        }
 
         AuditLogger::log('delete', 'Master Data', Sales::class, $item->id, $before, null);
 
         return redirect()->route('admin.master.sales.index')->with('status', 'Sales berhasil dihapus. Catatan: akun login (User) TIDAK ikut terhapus otomatis -- kelola manual lewat menu System > Users bila perlu.');
+    }
+
+    /**
+     * Pencarian kode / nama. Kondisi OR dibungkus closure supaya tidak
+     * menembus kondisi lain pada query yang sama.
+     */
+    private function applySearch(Builder $query, string $search): Builder
+    {
+        return $query->when($search !== '', fn (Builder $q) => $q->where(function (Builder $w) use ($search) {
+            $w->where('code', 'like', "%{$search}%")
+                ->orWhere('name', 'like', "%{$search}%");
+        }));
+    }
+
+    /**
+     * Pisahkan data Sales dari field akun login. is_active dipaksa boolean
+     * (checkbox kosong tidak dikirim browser).
+     *
+     * @return array{0: array, 1: ?string, 2: ?string} [data sales, email, password]
+     */
+    private function payload(SalesRequest $request): array
+    {
+        $data = array_merge($request->validated(), ['is_active' => $request->boolean('is_active')]);
+        $email = $data['email'] ?? null;
+        $password = $data['password'] ?? null;
+        unset($data['email'], $data['password']);
+
+        return [$data, $email, $password];
     }
 }

@@ -5,17 +5,28 @@ namespace App\Http\Controllers\Admin\Master;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\Master\CustomerRequest;
 use App\Models\Customer;
+use App\Models\Sales;
 use App\Services\AuditLogger;
 use App\Services\CustomerAssignmentService;
 use App\Support\ExcelTableExport;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Phase 2 - Master Data: Customer (Blueprint #32, #42 Definition of Done).
  * Phase 6 Hardening - perubahan sales_id (Customer Assignment, Blueprint
  * #729) selalu lewat CustomerAssignmentService agar riwayat & audit
  * tercatat konsisten, tidak lagi mass-update kolom sales_id langsung.
+ *
+ * Tambah/edit/hapus memakai modal di halaman index, jadi tidak ada create()
+ * dan edit(). show() tetap ada (Customer Detail). Daftarkan route export
+ * SEBELUM resource supaya "export" tidak dianggap sebagai {item}:
+ *
+ *   Route::get('customers/export', [CustomerController::class, 'export'])->name('customers.export');
+ *   Route::resource('customers', CustomerController::class)->except(['create', 'edit']);
  */
 class CustomerController extends Controller
 {
@@ -25,18 +36,19 @@ class CustomerController extends Controller
 
     public function index(Request $request)
     {
-        $search = $request->query('q');
+        $search = trim((string) $request->query('q', ''));
 
         $items = Customer::query()
-            ->with(['sales'])
-            ->when($search, fn ($query) => $query
-                ->where('code', 'like', "%{$search}%")
-                ->orWhere('name', 'like', "%{$search}%"))
-            ->orderBy('id', 'desc')
+            ->with('sales')
+            ->tap(fn (Builder $query) => $this->applySearch($query, $search))
+            ->orderByDesc('id')
             ->paginate(15)
             ->withQueryString();
 
-        return view('admin.master.customers.index', compact('items', 'search'));
+        // Dipakai dropdown Sales di modal tambah/edit.
+        $saless = Sales::orderBy('name')->get(['id', 'name']);
+
+        return view('admin.master.customers.index', compact('items', 'search', 'saless'));
     }
 
     /**
@@ -46,14 +58,12 @@ class CustomerController extends Controller
      */
     public function export(Request $request): Response
     {
-        $search = $request->query('q');
+        $search = trim((string) $request->query('q', ''));
 
         $items = Customer::query()
             ->with(['sales', 'branch'])
-            ->when($search, fn ($query) => $query
-                ->where('code', 'like', "%{$search}%")
-                ->orWhere('name', 'like', "%{$search}%"))
-            ->orderBy('id', 'desc')
+            ->tap(fn (Builder $query) => $this->applySearch($query, $search))
+            ->orderByDesc('id')
             ->get();
 
         $rows = $items->map(fn ($c) => [
@@ -69,18 +79,12 @@ class CustomerController extends Controller
 
         return ExcelTableExport::download(
             title: 'Laporan Data Customer',
-            subtitle: ($search ? "Filter pencarian: \"{$search}\" | " : '').'Diunduh: '.now()->format('d M Y H:i').' | Total: '.$items->count().' customer',
+            subtitle: ($search !== '' ? "Filter pencarian: \"{$search}\" | " : '').'Diunduh: '.now()->format('d M Y H:i').' | Total: '.$items->count().' customer',
             columns: ['Kode', 'Nama', 'Alamat', 'Telepon', 'NPWP', 'Branch', 'Sales', 'Status'],
             rows: $rows,
             textColumns: [0, 3, 4], // Kode, Telepon, NPWP - jaga angka 0 di depan & angka panjang
             filenameBase: 'laporan-data-customer',
         );
-    }
-
-    public function create()
-    {
-        $saless = \App\Models\Sales::orderBy('name')->get();
-        return view('admin.master.customers.create', compact('saless'));
     }
 
     /**
@@ -102,65 +106,55 @@ class CustomerController extends Controller
 
     public function store(CustomerRequest $request)
     {
-        $data = $request->validated();
+        $data = $this->payload($request);
         $salesId = $data['sales_id'] ?? null;
         unset($data['sales_id']);
 
-        // Koordinat yang diisi manual oleh Admin dianggap sudah diverifikasi
-        // (Admin yang bertanggung jawab memastikan titiknya benar), sama
-        // seperti koordinat yang lolos approve Tagging Toko.
-        if (! empty($data['latitude']) && ! empty($data['longitude'])) {
-            $data['location_status'] = 'verified';
-        }
+        $item = DB::transaction(function () use ($data, $salesId) {
+            $item = Customer::create($data);
 
-        $item = Customer::create($data);
+            if ($salesId) {
+                $this->assignmentService->assign(
+                    $item,
+                    (int) $salesId,
+                    auth()->id(),
+                    'Ditetapkan saat pembuatan customer (Master Data)',
+                );
+            }
 
-        if ($salesId) {
-            $this->assignmentService->assign(
-                $item,
-                (int) $salesId,
-                auth()->id(),
-                'Ditetapkan saat pembuatan customer (Master Data)',
-            );
-        }
+            return $item;
+        });
 
         AuditLogger::log('create', 'Master Data', Customer::class, $item->id, null, $item->fresh()->toArray());
 
         return redirect()->route('admin.master.customers.index')->with('status', 'Customer berhasil ditambahkan.');
     }
 
-    public function edit(Customer $item)
-    {
-        $saless = \App\Models\Sales::orderBy('name')->get();
-        return view('admin.master.customers.edit', compact('item', 'saless'));
-    }
-
     public function update(CustomerRequest $request, Customer $item)
     {
         $before = $item->toArray();
 
-        $data = $request->validated();
+        $data = $this->payload($request);
         $newSalesId = $data['sales_id'] ?? null;
         unset($data['sales_id']);
 
-        if (! empty($data['latitude']) && ! empty($data['longitude'])) {
-            $data['location_status'] = 'verified';
-        }
+        DB::transaction(function () use ($item, $data, $newSalesId) {
+            $item->update($data);
 
-        $item->update($data);
-
-        if ((int) $item->sales_id !== (int) $newSalesId) {
-            if ($newSalesId) {
-                $this->assignmentService->assign(
-                    $item,
-                    (int) $newSalesId,
-                    auth()->id(),
-                    'Diubah lewat Master Data > Customer',
-                );
-            } else {
-                $this->assignmentService->unassign($item, auth()->id(), 'Diubah lewat Master Data > Customer');
+            // sales_id tidak ikut di $data, jadi $item->sales_id masih nilai lama.
+            if ((int) $item->sales_id !== (int) $newSalesId) {
+                if ($newSalesId) {
+                    $this->assignmentService->assign(
+                        $item,
+                        (int) $newSalesId,
+                        auth()->id(),
+                        'Diubah lewat Master Data > Customer',
+                    );
+                } else {
+                    $this->assignmentService->unassign($item, auth()->id(), 'Diubah lewat Master Data > Customer');
+                }
             }
-        }
+        });
 
         AuditLogger::log('update', 'Master Data', Customer::class, $item->id, $before, $item->fresh()->toArray());
 
@@ -170,10 +164,45 @@ class CustomerController extends Controller
     public function destroy(Customer $item)
     {
         $before = $item->toArray();
-        $item->delete();
+
+        try {
+            $item->delete();
+        } catch (QueryException $e) {
+            // Masih punya transaksi, invoice, visit, dll.
+            return redirect()->route('admin.master.customers.index')
+                ->withErrors(['delete' => 'Customer tidak bisa dihapus karena masih dipakai data lain.']);
+        }
 
         AuditLogger::log('delete', 'Master Data', Customer::class, $item->id, $before, null);
 
         return redirect()->route('admin.master.customers.index')->with('status', 'Customer berhasil dihapus.');
+    }
+
+    /**
+     * Pencarian kode / nama. Kondisi OR dibungkus closure supaya tidak
+     * menembus kondisi lain pada query yang sama.
+     */
+    private function applySearch(Builder $query, string $search): Builder
+    {
+        return $query->when($search !== '', fn (Builder $q) => $q->where(function (Builder $w) use ($search) {
+            $w->where('code', 'like', "%{$search}%")
+                ->orWhere('name', 'like', "%{$search}%");
+        }));
+    }
+
+    /**
+     * Data siap simpan: is_active dipaksa boolean (checkbox kosong tidak
+     * dikirim browser). Koordinat yang diisi manual oleh Admin dianggap sudah
+     * diverifikasi, sama seperti koordinat yang lolos approve Tagging Toko.
+     */
+    private function payload(CustomerRequest $request): array
+    {
+        $data = array_merge($request->validated(), ['is_active' => $request->boolean('is_active')]);
+
+        if (! empty($data['latitude']) && ! empty($data['longitude'])) {
+            $data['location_status'] = 'verified';
+        }
+
+        return $data;
     }
 }

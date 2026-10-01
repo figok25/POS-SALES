@@ -34,12 +34,18 @@
             </div>
         @endif
 
+        @error('delete')
+            <div class="frm-alert" role="alert" style="color: var(--adm-danger); background: var(--adm-danger-bg);">
+                <span class="frm-alert-text">{{ $message }}</span>
+            </div>
+        @enderror
+
         <div class="panel">
             {{-- Pencarian --}}
             <form method="GET" class="frm-toolbar" role="search">
                 <div class="frm-search">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-                    <input type="search" name="q" value="{{ $search }}" placeholder="Cari price..." autocomplete="off" aria-label="Cari price">
+                    <input type="search" name="q" value="{{ $search }}" placeholder="Cari product atau nama harga..." autocomplete="off" aria-label="Cari price">
                 </div>
                 <div class="frm-toolbar-actions">
                     <button type="submit" class="adm-btn adm-btn-ghost adm-btn-sm">Cari</button>

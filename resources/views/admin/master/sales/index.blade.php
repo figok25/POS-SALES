@@ -40,6 +40,12 @@
             </div>
         @endif
 
+        @error('delete')
+            <div class="frm-alert" role="alert" style="color: var(--adm-danger); background: var(--adm-danger-bg);">
+                <span class="frm-alert-text">{{ $message }}</span>
+            </div>
+        @enderror
+
         <div class="panel">
             {{-- Pencarian --}}
             <form method="GET" class="frm-toolbar" role="search">
@@ -230,7 +236,7 @@
 
                     <div class="frm-field">
                         <label class="frm-label" for="slsPassword" id="slsPasswordLabel">Password</label>
-                        <input id="slsPassword" type="text" name="password" value="{{ old('password') }}" placeholder="Minimal 4 karakter" autocomplete="new-password"
+                        <input id="slsPassword" type="password" name="password" placeholder="Minimal 4 karakter" autocomplete="new-password"
                             class="frm-input @error('password') is-invalid @enderror" @error('password') aria-invalid="true" @enderror>
                         @error('password') <p class="frm-error">{{ $message }}</p> @enderror
                     </div>

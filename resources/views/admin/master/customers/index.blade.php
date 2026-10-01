@@ -4,9 +4,12 @@
     $formAction = $reopenId
         ? route('admin.master.customers.update', $reopenId)
         : route('admin.master.customers.store');
+
+    $hasSearch = filled($search);
 @endphp
 
 <x-admin-layout>
+    <div class="frm-page">
     {{-- ===== Kepala halaman ===== --}}
     <div class="frm-head">
         <div>
@@ -36,6 +39,12 @@
         </div>
     @endif
 
+    @error('delete')
+        <div class="frm-alert" role="alert" style="color: var(--adm-danger); background: var(--adm-danger-bg);">
+            <span class="frm-alert-text">{{ $message }}</span>
+        </div>
+    @enderror
+
     {{-- ===== Daftar ===== --}}
     <div class="panel">
         <form method="GET" action="{{ route('admin.master.customers.index') }}" class="frm-toolbar" role="search">
@@ -44,12 +53,18 @@
                 <input type="search" name="q" value="{{ $search }}" placeholder="Cari Customer..." autocomplete="off" aria-label="Cari Customer">
             </div>
             <div class="frm-toolbar-actions">
-                <button type="submit" class="adm-btn adm-btn-primary adm-btn-sm">Cari</button>
-                @if ($search)
+                <button type="submit" class="adm-btn adm-btn-ghost adm-btn-sm">Cari</button>
+                @if ($hasSearch)
                     <a href="{{ route('admin.master.customers.index') }}" class="adm-btn adm-btn-ghost adm-btn-sm">Reset</a>
                 @endif
             </div>
-            <span class="frm-count">{{ $items->total() }} data</span>
+            <span class="frm-count">
+                @if ($hasSearch)
+                    {{ $items->total() }} hasil untuk “{{ $search }}”
+                @else
+                    {{ $items->total() }} customer
+                @endif
+            </span>
         </form>
 
         @if ($items->count())
@@ -104,7 +119,7 @@
                                         <button type="button" class="frm-icon-btn" title="Edit" aria-label="Edit {{ $item->name }}"
                                             data-edit
                                             data-url="{{ route('admin.master.customers.update', $item) }}"
-                                            data-id="{{ $item->id }}"
+                                            data-id="{{ $item->getRouteKey() }}"
                                             data-sales="{{ $item->sales_id }}"
                                             data-code="{{ $item->code }}"
                                             data-name="{{ $item->name }}"
@@ -138,7 +153,7 @@
                 <div class="frm-empty-icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                 </div>
-                @if ($search)
+                @if ($hasSearch)
                     <p class="frm-empty-title">Tidak ada hasil</p>
                     <p class="frm-empty-text">Tidak ditemukan Customer untuk pencarian “{{ $search }}”.</p>
                     <a href="{{ route('admin.master.customers.index') }}" class="adm-btn adm-btn-ghost adm-btn-sm">Reset pencarian</a>
@@ -149,6 +164,8 @@
                 @endif
             </div>
         @endif
+    </div>
+
     </div>
 
     {{-- ===== Modal tambah / edit ===== --}}
@@ -173,7 +190,7 @@
                 <div class="frm-grid">
                     <div class="frm-field is-full">
                         <label class="frm-label" for="f-sales_id">Sales</label>
-                        <select id="f-sales_id" name="sales_id" class="frm-input @error('sales_id') is-invalid @enderror">
+                        <select id="f-sales_id" name="sales_id" class="frm-input is-select @error('sales_id') is-invalid @enderror" @error('sales_id') aria-invalid="true" @enderror>
                             <option value="">-- Pilih Sales --</option>
                             @foreach ($saless as $opt)
                                 <option value="{{ $opt->id }}" @selected((string) old('sales_id') === (string) $opt->id)>{{ $opt->name }}</option>
@@ -184,31 +201,31 @@
 
                     <div class="frm-field">
                         <label class="frm-label" for="f-code">Kode <span class="frm-req">*</span></label>
-                        <input type="text" id="f-code" name="code" value="{{ old('code') }}" class="frm-input @error('code') is-invalid @enderror" required>
+                        <input type="text" id="f-code" name="code" value="{{ old('code') }}" class="frm-input @error('code') is-invalid @enderror" @error('code') aria-invalid="true" @enderror required>
                         @error('code') <p class="frm-error">{{ $message }}</p> @enderror
                     </div>
 
                     <div class="frm-field">
                         <label class="frm-label" for="f-name">Nama <span class="frm-req">*</span></label>
-                        <input type="text" id="f-name" name="name" value="{{ old('name') }}" class="frm-input @error('name') is-invalid @enderror" required>
+                        <input type="text" id="f-name" name="name" value="{{ old('name') }}" class="frm-input @error('name') is-invalid @enderror" @error('name') aria-invalid="true" @enderror required>
                         @error('name') <p class="frm-error">{{ $message }}</p> @enderror
                     </div>
 
                     <div class="frm-field">
                         <label class="frm-label" for="f-phone">Telepon</label>
-                        <input type="text" id="f-phone" name="phone" value="{{ old('phone') }}" class="frm-input @error('phone') is-invalid @enderror" inputmode="tel">
+                        <input type="text" id="f-phone" name="phone" value="{{ old('phone') }}" class="frm-input @error('phone') is-invalid @enderror" @error('phone') aria-invalid="true" @enderror inputmode="tel">
                         @error('phone') <p class="frm-error">{{ $message }}</p> @enderror
                     </div>
 
                     <div class="frm-field">
                         <label class="frm-label" for="f-npwp">NPWP</label>
-                        <input type="text" id="f-npwp" name="npwp" value="{{ old('npwp') }}" class="frm-input @error('npwp') is-invalid @enderror">
+                        <input type="text" id="f-npwp" name="npwp" value="{{ old('npwp') }}" class="frm-input @error('npwp') is-invalid @enderror" @error('npwp') aria-invalid="true" @enderror>
                         @error('npwp') <p class="frm-error">{{ $message }}</p> @enderror
                     </div>
 
                     <div class="frm-field is-full">
                         <label class="frm-label" for="f-address">Alamat</label>
-                        <textarea id="f-address" name="address" rows="3" class="frm-input is-area @error('address') is-invalid @enderror">{{ old('address') }}</textarea>
+                        <textarea id="f-address" name="address" rows="3" class="frm-input is-area @error('address') is-invalid @enderror" @error('address') aria-invalid="true" @enderror>{{ old('address') }}</textarea>
                         @error('address') <p class="frm-error">{{ $message }}</p> @enderror
                     </div>
 
@@ -217,12 +234,12 @@
                         <div class="frm-grid">
                             <div class="frm-field">
                                 <label class="frm-label" for="f-latitude">Latitude</label>
-                                <input type="text" id="f-latitude" name="latitude" value="{{ old('latitude') }}" placeholder="-8.0768309" class="frm-input @error('latitude') is-invalid @enderror" @disabled($reopen !== 'edit')>
+                                <input type="text" id="f-latitude" name="latitude" value="{{ old('latitude') }}" placeholder="-8.0768309" class="frm-input @error('latitude') is-invalid @enderror" @error('latitude') aria-invalid="true" @enderror @disabled($reopen !== 'edit')>
                                 @error('latitude') <p class="frm-error">{{ $message }}</p> @enderror
                             </div>
                             <div class="frm-field">
                                 <label class="frm-label" for="f-longitude">Longitude</label>
-                                <input type="text" id="f-longitude" name="longitude" value="{{ old('longitude') }}" placeholder="111.7016798" class="frm-input @error('longitude') is-invalid @enderror" @disabled($reopen !== 'edit')>
+                                <input type="text" id="f-longitude" name="longitude" value="{{ old('longitude') }}" placeholder="111.7016798" class="frm-input @error('longitude') is-invalid @enderror" @error('longitude') aria-invalid="true" @enderror @disabled($reopen !== 'edit')>
                                 @error('longitude') <p class="frm-error">{{ $message }}</p> @enderror
                             </div>
                         </div>
@@ -238,6 +255,7 @@
                             <span class="frm-switch-track"></span>
                             <span class="frm-switch-text">Aktif</span>
                         </label>
+                        <p class="frm-hint">Nonaktifkan untuk customer yang sudah tidak dilayani.</p>
                     </div>
                 </div>
             </div>
@@ -254,12 +272,12 @@
         <form method="POST" action="" class="frm-modal-form" id="deleteForm">
             @csrf
             @method('DELETE')
-            <div class="frm-confirm">
+            <div class="frm-modal-body frm-confirm">
                 <div class="frm-confirm-icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="m19 6-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
                 </div>
                 <h2 class="frm-modal-title" id="deleteModalTitle">Hapus Customer?</h2>
-                <p class="frm-confirm-text">Yakin ingin menghapus <strong id="deleteName"></strong>?</p>
+                <p class="frm-confirm-text"><strong id="deleteName"></strong> akan dihapus dari daftar. Tindakan ini tidak bisa dibatalkan.</p>
             </div>
             <div class="frm-modal-foot">
                 <button type="button" class="adm-btn adm-btn-ghost adm-btn-sm" data-close>Batal</button>
@@ -311,7 +329,7 @@
             }
 
             function clearErrors() {
-                form.querySelectorAll('.is-invalid').forEach((el) => el.classList.remove('is-invalid'));
+                form.querySelectorAll('.is-invalid').forEach((el) => { el.classList.remove('is-invalid'); el.removeAttribute('aria-invalid'); });
                 form.querySelectorAll('.frm-error').forEach((el) => el.remove());
             }
 
@@ -337,7 +355,7 @@
                 btn.addEventListener('click', () => {
                     clearErrors();
                     editIdInput.value = '';
-                    fill({ active: 1 });
+                    fill({ active: '1' });
                     setMode('create', storeUrl);
                     openModal();
                 });
@@ -384,6 +402,7 @@
                 if (el.name === 'latitude' || el.name === 'longitude') updateMapLink();
                 if (!el.classList.contains('is-invalid')) return;
                 el.classList.remove('is-invalid');
+                el.removeAttribute('aria-invalid');
                 const next = el.nextElementSibling;
                 if (next && next.classList.contains('frm-error')) next.remove();
             });
@@ -391,7 +410,8 @@
             // Cegah klik ganda saat submit.
             form.addEventListener('submit', () => { submitBtn.disabled = true; submitBtn.textContent = 'Menyimpan…'; });
             delForm.addEventListener('submit', () => { delSubmit.disabled = true; delSubmit.textContent = 'Menghapus…'; });
-            window.addEventListener('pageshow', () => {
+            window.addEventListener('pageshow', (e) => {
+                if (!e.persisted) return;
                 submitBtn.disabled = false; submitBtn.textContent = 'Simpan';
                 delSubmit.disabled = false; delSubmit.textContent = 'Hapus';
             });
@@ -403,7 +423,7 @@
                     alertEl.classList.add('is-leaving');
                     setTimeout(() => alertEl.remove(), 300);
                 };
-                alertEl.querySelector('[data-alert-close]').addEventListener('click', dismiss);
+                alertEl.querySelector('[data-alert-close]')?.addEventListener('click', dismiss);
                 setTimeout(dismiss, 5000);
             }
 

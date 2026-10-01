@@ -34,6 +34,12 @@
             </div>
         @endif
 
+        @error('delete')
+            <div class="frm-alert" role="alert" style="color: var(--adm-danger); background: var(--adm-danger-bg);">
+                <span class="frm-alert-text">{{ $message }}</span>
+            </div>
+        @enderror
+
         <div class="panel">
             {{-- Pencarian --}}
             <form method="GET" class="frm-toolbar" role="search">
