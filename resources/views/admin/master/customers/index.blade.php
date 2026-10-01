@@ -191,7 +191,7 @@
                     <div class="frm-field is-full">
                         <label class="frm-label" for="f-sales_id">Sales</label>
                         <select id="f-sales_id" name="sales_id" class="frm-input is-select @error('sales_id') is-invalid @enderror" @error('sales_id') aria-invalid="true" @enderror>
-                            <option value="">-- Pilih Sales --</option>
+                            <option value="">Pilih sales</option>
                             @foreach ($saless as $opt)
                                 <option value="{{ $opt->id }}" @selected((string) old('sales_id') === (string) $opt->id)>{{ $opt->name }}</option>
                             @endforeach

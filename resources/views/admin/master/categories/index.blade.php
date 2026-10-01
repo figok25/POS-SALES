@@ -1,312 +1,308 @@
 @php
-    // Saat validasi gagal, Laravel redirect back membawa old input. Dari situ kita
-    // tahu modal mana (tambah/edit) yang harus dibuka lagi.
-    $reopen = $errors->any() ? old('_modal') : null;
-    $reopenId = $reopen === 'edit' ? old('_edit_id') : null;
-    $formAction = $reopenId
-        ? route('admin.master.categories.update', $reopenId)
+    $reopen = $errors->any() ? old('_mode') : null;      // 'create' | 'edit' | null
+    $editId = $reopen === 'edit' ? old('_edit_id') : null;
+    $formUrl = $editId
+        ? route('admin.master.categories.update', $editId)
         : route('admin.master.categories.store');
+
+    $hasSearch = filled($search);
+    $total = method_exists($items, 'total') ? $items->total() : $items->count();
 @endphp
 
 <x-admin-layout>
-    {{-- ===== Kepala halaman ===== --}}
-    <div class="frm-head">
-        <div>
-            <h1 class="frm-title">Category</h1>
-            <p class="frm-sub">Kelola data category.</p>
-        </div>
-        <button type="button" class="adm-btn adm-btn-primary" data-open-create>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-            Tambah Category
-        </button>
-    </div>
+    <div class="frm-page">
 
-    {{-- ===== Notifikasi ===== --}}
-    @if (session('status'))
-        <div class="frm-alert" role="status" data-alert>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4 12 14.01l-3-3"/></svg>
-            <span class="frm-alert-text">{{ session('status') }}</span>
-            <button type="button" class="frm-alert-close" aria-label="Tutup notifikasi" data-alert-close>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        {{-- Kepala halaman --}}
+        <div class="frm-head">
+            <div>
+                <h1 class="frm-title">Category</h1>
+                <p class="frm-sub">Kelola data master category.</p>
+            </div>
+            <button type="button" class="adm-btn adm-btn-primary" data-modal-create>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                Tambah category
             </button>
         </div>
-    @endif
 
-    {{-- ===== Daftar ===== --}}
-    <div class="panel">
-        <form method="GET" action="{{ route('admin.master.categories.index') }}" class="frm-toolbar" role="search">
-            <div class="frm-search">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-                <input type="search" name="q" value="{{ $search }}" placeholder="Cari Category..." autocomplete="off" aria-label="Cari Category">
-            </div>
-            <div class="frm-toolbar-actions">
-                <button type="submit" class="adm-btn adm-btn-ghost adm-btn-sm">Cari</button>
-                @if ($search)
-                    <a href="{{ route('admin.master.categories.index') }}" class="adm-btn adm-btn-ghost adm-btn-sm">Reset</a>
-                @endif
-            </div>
-            <span class="frm-count">{{ $items->total() }} data</span>
-        </form>
-
-        @if ($items->count())
-            <div class="frm-table-wrap">
-                <table class="frm-table">
-                    <thead>
-                        <tr>
-                            <th>Kode</th>
-                            <th>Nama</th>
-                            <th>Status</th>
-                            <th class="is-end">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach ($items as $item)
-                            <tr>
-                                <td><span class="frm-code">{{ $item->code }}</span></td>
-                                <td><span class="frm-name">{{ $item->name }}</span></td>
-                                <td class="frm-cell-status">
-                                    @if ($item->is_active)
-                                        <span class="frm-status is-on">Aktif</span>
-                                    @else
-                                        <span class="frm-status is-off">Nonaktif</span>
-                                    @endif
-                                </td>
-                                <td class="is-end">
-                                    <div class="frm-actions">
-                                        <button type="button" class="frm-icon-btn" title="Edit" aria-label="Edit {{ $item->name }}"
-                                            data-edit
-                                            data-url="{{ route('admin.master.categories.update', $item) }}"
-                                            data-id="{{ $item->id }}"
-                                            data-code="{{ $item->code }}"
-                                            data-name="{{ $item->name }}"
-                                            data-active="{{ $item->is_active ? 1 : 0 }}">
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
-                                        </button>
-                                        <button type="button" class="frm-icon-btn is-danger" title="Hapus" aria-label="Hapus {{ $item->name }}"
-                                            data-delete
-                                            data-url="{{ route('admin.master.categories.destroy', $item) }}"
-                                            data-name="{{ $item->name }}">
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="m19 6-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-
-            @if ($items->hasPages())
-                <div class="frm-pager">{{ $items->links() }}</div>
-            @endif
-        @else
-            <div class="frm-empty">
-                <div class="frm-empty-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82Z"/><path d="M7 7h.01"/></svg>
-                </div>
-                @if ($search)
-                    <p class="frm-empty-title">Tidak ada hasil</p>
-                    <p class="frm-empty-text">Tidak ditemukan Category untuk pencarian “{{ $search }}”.</p>
-                    <a href="{{ route('admin.master.categories.index') }}" class="adm-btn adm-btn-ghost adm-btn-sm">Reset pencarian</a>
-                @else
-                    <p class="frm-empty-title">Belum ada data</p>
-                    <p class="frm-empty-text">Tambahkan Category pertama untuk mulai.</p>
-                    <button type="button" class="adm-btn adm-btn-primary adm-btn-sm" data-open-create>Tambah Category</button>
-                @endif
+        @if (session('status'))
+            <div class="frm-alert" role="status" data-alert>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></svg>
+                <span class="frm-alert-text">{{ session('status') }}</span>
+                <button type="button" class="frm-alert-close" aria-label="Tutup pesan" data-alert-close>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                </button>
             </div>
         @endif
+
+        @error('delete')
+            <div class="frm-alert is-error" role="alert">
+                <span class="frm-alert-text">{{ $message }}</span>
+            </div>
+        @enderror
+
+        <div class="panel">
+            {{-- Pencarian --}}
+            <form method="GET" class="frm-toolbar" role="search">
+                <div class="frm-search">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                    <input type="search" name="q" value="{{ $search }}" placeholder="Cari category..." autocomplete="off" aria-label="Cari category">
+                </div>
+                <div class="frm-toolbar-actions">
+                    <button type="submit" class="adm-btn adm-btn-ghost adm-btn-sm">Cari</button>
+                    @if ($hasSearch)
+                        <a href="{{ route('admin.master.categories.index') }}" class="adm-btn adm-btn-ghost adm-btn-sm">Reset</a>
+                    @endif
+                </div>
+                <span class="frm-count">
+                    @if ($hasSearch)
+                        {{ $total }} hasil untuk “{{ $search }}”
+                    @else
+                        {{ $total }} category
+                    @endif
+                </span>
+            </form>
+
+            @if ($items->isEmpty())
+                <div class="frm-empty">
+                    <div class="frm-empty-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82Z"/><path d="M7 7h.01"/></svg>
+                    </div>
+                    @if ($hasSearch)
+                        <p class="frm-empty-title">Category tidak ditemukan</p>
+                        <p class="frm-empty-text">Coba kata kunci lain atau hapus pencarian.</p>
+                        <a href="{{ route('admin.master.categories.index') }}" class="adm-btn adm-btn-ghost adm-btn-sm">Reset pencarian</a>
+                    @else
+                        <p class="frm-empty-title">Belum ada category</p>
+                        <p class="frm-empty-text">Tambahkan category pertama untuk memulai.</p>
+                        <button type="button" class="adm-btn adm-btn-primary adm-btn-sm" data-modal-create>Tambah category</button>
+                    @endif
+                </div>
+            @else
+                <div class="frm-table-wrap">
+                    <table class="frm-table">
+                        <thead>
+                            <tr>
+                                <th>Kode</th>
+                                <th>Nama</th>
+                                <th>Status</th>
+                                <th class="is-end">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($items as $item)
+                                <tr>
+                                    <td><span class="frm-code">{{ $item->code }}</span></td>
+                                    <td><div class="frm-name">{{ $item->name }}</div></td>
+                                    <td class="frm-cell-status">
+                                        @if ($item->is_active)
+                                            <span class="frm-status is-on">Aktif</span>
+                                        @else
+                                            <span class="frm-status is-off">Nonaktif</span>
+                                        @endif
+                                    </td>
+                                    <td class="is-end">
+                                        <div class="frm-actions">
+                                            <button type="button" class="frm-icon-btn" title="Edit" aria-label="Edit {{ $item->name }}"
+                                                data-modal-edit
+                                                data-url="{{ route('admin.master.categories.update', $item) }}"
+                                                data-id="{{ $item->getRouteKey() }}"
+                                                data-code="{{ $item->code }}"
+                                                data-name="{{ $item->name }}"
+                                                data-active="{{ $item->is_active ? 1 : 0 }}">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                                            </button>
+                                            <button type="button" class="frm-icon-btn is-danger" title="Hapus" aria-label="Hapus {{ $item->name }}"
+                                                data-modal-delete
+                                                data-url="{{ route('admin.master.categories.destroy', $item) }}"
+                                                data-name="{{ $item->name }}">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+
+                @if ($items->hasPages())
+                    <div class="frm-pager">{{ $items->withQueryString()->links() }}</div>
+                @endif
+            @endif
+        </div>
     </div>
 
-    {{-- ===== Modal tambah / edit ===== --}}
+    {{-- ====================== Modal: tambah / edit ====================== --}}
     <dialog class="frm-modal" id="categoryModal" aria-labelledby="categoryModalTitle" data-reopen="{{ $reopen }}">
-        <form method="POST" action="{{ $formAction }}" class="frm-modal-form" id="categoryForm">
+        <form method="POST" action="{{ $formUrl }}" class="frm-modal-form" id="categoryForm" data-store-url="{{ route('admin.master.categories.store') }}">
             @csrf
-            <input type="hidden" name="_method" value="PUT" id="categoryMethod" @disabled($reopen !== 'edit')>
-            <input type="hidden" name="_modal" value="{{ $reopen ?? 'create' }}" id="categoryModalMode">
-            <input type="hidden" name="_edit_id" value="{{ $reopenId }}" id="categoryEditId">
+            <input type="hidden" name="_method" value="PUT" @disabled($reopen !== 'edit')>
+            <input type="hidden" name="_mode" value="{{ $reopen ?? 'create' }}">
+            <input type="hidden" name="_edit_id" value="{{ $editId }}">
 
             <div class="frm-modal-head">
                 <div>
-                    <h2 class="frm-modal-title" id="categoryModalTitle">{{ $reopen === 'edit' ? 'Edit Category' : 'Tambah Category' }}</h2>
-                    <p class="frm-modal-desc">Kolom bertanda <span class="frm-req">*</span> wajib diisi.</p>
+                    <h2 class="frm-modal-title" id="categoryModalTitle">{{ $reopen === 'edit' ? 'Edit category' : 'Tambah category' }}</h2>
+                    <p class="frm-modal-desc" id="categoryModalDesc">{{ $reopen === 'edit' ? 'Perbarui data category.' : 'Isi data category baru.' }}</p>
                 </div>
-                <button type="button" class="frm-icon-btn frm-modal-close" aria-label="Tutup" data-close>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                <button type="button" class="frm-icon-btn frm-modal-close" aria-label="Tutup" data-modal-close>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
                 </button>
             </div>
 
             <div class="frm-modal-body">
                 <div class="frm-grid">
-                    <div class="frm-field is-full">
-                        <label class="frm-label" for="f-code">Kode <span class="frm-req">*</span></label>
-                        <input type="text" id="f-code" name="code" value="{{ old('code') }}" class="frm-input @error('code') is-invalid @enderror" required>
+                    <div class="frm-field">
+                        <label class="frm-label" for="catCode">Kode <span class="frm-req">*</span></label>
+                        <input id="catCode" type="text" name="code" value="{{ old('code') }}" required
+                            class="frm-input @error('code') is-invalid @enderror" @error('code') aria-invalid="true" @enderror>
                         @error('code') <p class="frm-error">{{ $message }}</p> @enderror
                     </div>
 
-                    <div class="frm-field is-full">
-                        <label class="frm-label" for="f-name">Nama <span class="frm-req">*</span></label>
-                        <input type="text" id="f-name" name="name" value="{{ old('name') }}" class="frm-input @error('name') is-invalid @enderror" required>
+                    <div class="frm-field">
+                        <label class="frm-label" for="catName">Nama <span class="frm-req">*</span></label>
+                        <input id="catName" type="text" name="name" value="{{ old('name') }}" required
+                            class="frm-input @error('name') is-invalid @enderror" @error('name') aria-invalid="true" @enderror>
                         @error('name') <p class="frm-error">{{ $message }}</p> @enderror
                     </div>
 
                     <div class="frm-field is-full">
                         <label class="frm-switch">
-                            <input type="checkbox" id="f-is_active" name="is_active" value="1" @checked($reopen ? old('is_active') : true)>
-                            <span class="frm-switch-track"></span>
+                            <input type="checkbox" name="is_active" value="1" @checked($reopen ? old('is_active') : true)>
+                            <span class="frm-switch-track" aria-hidden="true"></span>
                             <span class="frm-switch-text">Aktif</span>
                         </label>
+                        <p class="frm-hint">Nonaktifkan untuk menandai category yang sudah tidak dipakai.</p>
                     </div>
                 </div>
             </div>
 
             <div class="frm-modal-foot">
-                <button type="button" class="adm-btn adm-btn-ghost adm-btn-sm" data-close>Batal</button>
-                <button type="submit" class="adm-btn adm-btn-primary adm-btn-sm" id="categorySubmit">Simpan</button>
+                <button type="button" class="adm-btn adm-btn-ghost" data-modal-close>Batal</button>
+                <button type="submit" class="adm-btn adm-btn-primary" data-submit>Simpan</button>
             </div>
         </form>
     </dialog>
 
-    {{-- ===== Modal konfirmasi hapus ===== --}}
+    {{-- ====================== Modal: konfirmasi hapus ====================== --}}
     <dialog class="frm-modal is-sm" id="deleteModal" aria-labelledby="deleteModalTitle">
-        <form method="POST" action="" class="frm-modal-form" id="deleteForm">
+        <form method="POST" class="frm-modal-form" id="deleteForm">
             @csrf
             @method('DELETE')
-            <div class="frm-confirm">
+
+            <div class="frm-modal-body frm-confirm">
                 <div class="frm-confirm-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="m19 6-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/></svg>
                 </div>
-                <h2 class="frm-modal-title" id="deleteModalTitle">Hapus Category?</h2>
-                <p class="frm-confirm-text">Yakin ingin menghapus <strong id="deleteName"></strong>?</p>
+                <h2 class="frm-modal-title" id="deleteModalTitle">Hapus category?</h2>
+                <p class="frm-confirm-text"><strong data-delete-name></strong> akan dihapus dari daftar. Tindakan ini tidak bisa dibatalkan.</p>
             </div>
+
             <div class="frm-modal-foot">
-                <button type="button" class="adm-btn adm-btn-ghost adm-btn-sm" data-close>Batal</button>
-                <button type="submit" class="adm-btn adm-btn-danger adm-btn-sm" id="deleteSubmit">Hapus</button>
+                <button type="button" class="adm-btn adm-btn-ghost" data-modal-close>Batal</button>
+                <button type="submit" class="adm-btn adm-btn-danger" data-submit>Hapus</button>
             </div>
         </form>
     </dialog>
 
     <script>
-        (() => {
-            const storeUrl = @js(route('admin.master.categories.store'));
-
-            const modal = document.getElementById('categoryModal');
-            const form = document.getElementById('categoryForm');
-            const methodInput = document.getElementById('categoryMethod');
-            const modeInput = document.getElementById('categoryModalMode');
-            const editIdInput = document.getElementById('categoryEditId');
-            const titleEl = document.getElementById('categoryModalTitle');
-            const submitBtn = document.getElementById('categorySubmit');
-
-            const delModal = document.getElementById('deleteModal');
-            const delForm = document.getElementById('deleteForm');
-            const delName = document.getElementById('deleteName');
-            const delSubmit = document.getElementById('deleteSubmit');
-
-            const field = (n) => form.elements[n];
-
-            function setMode(mode, url) {
-                const isEdit = mode === 'edit';
-                form.action = url;
-                methodInput.disabled = !isEdit;
-                modeInput.value = isEdit ? 'edit' : 'create';
-                titleEl.textContent = isEdit ? 'Edit Category' : 'Tambah Category';
-            }
+        (function () {
+            var modal = document.getElementById('categoryModal');
+            var form = document.getElementById('categoryForm');
+            var delModal = document.getElementById('deleteModal');
+            var delForm = document.getElementById('deleteForm');
+            var fields = ['code', 'name'];
 
             function clearErrors() {
-                form.querySelectorAll('.is-invalid').forEach((el) => el.classList.remove('is-invalid'));
-                form.querySelectorAll('.frm-error').forEach((el) => el.remove());
+                form.querySelectorAll('.frm-error').forEach(function (el) { el.remove(); });
+                form.querySelectorAll('.is-invalid').forEach(function (el) {
+                    el.classList.remove('is-invalid');
+                    el.removeAttribute('aria-invalid');
+                });
             }
 
-            function fill(v) {
-                field('code').value = v.code ?? '';
-                field('name').value = v.name ?? '';
-                field('is_active').checked = String(v.active) === '1';
+            function fill(data) {
+                fields.forEach(function (name) { form.elements[name].value = data[name] || ''; });
+                form.elements['is_active'].checked = data.active === undefined ? true : data.active === '1';
             }
 
-            function openModal(focusEl) {
+            function setMode(mode, url, editId) {
+                var edit = mode === 'edit';
+                form.action = url;
+                form.elements['_mode'].value = mode;
+                form.elements['_edit_id'].value = editId || '';
+                form.elements['_method'].disabled = !edit;
+                document.getElementById('categoryModalTitle').textContent = edit ? 'Edit category' : 'Tambah category';
+                document.getElementById('categoryModalDesc').textContent = edit ? 'Perbarui data category.' : 'Isi data category baru.';
+            }
+
+            function openModal() {
                 modal.showModal();
-                (focusEl || field('code')).focus();
+                form.elements['code'].focus();
             }
 
-            // --- Tambah ---
-            document.querySelectorAll('[data-open-create]').forEach((btn) => {
-                btn.addEventListener('click', () => {
-                    clearErrors();
-                    editIdInput.value = '';
-                    setMode('create', storeUrl);
-                    fill({ active: 1 });
-                    openModal();
-                });
-            });
+            document.addEventListener('click', function (e) {
+                var btn = e.target.closest('[data-modal-create], [data-modal-edit], [data-modal-delete], [data-modal-close], [data-alert-close]');
+                if (!btn) return;
 
-            // --- Edit ---
-            document.querySelectorAll('[data-edit]').forEach((btn) => {
-                btn.addEventListener('click', () => {
-                    const d = btn.dataset;
+                if (btn.hasAttribute('data-modal-create')) {
                     clearErrors();
-                    editIdInput.value = d.id;
-                    setMode('edit', d.url);
-                    fill(d);
+                    fill({});
+                    setMode('create', form.dataset.storeUrl);
                     openModal();
-                });
-            });
-
-            // --- Hapus ---
-            document.querySelectorAll('[data-delete]').forEach((btn) => {
-                btn.addEventListener('click', () => {
+                } else if (btn.hasAttribute('data-modal-edit')) {
+                    clearErrors();
+                    fill(btn.dataset);
+                    setMode('edit', btn.dataset.url, btn.dataset.id);
+                    openModal();
+                } else if (btn.hasAttribute('data-modal-delete')) {
                     delForm.action = btn.dataset.url;
-                    delName.textContent = btn.dataset.name;
+                    delModal.querySelector('[data-delete-name]').textContent = btn.dataset.name;
                     delModal.showModal();
+                } else if (btn.hasAttribute('data-modal-close')) {
+                    btn.closest('dialog').close();
+                } else if (btn.hasAttribute('data-alert-close')) {
+                    btn.closest('[data-alert]').remove();
+                }
+            });
+
+            // Konfirmasi hapus boleh ditutup lewat klik di luar; form input tidak (supaya isian tidak hilang tanpa sengaja).
+            var downOnBackdrop = false;
+            delModal.addEventListener('mousedown', function (e) { downOnBackdrop = e.target === delModal; });
+            delModal.addEventListener('click', function (e) {
+                if (downOnBackdrop && e.target === delModal) delModal.close();
+            });
+
+            // Cegah kirim ganda
+            [form, delForm].forEach(function (f) {
+                f.addEventListener('submit', function () {
+                    var b = f.querySelector('[data-submit]');
+                    b.disabled = true;
+                    b.textContent = 'Memproses…';
                 });
             });
-
-            // --- Tutup: tombol, klik backdrop ---
-            document.addEventListener('click', (e) => {
-                const closer = e.target.closest('[data-close]');
-                if (closer) closer.closest('dialog').close();
+            window.addEventListener('pageshow', function (e) {
+                if (!e.persisted) return;
+                form.querySelector('[data-submit]').disabled = false;
+                form.querySelector('[data-submit]').textContent = 'Simpan';
+                delForm.querySelector('[data-submit]').disabled = false;
+                delForm.querySelector('[data-submit]').textContent = 'Hapus';
             });
 
-            [modal, delModal].forEach((dlg) => {
-                let downOnBackdrop = false;
-                dlg.addEventListener('mousedown', (e) => { downOnBackdrop = e.target === dlg; });
-                dlg.addEventListener('click', (e) => {
-                    if (downOnBackdrop && e.target === dlg) dlg.close();
-                });
-            });
-
-            // Hilangkan tanda error begitu field diubah.
-            form.addEventListener('input', (e) => {
-                const el = e.target;
-                if (!el.classList.contains('is-invalid')) return;
-                el.classList.remove('is-invalid');
-                const next = el.nextElementSibling;
-                if (next && next.classList.contains('frm-error')) next.remove();
-            });
-
-            // Cegah klik ganda saat submit.
-            form.addEventListener('submit', () => { submitBtn.disabled = true; submitBtn.textContent = 'Menyimpan…'; });
-            delForm.addEventListener('submit', () => { delSubmit.disabled = true; delSubmit.textContent = 'Menghapus…'; });
-            window.addEventListener('pageshow', () => {
-                submitBtn.disabled = false; submitBtn.textContent = 'Simpan';
-                delSubmit.disabled = false; delSubmit.textContent = 'Hapus';
-            });
-
-            // Notifikasi: tutup manual / otomatis.
-            const alertEl = document.querySelector('[data-alert]');
-            if (alertEl) {
-                const dismiss = () => {
-                    alertEl.classList.add('is-leaving');
-                    setTimeout(() => alertEl.remove(), 300);
-                };
-                alertEl.querySelector('[data-alert-close]').addEventListener('click', dismiss);
-                setTimeout(dismiss, 5000);
+            // Buka lagi modal jika validasi server gagal
+            if (modal.dataset.reopen) {
+                modal.showModal();
+                var bad = form.querySelector('.is-invalid');
+                if (bad) bad.focus();
             }
 
-            // Buka lagi modal jika validasi server gagal.
-            const reopen = modal.dataset.reopen;
-            if (reopen) {
-                setMode(reopen, form.action);
-                openModal(form.querySelector('.is-invalid'));
+            // Pesan sukses hilang sendiri
+            var alertEl = document.querySelector('[data-alert]');
+            if (alertEl) {
+                setTimeout(function () {
+                    alertEl.classList.add('is-leaving');
+                    setTimeout(function () { alertEl.remove(); }, 300);
+                }, 6000);
             }
         })();
     </script>

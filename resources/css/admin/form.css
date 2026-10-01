@@ -364,6 +364,48 @@ a.frm-name:focus-visible { outline: 2px solid var(--adm-blue); outline-offset: 2
 .frm-input.is-select:invalid { color: var(--adm-faint); }
 .frm-input.is-select option { color: var(--adm-ink); background: var(--adm-surface); }
 
+/* Daftar pilihan dropdown ikut tema di browser yang mendukung "customizable select"
+   (Chrome/Edge 135+). Browser lain tetap memakai daftar bawaan; kotak select-nya
+   sendiri sudah seragam lewat .is-select di atas. */
+@supports (appearance: base-select) {
+    .frm-input.is-select,
+    .frm-input.is-select::picker(select) { appearance: base-select; }
+
+    .frm-input.is-select {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding-right: 12px;
+        background-image: none; /* panah diganti ::picker-icon */
+    }
+    .frm-input.is-select::picker-icon {
+        color: var(--adm-faint);
+        transition: rotate 0.2s ease;
+    }
+    .frm-input.is-select:open::picker-icon { rotate: 180deg; }
+
+    .frm-input.is-select::picker(select) {
+        margin-block: 4px;
+        padding: 6px;
+        max-height: 280px;
+        color: var(--adm-ink);
+        background: var(--adm-surface);
+        border: 1px solid var(--adm-line);
+        border-radius: 12px;
+        box-shadow: 0 12px 32px rgba(28, 36, 60, 0.18);
+    }
+    .frm-input.is-select option {
+        padding: 9px 12px;
+        font-size: 14px;
+        border-radius: 8px;
+        cursor: pointer;
+    }
+    .frm-input.is-select option::checkmark { display: none; }
+    .frm-input.is-select option:hover { color: var(--adm-blue-deep); background: var(--adm-hover); }
+    .frm-input.is-select option:checked { font-weight: 800; color: var(--adm-blue-deep); }
+    .frm-input.is-select option[value=""] { color: var(--adm-faint); }
+}
+
 .frm-error { margin: 0; font-size: 12.5px; font-weight: 600; color: var(--adm-danger); }
 
 /* ---- Switch ---- */
