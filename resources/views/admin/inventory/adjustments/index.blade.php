@@ -13,10 +13,12 @@
                 <h1 class="frm-title">Stock Adjustment</h1>
                 <p class="frm-sub">Koreksi stok manual. Draft → Apply (stok baru berubah setelah di-Apply).</p>
             </div>
-            <button type="button" class="adm-btn adm-btn-primary" data-modal-create>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-                Buat draft
-            </button>
+            @can('inventory.manage')
+                <button type="button" class="adm-btn adm-btn-primary" data-modal-create>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                    Buat draft
+                </button>
+            @endcan
         </div>
 
         @if (session('status'))
@@ -65,7 +67,9 @@
                     @else
                         <p class="frm-empty-title">Belum ada Stock Adjustment</p>
                         <p class="frm-empty-text">Buat draft pertama untuk mengoreksi stok secara manual.</p>
-                        <button type="button" class="adm-btn adm-btn-primary adm-btn-sm" data-modal-create>Buat draft</button>
+                        @can('inventory.manage')
+                            <button type="button" class="adm-btn adm-btn-primary adm-btn-sm" data-modal-create>Buat draft</button>
+                        @endcan
                     @endif
                 </div>
             @else
@@ -105,19 +109,23 @@
                                     </td>
                                     <td class="is-end">
                                         @if ($item->status === 'draft')
-                                            <div class="frm-actions">
-                                                <button type="button" class="frm-icon-btn" title="Apply" aria-label="Apply dokumen"
-                                                    data-modal-apply
-                                                    data-url="{{ route('admin.inventory.adjustments.apply', $item) }}"
-                                                    data-summary="{{ $item->type === 'in' ? 'Tambah' : 'Kurangi' }} {{ number_format($item->quantity, 2) }} · {{ $item->product->name ?? '-' }} · {{ ucfirst($item->location_type) }}: {{ $item->locationName() }}">
-                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
-                                                </button>
-                                                <button type="button" class="frm-icon-btn is-danger" title="Hapus draft" aria-label="Hapus draft"
-                                                    data-modal-delete
-                                                    data-url="{{ route('admin.inventory.adjustments.destroy', $item) }}">
-                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
-                                                </button>
-                                            </div>
+                                            @can('inventory.manage')
+                                                <div class="frm-actions">
+                                                    <button type="button" class="frm-icon-btn" title="Apply" aria-label="Apply dokumen"
+                                                        data-modal-apply
+                                                        data-url="{{ route('admin.inventory.adjustments.apply', $item) }}"
+                                                        data-summary="{{ $item->type === 'in' ? 'Tambah' : 'Kurangi' }} {{ number_format($item->quantity, 2) }} · {{ $item->product->name ?? '-' }} · {{ ucfirst($item->location_type) }}: {{ $item->locationName() }}">
+                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+                                                    </button>
+                                                    <button type="button" class="frm-icon-btn is-danger" title="Hapus draft" aria-label="Hapus draft"
+                                                        data-modal-delete
+                                                        data-url="{{ route('admin.inventory.adjustments.destroy', $item) }}">
+                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+                                                    </button>
+                                                </div>
+                                            @else
+                                                <span class="frm-dash">—</span>
+                                            @endcan
                                         @else
                                             <span class="frm-dash">—</span>
                                         @endif

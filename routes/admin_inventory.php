@@ -21,7 +21,6 @@ Route::middleware('permission:inventory.view')->group(function () {
 });
 
 Route::middleware('permission:inventory.manage')->group(function () {
-    Route::get('adjustments/create', [StockAdjustmentController::class, 'create'])->name('adjustments.create');
     Route::post('adjustments', [StockAdjustmentController::class, 'store'])->name('adjustments.store');
     Route::post('adjustments/{item}/apply', [StockAdjustmentController::class, 'apply'])->name('adjustments.apply');
     Route::delete('adjustments/{item}', [StockAdjustmentController::class, 'destroy'])->name('adjustments.destroy');
