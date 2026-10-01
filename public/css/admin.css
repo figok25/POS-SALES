@@ -799,3 +799,79 @@ a.kpi:focus-visible { outline: 2px solid var(--adm-blue); outline-offset: 2px; }
     .adm-content { height: auto !important; overflow: visible !important; }
     .adm-content { padding: 0; }
 }
+
+/* ==========================================================================
+   Perbaikan konsistensi lintas halaman (ditambahkan di akhir file supaya
+   menang di atas aturan sebelumnya & aturan dari resources/css/app.css yang
+   dimuat lebih dulu).
+
+   1) Border text box diperjelas - sebelumnya --adm-line (#e6eaf2) dipakai
+      sebagai border field DI ATAS latar --adm-fill yang juga pucat,
+      sehingga kontrasnya nyaris tidak terlihat. Variabel baru di bawah
+      HANYA dipakai untuk border form field, tidak mengubah --adm-line yang
+      dipakai di banyak tempat lain (divider, border kartu, dst).
+   2) Kotak "tumpang tindih" - halaman yang belum memakai sistem desain
+      .frm-* (mis. Finance, Operations, Reports) masih membungkus isi
+      dengan pola Tailwind ad-hoc (p-6 + bg-white rounded shadow) DI DALAM
+      .adm-content yang sudah punya padding & panel sendiri -> hasilnya
+      kotak bersarang dengan padding dobel. Disamakan supaya terlihat satu
+      lapis seperti .panel, konsisten dengan halaman Master Data.
+   ========================================================================== */
+:root { --adm-border-strong: #c7d1e3; }
+html[data-theme="dark"] { --adm-border-strong: #3a4867; }
+
+.frm-input,
+.dash-field input,
+.dash-field select,
+.frm-search input,
+.adm-search input,
+.adm-content input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="submit"]):not([type="button"]),
+.adm-content select,
+.adm-content textarea {
+    border-width: 1px;
+    border-color: var(--adm-border-strong);
+}
+.frm-input:focus,
+.dash-field input:focus,
+.dash-field select:focus,
+.frm-search input:focus,
+.adm-search input:focus,
+.adm-content input:focus,
+.adm-content select:focus,
+.adm-content textarea:focus {
+    border-color: var(--adm-blue);
+}
+
+/* Halaman lama: hilangkan padding pembungkus luar (.adm-content sudah
+   menyediakannya) di SEMUA ukuran layar, bukan cuma mobile seperti aturan
+   sebelumnya, supaya tidak ada lagi jarak dobel dari tepi layar. */
+.adm-content .p-6 { padding: 0; }
+.adm-content > .max-w-xl,
+.adm-content > .max-w-2xl,
+.adm-content > .max-w-3xl,
+.adm-content > .max-w-4xl,
+.adm-content > .p-6.max-w-xl,
+.adm-content > .p-6.max-w-2xl,
+.adm-content > .p-6.max-w-3xl { max-width: none; }
+
+/* Kotak bg-white ad-hoc disamakan visualnya dengan .panel (garis tepi +
+   radius + shadow seragam), supaya halaman lama & baru tidak terlihat
+   seperti dua sistem desain berbeda bersebelahan. */
+.adm-content .bg-white.rounded.shadow,
+.adm-content .bg-white.rounded-lg.shadow,
+.adm-content .bg-white.shadow,
+.adm-content .bg-white.rounded.shadow-sm,
+.adm-content .bg-white.rounded-lg.shadow-sm,
+.adm-content .bg-white.rounded-md.shadow {
+    border: 1px solid var(--adm-line);
+    border-radius: 16px;
+    box-shadow: var(--adm-shadow);
+}
+html[data-theme="dark"] .adm-content .bg-white.rounded.shadow,
+html[data-theme="dark"] .adm-content .bg-white.rounded-lg.shadow,
+html[data-theme="dark"] .adm-content .bg-white.shadow,
+html[data-theme="dark"] .adm-content .bg-white.rounded.shadow-sm,
+html[data-theme="dark"] .adm-content .bg-white.rounded-lg.shadow-sm,
+html[data-theme="dark"] .adm-content .bg-white.rounded-md.shadow {
+    box-shadow: var(--adm-shadow);
+}

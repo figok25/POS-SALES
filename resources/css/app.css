@@ -17,7 +17,7 @@
     --adm-body: #566076;
     --adm-muted: #8b95a7;
     --adm-faint: #a3acbd;
-    --adm-line: #e6eaf2;
+    --adm-line: #cdd6e8;
     --adm-bg: #f3f6fb;
     --adm-fill: #f6f8fc;
     --adm-surface: #fff;
@@ -383,6 +383,32 @@ html[data-theme="dark"] .adm-theme-btn .adm-icon-moon { display: none; }
 
 .adm-container { max-width: 1280px; margin: 0 auto; }
 
+/* --------------------------------------------------------------------------
+   Netralkan pola lama di halaman yang belum migrasi ke .panel/.frm-*
+   -------------------------------------------------------------------------- */
+/*
+ * Banyak halaman admin (Finance, Operations, Reports, dll) masih memakai
+ * pola lama: <x-admin-layout><div class="p-6"> ... </div></x-admin-layout>,
+ * dengan div.p-6 sebagai PEMBUNGKUS TERLUAR satu-satunya isi halaman.
+ *
+ * Masalahnya: .adm-content DAN .adm-container yang membungkusnya SUDAH
+ * punya padding sendiri (lihat .adm-content di atas). Jadi padding Tailwind
+ * `.p-6` (24px semua sisi) di atasnya jadi padding GANDA -- kartu putih asli
+ * (.bg-white.rounded.shadow) di dalamnya jadi tertanam terlalu dalam/tidak
+ * sejajar dengan halaman yang sudah pakai .panel atau .frm-* (yang kartunya
+ * langsung menempel ke padding .adm-content saja, tanpa wrapper tambahan),
+ * sehingga terlihat seperti "kotak di dalam kotak" yang tumpang tindih.
+ *
+ * Diselesaikan di SINI (selector presisi: HANYA div.p-6 yang jadi anak
+ * langsung .adm-container) supaya otomatis berlaku ke semua halaman lama
+ * tanpa perlu mengedit satu per satu, dan TIDAK menyentuh `.p-4`/`.p-6`
+ * lain yang dipakai secara sah sebagai padding kartu di dalam konten
+ * (mis. kartu kecil `.bg-white.rounded.shadow.p-4` di halaman Reports).
+ */
+.adm-container > .p-6 {
+    padding: 0;
+}
+
 .adm-overlay {
     display: none;
     position: fixed;
@@ -628,10 +654,6 @@ a.kpi:focus-visible { outline: 2px solid var(--adm-blue); outline-offset: 2px; }
     .adm-logout { padding: 8px 12px; }
 
     .adm-content { padding: 16px 14px 32px; }
-
-    /* Halaman admin lain masih membungkus konten dengan p-6 sendiri --
-       kurangi supaya tidak makan ruang di layar kecil. */
-    .adm-content .p-6 { padding: 8px 2px; }
 
     .dash-greet { font-size: 22px; }
 }

@@ -35,18 +35,21 @@ class StockAdjustmentController extends Controller
             ->paginate(15)
             ->withQueryString();
 
-        return view('admin.inventory.adjustments.index', compact('items', 'status'));
-    }
-
-    public function create()
-    {
+        // Dipakai dropdown Product/Warehouse/Sales di modal "Buat draft".
         $products = Product::orderBy('name')->get();
         $warehouses = Warehouse::orderBy('name')->get();
         $salesList = Sales::orderBy('name')->get();
 
-        return view('admin.inventory.adjustments.create', compact('products', 'warehouses', 'salesList'));
+        return view('admin.inventory.adjustments.index', compact('items', 'status', 'products', 'warehouses', 'salesList'));
     }
 
+    /**
+     * PERUBAHAN UI: form "Buat Draft" sekarang jadi modal di halaman index()
+     * (konsisten dengan pola Master Data - Product, dll), menggantikan
+     * halaman create terpisah. Dropdown Product/Warehouse/Sales yang
+     * sebelumnya disiapkan di sini untuk view create() sekarang disiapkan
+     * langsung di index().
+     */
     public function store(StockAdjustmentRequest $request)
     {
         $item = StockAdjustment::create($request->validated() + [

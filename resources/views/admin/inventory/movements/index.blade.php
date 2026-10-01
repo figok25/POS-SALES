@@ -1,56 +1,93 @@
+@php
+    $hasFilter = filled($movementType);
+    $total = method_exists($items, 'total') ? $items->total() : $items->count();
+@endphp
+
 <x-admin-layout>
-    <div class="p-6">
-        <h1 class="text-xl font-semibold mb-4">Riwayat Pergerakan Stok</h1>
+    <div class="frm-page">
 
-        <form method="GET" class="mb-4 flex gap-2">
-            <select name="movement_type" class="border rounded px-3 py-2 text-sm">
-                <option value="">Semua Tipe</option>
-                @foreach ($movementTypes as $type)
-                    <option value="{{ $type }}" @selected($movementType === $type)>{{ $type }}</option>
-                @endforeach
-            </select>
-            <button class="bg-gray-200 px-3 py-2 rounded text-sm">Filter</button>
-        </form>
-
-        <div class="bg-white rounded shadow overflow-x-auto">
-            <table class="w-full text-sm">
-                <thead class="bg-gray-50 border-b">
-                    <tr>
-                        <th class="px-3 py-2 text-left">Waktu</th>
-                        <th class="px-3 py-2 text-left">Product</th>
-                        <th class="px-3 py-2 text-left">Lokasi</th>
-                        <th class="px-3 py-2 text-left">Arah</th>
-                        <th class="px-3 py-2 text-right">Qty</th>
-                        <th class="px-3 py-2 text-right">Saldo Setelah</th>
-                        <th class="px-3 py-2 text-left">Tipe</th>
-                        <th class="px-3 py-2 text-left">User</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse ($items as $item)
-                        <tr class="border-b">
-                            <td class="px-3 py-2 whitespace-nowrap">{{ $item->created_at->format('d/m/Y H:i') }}</td>
-                            <td class="px-3 py-2">{{ $item->product->name ?? '-' }}</td>
-                            <td class="px-3 py-2">{{ ucfirst($item->location_type) }}: {{ $item->locationName() }}</td>
-                            <td class="px-3 py-2">
-                                @if ($item->direction === 'in')
-                                    <span class="text-green-700 bg-green-100 px-2 py-0.5 rounded text-xs">Masuk</span>
-                                @else
-                                    <span class="text-red-700 bg-red-100 px-2 py-0.5 rounded text-xs">Keluar</span>
-                                @endif
-                            </td>
-                            <td class="px-3 py-2 text-right">{{ number_format($item->quantity, 2) }}</td>
-                            <td class="px-3 py-2 text-right">{{ number_format($item->balance_after, 2) }}</td>
-                            <td class="px-3 py-2">{{ $item->movement_type }}</td>
-                            <td class="px-3 py-2">{{ $item->user->name ?? '-' }}</td>
-                        </tr>
-                    @empty
-                        <tr><td colspan="8" class="px-3 py-6 text-center text-gray-500">Belum ada pergerakan stok.</td></tr>
-                    @endforelse
-                </tbody>
-            </table>
+        {{-- Kepala halaman --}}
+        <div class="frm-head">
+            <div>
+                <h1 class="frm-title">Riwayat Pergerakan Stok</h1>
+                <p class="frm-sub">Jejak audit setiap perubahan stok (masuk/keluar) beserta saldo setelahnya.</p>
+            </div>
         </div>
 
-        <div class="mt-4">{{ $items->links() }}</div>
+        <div class="panel">
+            {{-- Filter --}}
+            <form method="GET" class="frm-toolbar" role="search">
+                <select name="movement_type" class="frm-input is-select" style="width:auto; height:40px;" onchange="this.form.submit()">
+                    <option value="">Semua Tipe</option>
+                    @foreach ($movementTypes as $type)
+                        <option value="{{ $type }}" @selected($movementType === $type)>{{ $type }}</option>
+                    @endforeach
+                </select>
+                <div class="frm-toolbar-actions">
+                    <button type="submit" class="adm-btn adm-btn-ghost adm-btn-sm">Filter</button>
+                    @if ($hasFilter)
+                        <a href="{{ route('admin.inventory.movements.index') }}" class="adm-btn adm-btn-ghost adm-btn-sm">Reset</a>
+                    @endif
+                </div>
+                <span class="frm-count">{{ $total }} pergerakan</span>
+            </form>
+
+            @if ($items->isEmpty())
+                <div class="frm-empty">
+                    <div class="frm-empty-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+                    </div>
+                    @if ($hasFilter)
+                        <p class="frm-empty-title">Tidak ada pergerakan untuk tipe ini</p>
+                        <p class="frm-empty-text">Coba pilih tipe lain atau hapus filter.</p>
+                        <a href="{{ route('admin.inventory.movements.index') }}" class="adm-btn adm-btn-ghost adm-btn-sm">Reset filter</a>
+                    @else
+                        <p class="frm-empty-title">Belum ada pergerakan stok</p>
+                        <p class="frm-empty-text">Riwayat akan muncul begitu ada penerimaan, transaksi, atau adjustment.</p>
+                    @endif
+                </div>
+            @else
+                <div class="frm-table-wrap">
+                    <table class="frm-table">
+                        <thead>
+                            <tr>
+                                <th>Waktu</th>
+                                <th>Product</th>
+                                <th>Lokasi</th>
+                                <th>Arah</th>
+                                <th class="is-end">Qty</th>
+                                <th class="is-end">Saldo Setelah</th>
+                                <th>Tipe</th>
+                                <th>User</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($items as $item)
+                                <tr>
+                                    <td style="white-space:nowrap;">{{ $item->created_at->format('d/m/Y H:i') }}</td>
+                                    <td class="frm-name">{{ $item->product->name ?? '-' }}</td>
+                                    <td>{{ ucfirst($item->location_type) }}: {{ $item->locationName() }}</td>
+                                    <td>
+                                        @if ($item->direction === 'in')
+                                            <span class="frm-status is-on">Masuk</span>
+                                        @else
+                                            <span class="frm-status" style="color: var(--adm-danger); background: var(--adm-danger-bg);">Keluar</span>
+                                        @endif
+                                    </td>
+                                    <td class="is-end">{{ number_format($item->quantity, 2) }}</td>
+                                    <td class="is-end">{{ number_format($item->balance_after, 2) }}</td>
+                                    <td><span class="frm-code">{{ $item->movement_type }}</span></td>
+                                    <td>{{ $item->user->name ?? '-' }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+
+                @if ($items->hasPages())
+                    <div class="frm-pager">{{ $items->withQueryString()->links() }}</div>
+                @endif
+            @endif
+        </div>
     </div>
 </x-admin-layout>
