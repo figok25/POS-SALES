@@ -35,7 +35,7 @@
         @endif
 
         @error('delete')
-            <div class="frm-alert" role="alert" style="color: var(--adm-danger); background: var(--adm-danger-bg);">
+            <div class="frm-alert is-error" role="alert">
                 <span class="frm-alert-text">{{ $message }}</span>
             </div>
         @enderror

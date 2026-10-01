@@ -40,7 +40,7 @@
                 <input type="search" name="q" value="{{ $search }}" placeholder="Cari Category..." autocomplete="off" aria-label="Cari Category">
             </div>
             <div class="frm-toolbar-actions">
-                <button type="submit" class="adm-btn adm-btn-primary adm-btn-sm">Cari</button>
+                <button type="submit" class="adm-btn adm-btn-ghost adm-btn-sm">Cari</button>
                 @if ($search)
                     <a href="{{ route('admin.master.categories.index') }}" class="adm-btn adm-btn-ghost adm-btn-sm">Reset</a>
                 @endif

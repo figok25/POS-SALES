@@ -16,14 +16,14 @@
             <h1 class="frm-title">Customer</h1>
             <p class="frm-sub">Kelola data customer beserta sales penanggung jawabnya.</p>
         </div>
-        <div class="frm-toolbar-actions">
+        <div class="frm-head-actions">
             <a href="{{ route('admin.master.customers.export', request()->query()) }}" class="adm-btn adm-btn-ghost">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg>
-                Download Laporan
+                Download laporan
             </a>
             <button type="button" class="adm-btn adm-btn-primary" data-open-create>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-                Tambah Customer
+                Tambah customer
             </button>
         </div>
     </div>
@@ -31,7 +31,7 @@
     {{-- ===== Notifikasi ===== --}}
     @if (session('status'))
         <div class="frm-alert" role="status" data-alert>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4 12 14.01l-3-3"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></svg>
             <span class="frm-alert-text">{{ session('status') }}</span>
             <button type="button" class="frm-alert-close" aria-label="Tutup notifikasi" data-alert-close>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
@@ -40,7 +40,7 @@
     @endif
 
     @error('delete')
-        <div class="frm-alert" role="alert" style="color: var(--adm-danger); background: var(--adm-danger-bg);">
+        <div class="frm-alert is-error" role="alert">
             <span class="frm-alert-text">{{ $message }}</span>
         </div>
     @enderror
@@ -50,7 +50,7 @@
         <form method="GET" action="{{ route('admin.master.customers.index') }}" class="frm-toolbar" role="search">
             <div class="frm-search">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-                <input type="search" name="q" value="{{ $search }}" placeholder="Cari Customer..." autocomplete="off" aria-label="Cari Customer">
+                <input type="search" name="q" value="{{ $search }}" placeholder="Cari customer..." autocomplete="off" aria-label="Cari customer">
             </div>
             <div class="frm-toolbar-actions">
                 <button type="submit" class="adm-btn adm-btn-ghost adm-btn-sm">Cari</button>
@@ -135,7 +135,7 @@
                                             data-delete
                                             data-url="{{ route('admin.master.customers.destroy', $item) }}"
                                             data-name="{{ $item->name }}">
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="m19 6-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
                                         </button>
                                     </div>
                                 </td>
@@ -151,16 +151,16 @@
         @else
             <div class="frm-empty">
                 <div class="frm-empty-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                 </div>
                 @if ($hasSearch)
-                    <p class="frm-empty-title">Tidak ada hasil</p>
-                    <p class="frm-empty-text">Tidak ditemukan Customer untuk pencarian “{{ $search }}”.</p>
+                    <p class="frm-empty-title">Customer tidak ditemukan</p>
+                    <p class="frm-empty-text">Coba kata kunci lain atau hapus pencarian.</p>
                     <a href="{{ route('admin.master.customers.index') }}" class="adm-btn adm-btn-ghost adm-btn-sm">Reset pencarian</a>
                 @else
-                    <p class="frm-empty-title">Belum ada data</p>
-                    <p class="frm-empty-text">Tambahkan Customer pertama untuk mulai.</p>
-                    <button type="button" class="adm-btn adm-btn-primary adm-btn-sm" data-open-create>Tambah Customer</button>
+                    <p class="frm-empty-title">Belum ada customer</p>
+                    <p class="frm-empty-text">Tambahkan customer pertama untuk memulai.</p>
+                    <button type="button" class="adm-btn adm-btn-primary adm-btn-sm" data-open-create>Tambah customer</button>
                 @endif
             </div>
         @endif
@@ -178,8 +178,8 @@
 
             <div class="frm-modal-head">
                 <div>
-                    <h2 class="frm-modal-title" id="customerModalTitle">{{ $reopen === 'edit' ? 'Edit Customer' : 'Tambah Customer' }}</h2>
-                    <p class="frm-modal-desc">Kolom bertanda <span class="frm-req">*</span> wajib diisi.</p>
+                    <h2 class="frm-modal-title" id="customerModalTitle">{{ $reopen === 'edit' ? 'Edit customer' : 'Tambah customer' }}</h2>
+                    <p class="frm-modal-desc" id="customerModalDesc">{{ $reopen === 'edit' ? 'Perbarui data customer.' : 'Isi data customer baru.' }}</p>
                 </div>
                 <button type="button" class="frm-icon-btn frm-modal-close" aria-label="Tutup" data-close>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
@@ -261,8 +261,8 @@
             </div>
 
             <div class="frm-modal-foot">
-                <button type="button" class="adm-btn adm-btn-ghost adm-btn-sm" data-close>Batal</button>
-                <button type="submit" class="adm-btn adm-btn-primary adm-btn-sm" id="customerSubmit">Simpan</button>
+                <button type="button" class="adm-btn adm-btn-ghost" data-close>Batal</button>
+                <button type="submit" class="adm-btn adm-btn-primary" id="customerSubmit">Simpan</button>
             </div>
         </form>
     </dialog>
@@ -274,14 +274,14 @@
             @method('DELETE')
             <div class="frm-modal-body frm-confirm">
                 <div class="frm-confirm-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="m19 6-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/></svg>
                 </div>
-                <h2 class="frm-modal-title" id="deleteModalTitle">Hapus Customer?</h2>
+                <h2 class="frm-modal-title" id="deleteModalTitle">Hapus customer?</h2>
                 <p class="frm-confirm-text"><strong id="deleteName"></strong> akan dihapus dari daftar. Tindakan ini tidak bisa dibatalkan.</p>
             </div>
             <div class="frm-modal-foot">
-                <button type="button" class="adm-btn adm-btn-ghost adm-btn-sm" data-close>Batal</button>
-                <button type="submit" class="adm-btn adm-btn-danger adm-btn-sm" id="deleteSubmit">Hapus</button>
+                <button type="button" class="adm-btn adm-btn-ghost" data-close>Batal</button>
+                <button type="submit" class="adm-btn adm-btn-danger" id="deleteSubmit">Hapus</button>
             </div>
         </form>
     </dialog>
@@ -312,7 +312,8 @@
                 form.action = url;
                 methodInput.disabled = !isEdit;
                 modeInput.value = isEdit ? 'edit' : 'create';
-                titleEl.textContent = isEdit ? 'Edit Customer' : 'Tambah Customer';
+                titleEl.textContent = isEdit ? 'Edit customer' : 'Tambah customer';
+                document.getElementById('customerModalDesc').textContent = isEdit ? 'Perbarui data customer.' : 'Isi data customer baru.';
                 // Koordinat hanya untuk edit; saat tambah tidak ikut terkirim.
                 geoBox.style.display = isEdit ? '' : 'none';
                 field('latitude').disabled = !isEdit;
