@@ -29,10 +29,6 @@
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 
-    {{-- Stylesheet statis shell admin (sidebar/topbar/dashboard). Dimuat SETELAH
-         Tailwind supaya menang saat specificity sama. ?v= untuk cache-busting. --}}
-    @vite('resources/css/app.css')
-
     @stack('styles')
 </head>
 <body class="adm-body">

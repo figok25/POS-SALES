@@ -16,7 +16,7 @@ use App\Http\Controllers\Admin\System\UserController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('permission:system.manage')->group(function () {
-    Route::resource('users', UserController::class)->parameters(['users' => 'item'])->except(['show']);
+    Route::resource('users', UserController::class)->parameters(['users' => 'item'])->only(['index', 'store', 'update', 'destroy']);
 
     Route::get('roles', [RoleController::class, 'index'])->name('roles.index');
     Route::get('roles/{role}/edit', [RoleController::class, 'edit'])->name('roles.edit');

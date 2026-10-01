@@ -1,5 +1,9 @@
 @import './admin/form.css';
 
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 
 /* ==========================================================================
    Admin panel - shell (sidebar + topbar) & dashboard

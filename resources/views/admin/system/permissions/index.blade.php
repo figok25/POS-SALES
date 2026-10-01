@@ -1,34 +1,42 @@
 <x-admin-layout>
     <x-slot name="header">Permissions</x-slot>
-    <div class="p-6 max-w-4xl">
-        <div class="flex items-center justify-between mb-1">
-            <h1 class="text-xl font-semibold">Permissions</h1>
-            <a href="{{ route('admin.system.roles.index') }}" class="text-sm text-blue-600 hover:underline">Atur per Role &rarr;</a>
+
+    <div class="frm-page">
+        <div class="frm-head">
+            <div>
+                <h1 class="frm-title">Permissions</h1>
+                <p class="frm-sub">Seluruh permission yang dikenali sistem, dikelompokkan per modul. Dipakai langsung di kode lewat middleware <code>permission:xxx</code> pada tiap route.</p>
+            </div>
+            <a href="{{ route('admin.system.roles.index') }}" class="adm-btn adm-btn-ghost">Atur per Role</a>
         </div>
-        <p class="text-sm text-gray-500 mb-4">
-            Daftar seluruh permission yang dikenali sistem (dipakai langsung di kode lewat middleware <code>permission:xxx</code> pada setiap route). Halaman ini read-only — untuk mengubah permission yang dimiliki suatu role, buka <a href="{{ route('admin.system.roles.index') }}" class="text-blue-600 hover:underline">System &gt; Roles</a>.
-        </p>
 
         @if (session('status'))
-            <div class="mb-4 p-3 bg-green-100 text-green-800 rounded text-sm">{{ session('status') }}</div>
+            <div class="frm-alert" role="status" data-alert>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></svg>
+                <span class="frm-alert-text">{{ session('status') }}</span>
+                <button type="button" class="frm-alert-close" aria-label="Tutup pesan" data-alert-close>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                </button>
+            </div>
         @endif
 
-        <div class="bg-white rounded shadow overflow-hidden">
-            @foreach ($permissions as $group => $items)
-                <div class="border-b last:border-b-0">
-                    <div class="px-4 py-2 bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                        {{ str_replace('-', ' ', $group) }}
-                    </div>
-                    <table class="w-full text-sm">
+        @forelse ($permissions as $group => $items)
+            <div class="panel" style="margin-bottom: 16px;">
+                <div class="panel-head">
+                    <h2 class="panel-title" style="text-transform: capitalize;">{{ str_replace('-', ' ', $group) }}</h2>
+                    <span class="frm-count">{{ $items->count() }} permission</span>
+                </div>
+                <div class="frm-table-wrap">
+                    <table class="frm-table">
                         <tbody>
                             @foreach ($items as $permission)
-                                <tr class="border-t first:border-t-0">
-                                    <td class="px-4 py-2 font-mono text-gray-800">{{ $permission->name }}</td>
-                                    <td class="px-4 py-2 text-right">
+                                <tr>
+                                    <td><span class="frm-code">{{ $permission->name }}</span></td>
+                                    <td class="is-end">
                                         @forelse ($permission->roles as $role)
-                                            <span class="inline-block ml-1 px-2 py-0.5 rounded text-xs {{ $role->name === 'admin' ? 'bg-indigo-100 text-indigo-700' : 'bg-teal-100 text-teal-700' }}">{{ $role->name }}</span>
+                                            <span class="frm-status {{ $role->name === 'admin' ? 'is-on' : 'is-off' }}" style="margin-left: 6px;">{{ $role->name }}</span>
                                         @empty
-                                            <span class="text-gray-400 text-xs">Tidak dimiliki role manapun</span>
+                                            <span class="frm-dash">Tidak dimiliki role manapun</span>
                                         @endforelse
                                     </td>
                                 </tr>
@@ -36,7 +44,26 @@
                         </tbody>
                     </table>
                 </div>
-            @endforeach
-        </div>
+            </div>
+        @empty
+            <div class="panel">
+                <div class="frm-empty">
+                    <p class="frm-empty-title">Belum ada permission terdaftar</p>
+                </div>
+            </div>
+        @endforelse
     </div>
+
+    <script>
+        (function () {
+            var alertEl = document.querySelector('[data-alert]');
+            if (!alertEl) return;
+            var closeBtn = alertEl.querySelector('[data-alert-close]');
+            if (closeBtn) closeBtn.addEventListener('click', function () { alertEl.remove(); });
+            setTimeout(function () {
+                alertEl.classList.add('is-leaving');
+                setTimeout(function () { alertEl.remove(); }, 300);
+            }, 6000);
+        })();
+    </script>
 </x-admin-layout>

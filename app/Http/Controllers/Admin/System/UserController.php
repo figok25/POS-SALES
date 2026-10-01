@@ -21,6 +21,10 @@ use Illuminate\Http\Request;
  * Menghapus/mengubah role akun yang masih terhubung ke Sales DIBLOKIR
  * di sini -- kelola dari Master Data > Sales supaya sales.user_id tidak
  * pernah nyasar ke user yang salah.
+ *
+ * Pola tampilan (index + modal create/edit/delete lewat <dialog>, tanpa
+ * halaman create/edit terpisah) mengikuti Admin\Master\CompanyController
+ * -- jadi tidak ada method create()/edit() di sini.
  */
 class UserController extends Controller
 {
@@ -42,11 +46,6 @@ class UserController extends Controller
         return view('admin.system.users.index', compact('items', 'search', 'linkedSalesByUserId'));
     }
 
-    public function create()
-    {
-        return view('admin.system.users.create');
-    }
-
     public function store(UserRequest $request)
     {
         $data = $request->validated();
@@ -63,14 +62,6 @@ class UserController extends Controller
         ]);
 
         return redirect()->route('admin.system.users.index')->with('status', 'User berhasil ditambahkan.');
-    }
-
-    public function edit(User $item)
-    {
-        $item->load('roles');
-        $linkedSales = Sales::where('user_id', $item->id)->first();
-
-        return view('admin.system.users.edit', compact('item', 'linkedSales'));
     }
 
     public function update(UserRequest $request, User $item)

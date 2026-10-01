@@ -1,39 +1,63 @@
 <x-admin-layout>
     <x-slot name="header">Roles</x-slot>
-    <div class="p-6">
-        <h1 class="text-xl font-semibold mb-2">Roles</h1>
-        <p class="text-sm text-gray-500 mb-4">
-            Sistem ini hanya mengenal 2 role tetap (admin &amp; sales) -- keduanya menentukan grup menu yang bisa diakses.
-            Yang bisa diatur di sini adalah permission detail per role (mis. siapa yang boleh approve Settlement, dsb).
-        </p>
+
+    <div class="frm-page">
+        <div class="frm-head">
+            <div>
+                <h1 class="frm-title">Roles</h1>
+                <p class="frm-sub">Sistem ini hanya mengenal 2 role tetap (admin &amp; sales) -- keduanya menentukan grup menu yang bisa diakses. Yang bisa diatur di sini adalah permission detail per role.</p>
+            </div>
+        </div>
 
         @if (session('status'))
-            <div class="mb-4 p-3 bg-green-100 text-green-800 rounded text-sm">{{ session('status') }}</div>
+            <div class="frm-alert" role="status" data-alert>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></svg>
+                <span class="frm-alert-text">{{ session('status') }}</span>
+                <button type="button" class="frm-alert-close" aria-label="Tutup pesan" data-alert-close>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                </button>
+            </div>
         @endif
 
-        <div class="bg-white rounded shadow overflow-x-auto">
-            <table class="w-full text-sm">
-                <thead class="bg-gray-50 border-b">
-                    <tr>
-                        <th class="px-3 py-2 text-left">Role</th>
-                        <th class="px-3 py-2 text-left">Jumlah User</th>
-                        <th class="px-3 py-2 text-left">Jumlah Permission</th>
-                        <th class="px-3 py-2 text-right">Aksi</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach ($roles as $role)
-                        <tr class="border-b">
-                            <td class="px-3 py-2 font-medium capitalize">{{ $role->name }}</td>
-                            <td class="px-3 py-2">{{ $role->users_count }}</td>
-                            <td class="px-3 py-2">{{ $role->permissions_count }}</td>
-                            <td class="px-3 py-2 text-right">
-                                <a href="{{ route('admin.system.roles.edit', $role) }}" class="text-blue-600 hover:underline">Atur Permission</a>
-                            </td>
+        <div class="panel">
+            <div class="frm-table-wrap">
+                <table class="frm-table">
+                    <thead>
+                        <tr>
+                            <th>Role</th>
+                            <th>Jumlah User</th>
+                            <th>Jumlah Permission</th>
+                            <th class="is-end">Aksi</th>
                         </tr>
-                    @endforeach
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        @foreach ($roles as $role)
+                            <tr>
+                                <td><span class="frm-name" style="text-transform: capitalize;">{{ $role->name }}</span></td>
+                                <td>{{ $role->users_count }}</td>
+                                <td>{{ $role->permissions_count }}</td>
+                                <td class="is-end">
+                                    <a href="{{ route('admin.system.roles.edit', $role) }}" class="adm-btn adm-btn-ghost adm-btn-sm">Atur Permission</a>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
+
+    <script>
+        (function () {
+            var alertEls = document.querySelectorAll('[data-alert]');
+            alertEls.forEach(function (el) {
+                var closeBtn = el.querySelector('[data-alert-close]');
+                if (closeBtn) closeBtn.addEventListener('click', function () { el.remove(); });
+                setTimeout(function () {
+                    el.classList.add('is-leaving');
+                    setTimeout(function () { el.remove(); }, 300);
+                }, 6000);
+            });
+        })();
+    </script>
 </x-admin-layout>

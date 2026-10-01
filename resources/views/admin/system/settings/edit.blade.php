@@ -1,47 +1,81 @@
 <x-admin-layout>
     <x-slot name="header">Settings</x-slot>
-    <div class="p-6 max-w-xl">
-        <h1 class="text-xl font-semibold mb-1">Settings</h1>
-        <p class="text-sm text-gray-500 mb-4">Pengaturan tampilan umum aplikasi (nama & logo). Berlaku untuk semua user, admin maupun sales.</p>
+
+    <div class="frm-page" style="max-width: 640px;">
+        <div class="frm-head">
+            <div>
+                <h1 class="frm-title">Settings</h1>
+                <p class="frm-sub">Pengaturan tampilan umum aplikasi (nama &amp; logo). Berlaku untuk semua user, admin maupun sales.</p>
+            </div>
+        </div>
 
         @if (session('status'))
-            <div class="mb-4 p-3 bg-green-100 text-green-800 rounded text-sm">{{ session('status') }}</div>
-        @endif
-        @if ($errors->any())
-            <div class="mb-4 p-3 bg-red-100 text-red-800 rounded text-sm">
-                <ul class="list-disc pl-5">@foreach ($errors->all() as $e) <li>{{ $e }}</li> @endforeach</ul>
+            <div class="frm-alert" role="status" data-alert>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></svg>
+                <span class="frm-alert-text">{{ session('status') }}</span>
+                <button type="button" class="frm-alert-close" aria-label="Tutup pesan" data-alert-close>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                </button>
             </div>
         @endif
 
-        <form method="POST" action="{{ route('admin.system.settings.update') }}" enctype="multipart/form-data" class="bg-white p-4 rounded shadow">
-            @csrf
-            @method('PUT')
+        <div class="panel">
+            <form method="POST" action="{{ route('admin.system.settings.update') }}" enctype="multipart/form-data">
+                @csrf
+                @method('PUT')
 
-            <div class="mb-5">
-                <label class="block text-sm font-medium mb-1">Nama Aplikasi *</label>
-                <input type="text" name="app_name" value="{{ old('app_name', $setting->app_name) }}" class="w-full border rounded px-3 py-2 text-sm">
-                <p class="text-xs text-gray-500 mt-1">Tampil di judul tab browser dan sebagai teks cadangan kalau logo belum diunggah.</p>
-            </div>
+                <div class="frm-modal-body" style="padding: 22px 22px 6px;">
+                    <div class="frm-grid">
+                        <div class="frm-field is-full">
+                            <label class="frm-label" for="setAppName">Nama Aplikasi <span class="frm-req">*</span></label>
+                            <input id="setAppName" type="text" name="app_name" value="{{ old('app_name', $setting->app_name) }}"
+                                class="frm-input @error('app_name') is-invalid @enderror" @error('app_name') aria-invalid="true" @enderror>
+                            @error('app_name') <p class="frm-error">{{ $message }}</p> @enderror
+                            <p class="frm-hint">Tampil di judul tab browser, dan sebagai teks cadangan di sidebar kalau logo belum diunggah.</p>
+                        </div>
 
-            <div class="mb-2">
-                <label class="block text-sm font-medium mb-1">Logo</label>
-                @if ($setting->logo_path)
-                    <div class="flex items-center gap-3 mb-3">
-                        <img src="{{ $setting->logoUrl() }}" alt="Logo saat ini" class="h-12 max-w-[200px] object-contain border rounded bg-gray-50 p-1">
-                        <label class="inline-flex items-center gap-2 text-xs text-red-600">
-                            <input type="checkbox" name="remove_logo" value="1"> Hapus logo saat ini
-                        </label>
+                        <div class="frm-field is-full frm-section">
+                            <label class="frm-label">Logo</label>
+
+                            @if ($setting->logo_path)
+                                <div style="display:flex; align-items:center; gap:14px; margin: 4px 0 14px;">
+                                    <img src="{{ $setting->logoUrl() }}" alt="Logo saat ini"
+                                         style="height:46px; max-width:220px; object-fit:contain; border:1px solid var(--adm-line); border-radius:10px; padding:4px; background: var(--adm-fill);">
+                                    <label class="frm-switch">
+                                        <input type="checkbox" name="remove_logo" value="1">
+                                        <span class="frm-switch-track" aria-hidden="true"></span>
+                                        <span class="frm-switch-text" style="color: var(--adm-danger);">Hapus logo saat ini</span>
+                                    </label>
+                                </div>
+                            @else
+                                <p class="frm-hint" style="margin: 4px 0 12px;">Belum ada logo — sidebar menampilkan placeholder dari Nama Aplikasi.</p>
+                            @endif
+
+                            <input type="file" name="logo" accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                                class="frm-input @error('logo') is-invalid @enderror" style="padding: 8px 12px; height: auto;">
+                            @error('logo') <p class="frm-error">{{ $message }}</p> @enderror
+                            <p class="frm-hint">PNG/JPG/SVG/WEBP, maks 2MB. Rasio landscape/lebar lebih cocok untuk sidebar (tinggi maks &asymp;42px).</p>
+                        </div>
                     </div>
-                @else
-                    <p class="text-xs text-gray-500 mb-2">Belum ada logo — sidebar menampilkan kotak "LOGO" placeholder.</p>
-                @endif
-                <input type="file" name="logo" accept="image/png,image/jpeg,image/svg+xml,image/webp" class="w-full border rounded px-3 py-2 text-sm">
-                <p class="text-xs text-gray-500 mt-1">PNG/JPG/SVG/WEBP, maks 2MB. Rasio landscape/lebar lebih cocok untuk sidebar (tinggi maks ~42px).</p>
-            </div>
+                </div>
 
-            <div class="flex justify-end gap-2 pt-3 mt-3 border-t">
-                <button class="bg-blue-600 text-white px-3 py-2 rounded text-sm hover:bg-blue-700">Simpan</button>
-            </div>
-        </form>
+                <div class="frm-modal-foot">
+                    <button type="submit" class="adm-btn adm-btn-primary" data-submit>Simpan</button>
+                </div>
+            </form>
+        </div>
     </div>
+
+    <script>
+        (function () {
+            var alertEl = document.querySelector('[data-alert]');
+            if (!alertEl) return;
+            var closeBtn = alertEl.querySelector('[data-alert-close]');
+            if (closeBtn) closeBtn.addEventListener('click', function () { alertEl.remove(); });
+            setTimeout(function () {
+                alertEl.classList.add('is-leaving');
+                setTimeout(function () { alertEl.remove(); }, 300);
+            }, 6000);
+        })();
+    </script>
 </x-admin-layout>
