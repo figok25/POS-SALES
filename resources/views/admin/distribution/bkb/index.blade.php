@@ -1,68 +1,111 @@
 <x-admin-layout>
-    <div class="p-6">
-        <div class="flex items-center justify-between mb-4">
-            <h1 class="text-xl font-semibold">BKB Distribusi (Warehouse &rarr; Sales)</h1>
+    <x-slot name="header">BKB Distribusi</x-slot>
+
+    <div class="frm-page">
+        <div class="frm-head">
+            <div>
+                <h1 class="frm-title">BKB Distribusi</h1>
+                <p class="frm-sub">Warehouse &rarr; Sales. Draft &rarr; Check &rarr; Apply (memindahkan stock).</p>
+            </div>
             @can('distribution.manage')
-                <a href="{{ route('admin.distribution.bkb.create') }}" class="bg-blue-600 text-white px-3 py-2 rounded text-sm hover:bg-blue-700">+ Buat Draft</a>
+                <a href="{{ route('admin.distribution.bkb.create') }}" class="adm-btn adm-btn-primary">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                    Buat Draft
+                </a>
             @endcan
         </div>
 
         @if (session('status'))
-            <div class="mb-4 p-3 bg-green-100 text-green-800 rounded text-sm">{{ session('status') }}</div>
+            <div class="frm-alert" role="status" data-alert>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></svg>
+                <span class="frm-alert-text">{{ session('status') }}</span>
+                <button type="button" class="frm-alert-close" aria-label="Tutup pesan" data-alert-close>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                </button>
+            </div>
         @endif
         @if (session('error'))
-            <div class="mb-4 p-3 bg-red-100 text-red-800 rounded text-sm">{{ session('error') }}</div>
+            <div class="frm-alert is-error" role="alert" data-alert>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+                <span class="frm-alert-text">{{ session('error') }}</span>
+                <button type="button" class="frm-alert-close" aria-label="Tutup pesan" data-alert-close>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                </button>
+            </div>
         @endif
 
-        <form method="GET" class="mb-4 flex gap-2">
-            <select name="status" class="border rounded px-3 py-2 text-sm">
-                <option value="">Semua Status</option>
-                <option value="draft" @selected($status === 'draft')>Draft</option>
-                <option value="applied" @selected($status === 'applied')>Applied</option>
-                <option value="cancelled" @selected($status === 'cancelled')>Cancelled</option>
-            </select>
-            <button class="bg-gray-200 px-3 py-2 rounded text-sm">Filter</button>
-        </form>
+        <div class="panel">
+            <form method="GET" class="frm-toolbar">
+                <select name="status" class="frm-input is-select is-filter" onchange="this.form.submit()">
+                    <option value="">Semua Status</option>
+                    <option value="draft" @selected($status === 'draft')>Draft</option>
+                    <option value="applied" @selected($status === 'applied')>Applied</option>
+                    <option value="cancelled" @selected($status === 'cancelled')>Cancelled</option>
+                </select>
+                <span class="frm-count">{{ $items->total() }} dokumen</span>
+            </form>
 
-        <div class="bg-white rounded shadow overflow-x-auto">
-            <table class="w-full text-sm">
-                <thead class="bg-gray-50 border-b">
-                    <tr>
-                        <th class="px-3 py-2 text-left">Kode</th>
-                        <th class="px-3 py-2 text-left">Warehouse</th>
-                        <th class="px-3 py-2 text-left">Sales</th>
-                        <th class="px-3 py-2 text-left">Status</th>
-                        <th class="px-3 py-2 text-left">Dibuat</th>
-                        <th class="px-3 py-2 text-right">Aksi</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse ($items as $item)
-                        <tr class="border-b">
-                            <td class="px-3 py-2 font-mono">{{ $item->code }}</td>
-                            <td class="px-3 py-2">{{ $item->warehouse->name ?? '-' }}</td>
-                            <td class="px-3 py-2">{{ $item->sales->name ?? '-' }}</td>
-                            <td class="px-3 py-2">
-                                @if ($item->status === 'draft')
-                                    <span class="text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded text-xs">Draft</span>
-                                @elseif ($item->status === 'applied')
-                                    <span class="text-green-700 bg-green-100 px-2 py-0.5 rounded text-xs">Applied</span>
-                                @else
-                                    <span class="text-gray-600 bg-gray-100 px-2 py-0.5 rounded text-xs">Cancelled</span>
-                                @endif
-                            </td>
-                            <td class="px-3 py-2">{{ $item->created_at->format('d/m/Y H:i') }}</td>
-                            <td class="px-3 py-2 text-right">
-                                <a href="{{ route('admin.distribution.bkb.show', $item) }}" class="text-blue-700 hover:underline">Detail</a>
-                            </td>
-                        </tr>
-                    @empty
-                        <tr><td colspan="6" class="px-3 py-6 text-center text-gray-500">Belum ada data.</td></tr>
-                    @endforelse
-                </tbody>
-            </table>
+            @if ($items->isEmpty())
+                <div class="frm-empty">
+                    <div class="frm-empty-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 7 9-4 9 4-9 4-9-4Z"/><path d="M3 7v10l9 4 9-4V7"/><path d="M12 11v10"/></svg>
+                    </div>
+                    <p class="frm-empty-title">Belum ada data</p>
+                    <p class="frm-empty-text">Belum ada BKB Distribusi untuk filter ini.</p>
+                </div>
+            @else
+                <div class="frm-table-wrap">
+                    <table class="frm-table">
+                        <thead>
+                            <tr>
+                                <th>Kode</th>
+                                <th>Warehouse</th>
+                                <th>Sales</th>
+                                <th>Status</th>
+                                <th>Dibuat</th>
+                                <th class="is-end">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($items as $item)
+                                <tr>
+                                    <td data-label="Kode"><span class="frm-code">{{ $item->code }}</span></td>
+                                    <td data-label="Warehouse">{{ $item->warehouse->name ?? '—' }}</td>
+                                    <td data-label="Sales">{{ $item->sales->name ?? '—' }}</td>
+                                    <td data-label="Status" class="frm-cell-status">
+                                        @if ($item->status === 'draft')
+                                            <span class="frm-status is-warn">Draft</span>
+                                        @elseif ($item->status === 'applied')
+                                            <span class="frm-status is-on">Applied</span>
+                                        @else
+                                            <span class="frm-status is-off">Cancelled</span>
+                                        @endif
+                                    </td>
+                                    <td data-label="Dibuat" class="frm-nowrap">{{ $item->created_at->format('d/m/Y H:i') }}</td>
+                                    <td class="is-end">
+                                        <a href="{{ route('admin.distribution.bkb.show', $item) }}" class="adm-btn adm-btn-ghost adm-btn-sm">Detail</a>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+
+                @if ($items->hasPages())
+                    <div class="frm-pager">{{ $items->links() }}</div>
+                @endif
+            @endif
         </div>
-
-        <div class="mt-4">{{ $items->links() }}</div>
     </div>
+
+    <script>
+        document.querySelectorAll('[data-alert]').forEach(function (alertEl) {
+            var closeBtn = alertEl.querySelector('[data-alert-close]');
+            if (closeBtn) closeBtn.addEventListener('click', function () { alertEl.remove(); });
+            setTimeout(function () {
+                alertEl.classList.add('is-leaving');
+                setTimeout(function () { alertEl.remove(); }, 300);
+            }, 6000);
+        });
+    </script>
 </x-admin-layout>

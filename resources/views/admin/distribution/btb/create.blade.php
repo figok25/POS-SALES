@@ -1,76 +1,84 @@
 <x-admin-layout>
-    <div class="p-6 max-w-3xl">
-        <h1 class="text-xl font-semibold mb-4">Buat Draft BTB Distribusi (Pengembalian)</h1>
+    <x-slot name="header">Buat Draft BTB Distribusi</x-slot>
+
+    <div class="frm-page" style="max-width: 760px;">
+        <div class="frm-head">
+            <div>
+                <h1 class="frm-title">Buat Draft BTB Distribusi</h1>
+                <p class="frm-sub">Pengembalian barang dari Sales. Dokumen tersimpan sebagai Draft, stok baru berubah setelah di-Check dan di-Apply.</p>
+            </div>
+            <a href="{{ route('admin.distribution.btb.index') }}" class="adm-btn adm-btn-ghost">&larr; Kembali</a>
+        </div>
 
         @if ($errors->any())
-            <div class="mb-4 p-3 bg-red-100 text-red-800 rounded text-sm">
-                <ul class="list-disc pl-5">
-                    @foreach ($errors->all() as $error)
-                        <li>{{ $error }}</li>
-                    @endforeach
-                </ul>
+            <div class="frm-alert is-error" role="alert">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+                <span class="frm-alert-text">{{ $errors->first() }}</span>
             </div>
         @endif
 
         @if ($bkbDistribusi)
-            <div class="mb-4 p-3 bg-blue-50 text-blue-800 rounded text-sm">
-                Pengembalian dari BKB Distribusi <strong>{{ $bkbDistribusi->code }}</strong>. Item di bawah sudah terisi otomatis.
+            <div class="frm-alert is-info" role="status">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></svg>
+                <span class="frm-alert-text">Pengembalian dari BKB Distribusi <strong>{{ $bkbDistribusi->code }}</strong>. Item di bawah sudah terisi otomatis.</span>
             </div>
         @endif
 
-        <form method="POST" action="{{ route('admin.distribution.btb.store') }}" class="bg-white p-4 rounded shadow">
-            @csrf
-            <input type="hidden" name="bkb_distribusi_id" value="{{ $bkbDistribusi->id ?? old('bkb_distribusi_id') }}">
+        <div class="panel">
+            <form method="POST" action="{{ route('admin.distribution.btb.store') }}">
+                @csrf
+                <input type="hidden" name="bkb_distribusi_id" value="{{ $bkbDistribusi->id ?? old('bkb_distribusi_id') }}">
 
-            <div class="grid grid-cols-2 gap-4 mb-4">
-                <div>
-                    <label class="block text-sm font-medium mb-1">Sales Asal *</label>
-                    <select name="sales_id" class="w-full border rounded px-3 py-2 text-sm">
-                        <option value="">-- Pilih Sales --</option>
-                        @foreach ($salesList as $s)
-                            <option value="{{ $s->id }}" @selected(old('sales_id', $bkbDistribusi->sales_id ?? null) == $s->id)>{{ $s->name }}</option>
-                        @endforeach
-                    </select>
+                <div class="frm-modal-body" style="padding: 22px;">
+                    <div class="frm-grid">
+                        <div class="frm-field">
+                            <label class="frm-label" for="btbSales">Sales Asal <span class="frm-req">*</span></label>
+                            <select id="btbSales" name="sales_id" class="frm-input is-select" required>
+                                <option value="">- Pilih Sales -</option>
+                                @foreach ($salesList as $s)
+                                    <option value="{{ $s->id }}" @selected(old('sales_id', $bkbDistribusi->sales_id ?? null) == $s->id)>{{ $s->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="frm-field">
+                            <label class="frm-label" for="btbWarehouse">Warehouse Tujuan <span class="frm-req">*</span></label>
+                            <select id="btbWarehouse" name="warehouse_id" class="frm-input is-select" required>
+                                <option value="">- Pilih Warehouse -</option>
+                                @foreach ($warehouses as $w)
+                                    <option value="{{ $w->id }}" @selected(old('warehouse_id', $bkbDistribusi->warehouse_id ?? null) == $w->id)>{{ $w->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="frm-field is-full">
+                            <label class="frm-label" for="btbNotes">Catatan</label>
+                            <textarea id="btbNotes" name="notes" rows="2" class="frm-input is-area">{{ old('notes') }}</textarea>
+                        </div>
+
+                        <div class="frm-field is-full frm-section">
+                            <div class="frm-items-head">
+                                <label class="frm-label" style="margin:0;">Item Produk <span class="frm-req">*</span></label>
+                                <button type="button" class="adm-btn adm-btn-ghost adm-btn-sm" onclick="addItemRow()">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                                    Tambah Item
+                                </button>
+                            </div>
+                            <div class="frm-items-wrap">
+                                <table class="frm-items-table">
+                                    <colgroup><col><col class="is-qty"><col class="is-remove"></colgroup>
+                                    <thead><tr><th>Produk</th><th class="is-end">Quantity</th><th></th></tr></thead>
+                                    <tbody id="items-body"></tbody>
+                                </table>
+                                <p class="frm-items-empty" id="items-empty" hidden>Belum ada item. Klik "Tambah Item".</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div>
-                    <label class="block text-sm font-medium mb-1">Warehouse Tujuan *</label>
-                    <select name="warehouse_id" class="w-full border rounded px-3 py-2 text-sm">
-                        <option value="">-- Pilih Warehouse --</option>
-                        @foreach ($warehouses as $w)
-                            <option value="{{ $w->id }}" @selected(old('warehouse_id', $bkbDistribusi->warehouse_id ?? null) == $w->id)>{{ $w->name }}</option>
-                        @endforeach
-                    </select>
+                <div class="frm-modal-foot">
+                    <a href="{{ route('admin.distribution.btb.index') }}" class="adm-btn adm-btn-ghost">Batal</a>
+                    <button type="submit" class="adm-btn adm-btn-primary">Simpan Draft</button>
                 </div>
-            </div>
-
-            <div class="mb-4">
-                <label class="block text-sm font-medium mb-1">Catatan</label>
-                <textarea name="notes" rows="2" class="w-full border rounded px-3 py-2 text-sm">{{ old('notes') }}</textarea>
-            </div>
-
-            <div class="mb-2 flex items-center justify-between">
-                <label class="block text-sm font-medium">Item Produk *</label>
-                <button type="button" onclick="addItemRow()" class="text-sm bg-gray-200 px-2 py-1 rounded">+ Tambah Item</button>
-            </div>
-
-            <table class="w-full text-sm mb-4" id="items-table">
-                <thead class="bg-gray-50 border-b">
-                    <tr>
-                        <th class="px-2 py-2 text-left">Product</th>
-                        <th class="px-2 py-2 text-left w-32">Quantity</th>
-                        <th class="px-2 py-2 w-10"></th>
-                    </tr>
-                </thead>
-                <tbody id="items-body"></tbody>
-            </table>
-
-            <p class="text-xs text-gray-500 mb-4">Dokumen tersimpan sebagai Draft. Stok baru berubah setelah di-Check dan di-Apply pada halaman detail (Blueprint #8).</p>
-
-            <div class="flex justify-end gap-2">
-                <a href="{{ route('admin.distribution.btb.index') }}" class="px-3 py-2 text-sm rounded border">Batal</a>
-                <button class="bg-blue-600 text-white px-3 py-2 rounded text-sm hover:bg-blue-700">Simpan Draft</button>
-            </div>
-        </form>
+            </form>
+        </div>
     </div>
 
     <script>
@@ -79,32 +87,40 @@
         let rowIndex = 0;
 
         function productOptions(selected = '') {
-            let html = '<option value="">-- Pilih Product --</option>';
+            let html = '<option value="">- Pilih Produk -</option>';
             products.forEach(p => {
                 html += `<option value="${p.id}" ${String(p.id) === String(selected) ? 'selected' : ''}>${p.label}</option>`;
             });
             return html;
         }
 
+        function updateEmptyState() {
+            var empty = document.getElementById('items-empty');
+            var count = document.querySelectorAll('#items-body tr').length;
+            if (empty) empty.hidden = count > 0;
+        }
+
         function addItemRow(productId = '', quantity = '') {
             const tbody = document.getElementById('items-body');
             const tr = document.createElement('tr');
-            tr.className = 'border-b';
             tr.innerHTML = `
-                <td class="px-2 py-2">
-                    <select name="items[${rowIndex}][product_id]" class="w-full border rounded px-2 py-1.5 text-sm" required>
+                <td>
+                    <select name="items[${rowIndex}][product_id]" class="frm-input is-select" required>
                         ${productOptions(productId)}
                     </select>
                 </td>
-                <td class="px-2 py-2">
-                    <input type="number" step="0.01" min="0.01" value="${quantity}" name="items[${rowIndex}][quantity]" class="w-full border rounded px-2 py-1.5 text-sm" required>
+                <td>
+                    <input type="number" step="0.01" min="0.01" value="${quantity}" name="items[${rowIndex}][quantity]" class="frm-input" style="text-align:right;" required>
                 </td>
-                <td class="px-2 py-2 text-center">
-                    <button type="button" onclick="this.closest('tr').remove()" class="text-red-600">&times;</button>
+                <td class="is-end">
+                    <button type="button" class="frm-items-remove" aria-label="Hapus baris" onclick="this.closest('tr').remove(); updateEmptyState();">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                    </button>
                 </td>
             `;
             tbody.appendChild(tr);
             rowIndex++;
+            updateEmptyState();
         }
 
         if (prefill.length > 0) {
