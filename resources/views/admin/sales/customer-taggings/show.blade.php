@@ -1,83 +1,145 @@
 <x-admin-layout>
-    <div class="p-6 max-w-3xl">
-        <div class="flex items-center justify-between mb-4">
-            <h1 class="text-xl font-semibold">Detail Tagging Toko</h1>
-            <a href="{{ route('admin.sales.customer-taggings.index') }}" class="text-sm text-gray-600 hover:underline">&larr; Kembali</a>
+    <div class="frm-page">
+        {{-- Kepala halaman --}}
+        <div class="frm-head">
+            <div>
+                <h1 class="frm-title">Detail Tagging Toko</h1>
+                <p class="frm-sub">{{ $tagging->name }}</p>
+            </div>
+            <a href="{{ route('admin.sales.customer-taggings.index') }}" class="adm-btn adm-btn-ghost adm-btn-sm">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+                Kembali
+            </a>
         </div>
 
+        {{-- Error validasi --}}
         @if ($errors->any())
-            <div class="mb-4 p-3 bg-red-100 text-red-800 rounded text-sm">
-                <ul class="list-disc list-inside">
-                    @foreach ($errors->all() as $error)
-                        <li>{{ $error }}</li>
-                    @endforeach
-                </ul>
+            <div class="frm-alert is-error is-block" role="alert">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+                <div class="frm-alert-text">
+                    <ul>
+                        @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
             </div>
         @endif
 
-        <div class="bg-white rounded shadow p-4 space-y-2 text-sm mb-4">
-            <div class="flex justify-between"><span class="text-gray-500">Sales</span><span>{{ $tagging->sales->name ?? '-' }}</span></div>
-            <div class="flex justify-between"><span class="text-gray-500">Waktu Tagging</span><span>{{ $tagging->tagged_at->format('d M Y H:i') }}</span></div>
-            <div class="flex justify-between"><span class="text-gray-500">Nama Toko</span><span>{{ $tagging->name }}</span></div>
-            <div class="flex justify-between"><span class="text-gray-500">Telepon</span><span>{{ $tagging->phone ?? '-' }}</span></div>
-            <div class="flex justify-between"><span class="text-gray-500">Alamat</span><span class="text-right">{{ $tagging->address ?? '-' }}</span></div>
-            <div class="flex justify-between"><span class="text-gray-500">Tipe Toko</span><span>{{ $tagging->customer_type ?? '-' }}</span></div>
-            <div class="flex justify-between">
-                <span class="text-gray-500">Koordinat</span>
-                <span>
-                    @if ($tagging->latitude && $tagging->longitude)
-                        <a class="text-blue-600 hover:underline" target="_blank" href="https://maps.google.com/?q={{ $tagging->latitude }},{{ $tagging->longitude }}">{{ $tagging->latitude }}, {{ $tagging->longitude }}</a>
+        <div class="frm-stack">
+            {{-- Detail tagging --}}
+            <section class="panel">
+                <div class="panel-head">
+                    <h2 class="panel-title">Informasi Toko</h2>
+                    @if ($tagging->status === 'approved')
+                        <span class="frm-status is-on">Approved</span>
+                    @elseif ($tagging->status === 'rejected')
+                        <span class="frm-status is-danger">Rejected</span>
                     @else
-                        -
+                        <span class="frm-status is-warn">Pending</span>
                     @endif
-                </span>
-            </div>
-            <div class="flex justify-between"><span class="text-gray-500">Catatan Sales</span><span class="text-right">{{ $tagging->notes ?? '-' }}</span></div>
-            <div class="flex justify-between"><span class="text-gray-500">Status</span>
-                <span>
-                    @if ($tagging->status === 'pending')
-                        <span class="text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded text-xs">Pending</span>
-                    @elseif ($tagging->status === 'approved')
-                        <span class="text-green-700 bg-green-100 px-2 py-0.5 rounded text-xs">Approved</span>
-                    @else
-                        <span class="text-red-700 bg-red-100 px-2 py-0.5 rounded text-xs">Rejected</span>
+                </div>
+
+                <dl class="frm-detail">
+                    <div><dt>Sales</dt><dd>{{ $tagging->sales->name ?? '-' }}</dd></div>
+                    <div><dt>Waktu Tagging</dt><dd>{{ $tagging->tagged_at->format('d M Y H:i') }}</dd></div>
+                    <div><dt>Nama Toko</dt><dd>{{ $tagging->name }}</dd></div>
+                    <div><dt>Telepon</dt><dd>{{ $tagging->phone ?? '-' }}</dd></div>
+                    <div><dt>Alamat</dt><dd>{{ $tagging->address ?? '-' }}</dd></div>
+                    <div><dt>Tipe Toko</dt><dd>{{ $tagging->customer_type ?? '-' }}</dd></div>
+                    <div>
+                        <dt>Koordinat</dt>
+                        <dd>
+                            @if ($tagging->latitude && $tagging->longitude)
+                                <a class="panel-link" target="_blank" rel="noopener"
+                                   href="https://maps.google.com/?q={{ $tagging->latitude }},{{ $tagging->longitude }}">{{ $tagging->latitude }}, {{ $tagging->longitude }}</a>
+                            @else
+                                -
+                            @endif
+                        </dd>
+                    </div>
+                    <div><dt>Catatan Sales</dt><dd>{{ $tagging->notes ?? '-' }}</dd></div>
+                    @if ($tagging->customer)
+                        <div>
+                            <dt>Customer Terkait</dt>
+                            <dd>
+                                <a href="{{ route('admin.master.customers.show', $tagging->customer) }}" class="panel-link">{{ $tagging->customer->code }} - {{ $tagging->customer->name }}</a>
+                            </dd>
+                        </div>
                     @endif
-                </span>
-            </div>
-            @if ($tagging->customer)
-                <div class="flex justify-between"><span class="text-gray-500">Customer Terkait</span>
-                    <a href="{{ route('admin.master.customers.show', $tagging->customer) }}" class="text-blue-600 hover:underline">{{ $tagging->customer->code }} - {{ $tagging->customer->name }}</a>
+                    @if ($tagging->reviewer)
+                        <div>
+                            <dt>Direview oleh</dt>
+                            <dd>{{ $tagging->reviewer->name }} &middot; {{ $tagging->reviewed_at?->format('d M Y H:i') }}</dd>
+                        </div>
+                    @endif
+                    @if ($tagging->review_notes)
+                        <div><dt>Catatan Review</dt><dd>{{ $tagging->review_notes }}</dd></div>
+                    @endif
+                </dl>
+            </section>
+
+            {{-- Kemungkinan duplikasi --}}
+            @if ($duplicates->isNotEmpty())
+                <div class="frm-alert is-warn is-block" role="alert">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                    <div class="frm-alert-text">
+                        <p class="frm-alert-title">Kemungkinan duplikasi dengan customer yang sudah ada</p>
+                        <ul>
+                            @foreach ($duplicates as $dup)
+                                <li>{{ $dup->code }} - {{ $dup->name }} ({{ $dup->phone ?? '-' }})</li>
+                            @endforeach
+                        </ul>
+                    </div>
                 </div>
             @endif
-            @if ($tagging->reviewer)
-                <div class="flex justify-between"><span class="text-gray-500">Direview oleh</span><span>{{ $tagging->reviewer->name }} - {{ $tagging->reviewed_at?->format('d M Y H:i') }}</span></div>
+
+            {{-- Aksi review --}}
+            @if ($tagging->isPending())
+                <div class="frm-grid">
+                    <section class="panel">
+                        <div class="panel-head">
+                            <h2 class="panel-title">Setujui</h2>
+                        </div>
+                        <form action="{{ route('admin.sales.customer-taggings.approve', $tagging) }}" method="POST">
+                            @csrf
+                            <div class="frm-panel-body">
+                                <div class="frm-field">
+                                    <label for="approve-notes" class="frm-label">Catatan approval <span class="frm-opt">(opsional)</span></label>
+                                    <textarea id="approve-notes" name="review_notes" rows="3" class="frm-input is-area" placeholder="Catatan approval"></textarea>
+                                </div>
+                            </div>
+                            <div class="frm-panel-foot">
+                                <button type="submit" class="adm-btn adm-btn-success adm-btn-sm adm-btn-block">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+                                    Approve &amp; Buat Customer
+                                </button>
+                            </div>
+                        </form>
+                    </section>
+
+                    <section class="panel">
+                        <div class="panel-head">
+                            <h2 class="panel-title">Tolak</h2>
+                        </div>
+                        <form action="{{ route('admin.sales.customer-taggings.reject', $tagging) }}" method="POST">
+                            @csrf
+                            <div class="frm-panel-body">
+                                <div class="frm-field">
+                                    <label for="reject-notes" class="frm-label">Alasan penolakan <span class="frm-opt">(opsional)</span></label>
+                                    <textarea id="reject-notes" name="review_notes" rows="3" class="frm-input is-area" placeholder="Alasan penolakan"></textarea>
+                                </div>
+                            </div>
+                            <div class="frm-panel-foot">
+                                <button type="submit" class="adm-btn adm-btn-danger adm-btn-sm adm-btn-block">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                                    Reject
+                                </button>
+                            </div>
+                        </form>
+                    </section>
+                </div>
             @endif
         </div>
-
-        @if ($duplicates->isNotEmpty())
-            <div class="bg-yellow-50 border border-yellow-200 rounded p-4 mb-4 text-sm">
-                <p class="font-medium text-yellow-800 mb-2">Kemungkinan duplikasi dengan customer yang sudah ada:</p>
-                <ul class="list-disc list-inside text-yellow-800">
-                    @foreach ($duplicates as $dup)
-                        <li>{{ $dup->code }} - {{ $dup->name }} ({{ $dup->phone ?? '-' }})</li>
-                    @endforeach
-                </ul>
-            </div>
-        @endif
-
-        @if ($tagging->isPending())
-            <div class="grid grid-cols-2 gap-4">
-                <form action="{{ route('admin.sales.customer-taggings.approve', $tagging) }}" method="POST">
-                    @csrf
-                    <textarea name="review_notes" rows="2" placeholder="Catatan approval (opsional)" class="w-full border rounded px-3 py-2 text-sm mb-2"></textarea>
-                    <button class="w-full bg-green-600 text-white px-3 py-2 rounded text-sm hover:bg-green-700">Approve &amp; Buat Customer</button>
-                </form>
-                <form action="{{ route('admin.sales.customer-taggings.reject', $tagging) }}" method="POST">
-                    @csrf
-                    <textarea name="review_notes" rows="2" placeholder="Alasan penolakan (opsional)" class="w-full border rounded px-3 py-2 text-sm mb-2"></textarea>
-                    <button class="w-full bg-red-600 text-white px-3 py-2 rounded text-sm hover:bg-red-700">Reject</button>
-                </form>
-            </div>
-        @endif
     </div>
 </x-admin-layout>

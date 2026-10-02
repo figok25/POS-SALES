@@ -1,67 +1,134 @@
 <x-admin-layout>
-    <div class="p-6">
-        <div class="flex items-center justify-between mb-4">
-            <h1 class="text-xl font-semibold">Customer Assignment</h1>
+    @php
+        $isFiltered = filled($search) || filled($salesFilter) || $unassignedOnly;
+    @endphp
+
+    {{-- Kepala halaman --}}
+    <div class="frm-head">
+        <div>
+            <h1 class="frm-title">Customer Assignment</h1>
+            <p class="frm-sub">Atur Sales penanggung jawab untuk setiap customer.</p>
         </div>
+    </div>
 
-        @if (session('status'))
-            <div class="mb-4 p-3 bg-green-100 text-green-800 rounded text-sm">{{ session('status') }}</div>
-        @endif
+    {{-- Notifikasi --}}
+    @if (session('status'))
+        <div class="frm-alert" role="status" data-alert>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+            <span class="frm-alert-text">{{ session('status') }}</span>
+            <button type="button" class="frm-alert-close" aria-label="Tutup notifikasi">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
+        </div>
+    @endif
 
-        <form method="GET" class="mb-4 flex flex-wrap gap-2 text-sm items-center">
-            <input type="text" name="q" value="{{ $search }}" placeholder="Cari nama / kode customer..."
-                   class="border-gray-300 rounded px-3 py-1.5 w-64">
-            <select name="sales_id" class="border-gray-300 rounded px-3 py-1.5">
+    <section class="panel">
+        {{-- Toolbar filter --}}
+        <form method="GET" class="frm-toolbar">
+            <div class="frm-search">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                <input type="search" name="q" value="{{ $search }}" placeholder="Cari nama / kode customer..." aria-label="Cari customer" autocomplete="off">
+            </div>
+
+            <select name="sales_id" class="frm-input is-select is-filter" aria-label="Filter Sales" onchange="this.form.submit()">
                 <option value="">Semua Sales</option>
                 @foreach ($saless as $sales)
                     <option value="{{ $sales->id }}" @selected((string) $salesFilter === (string) $sales->id)>{{ $sales->name }}</option>
                 @endforeach
             </select>
-            <label class="flex items-center gap-1.5">
-                <input type="checkbox" name="unassigned" value="1" @checked($unassignedOnly)>
-                Belum di-assign saja
+
+            <label class="frm-switch">
+                <input type="checkbox" name="unassigned" value="1" @checked($unassignedOnly) onchange="this.form.submit()">
+                <span class="frm-switch-track"></span>
+                <span class="frm-switch-text">Belum di-assign saja</span>
             </label>
-            <button type="submit" class="px-3 py-1.5 bg-gray-800 text-white rounded">Filter</button>
-            <a href="{{ route('admin.sales.customer-assignments.index') }}" class="text-gray-500 hover:underline">Reset</a>
+
+            <div class="frm-toolbar-actions">
+                <button type="submit" class="adm-btn adm-btn-primary adm-btn-sm">Filter</button>
+                @if ($isFiltered)
+                    <a href="{{ route('admin.sales.customer-assignments.index') }}" class="adm-btn adm-btn-ghost adm-btn-sm">Reset</a>
+                @endif
+            </div>
+
+            <span class="frm-count">{{ number_format($items->total(), 0, ',', '.') }} customer</span>
         </form>
 
-        <div class="bg-white rounded shadow overflow-x-auto">
-            <table class="w-full text-sm">
-                <thead class="bg-gray-50 border-b">
-                    <tr>
-                        <th class="px-3 py-2 text-left">Kode</th>
-                        <th class="px-3 py-2 text-left">Nama Customer</th>
-                        <th class="px-3 py-2 text-left">Sales Saat Ini</th>
-                        <th class="px-3 py-2 text-left">Status</th>
-                        <th class="px-3 py-2 text-right">Aksi</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse ($items as $item)
-                        <tr class="border-b">
-                            <td class="px-3 py-2">{{ $item->code }}</td>
-                            <td class="px-3 py-2">{{ $item->name }}</td>
-                            <td class="px-3 py-2">{{ $item->sales->name ?? '-' }}</td>
-                            <td class="px-3 py-2">
-                                @if ($item->sales_id)
-                                    <span class="text-green-700 bg-green-100 px-2 py-0.5 rounded text-xs">Assigned</span>
-                                @else
-                                    <span class="text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded text-xs">Belum Assigned</span>
-                                @endif
-                            </td>
-                            <td class="px-3 py-2 text-right">
-                                <a href="{{ route('admin.sales.customer-assignments.edit', $item) }}" class="text-blue-600 hover:underline">
-                                    {{ $item->sales_id ? 'Reassign' : 'Assign' }}
-                                </a>
-                            </td>
+        @if ($items->count())
+            <div class="frm-table-wrap">
+                <table class="frm-table">
+                    <thead>
+                        <tr>
+                            <th>Kode</th>
+                            <th>Nama Customer</th>
+                            <th>Sales Saat Ini</th>
+                            <th>Status</th>
+                            <th class="is-end">Aksi</th>
                         </tr>
-                    @empty
-                        <tr><td colspan="99" class="px-3 py-6 text-center text-gray-500">Belum ada data.</td></tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
+                    </thead>
+                    <tbody>
+                        @foreach ($items as $item)
+                            <tr>
+                                <td><span class="frm-code">{{ $item->code }}</span></td>
+                                <td><span class="frm-name">{{ $item->name }}</span></td>
+                                <td data-label="Sales">
+                                    @if ($item->sales)
+                                        {{ $item->sales->name }}
+                                    @else
+                                        <span class="frm-dash">—</span>
+                                    @endif
+                                </td>
+                                <td class="frm-cell-status">
+                                    @if ($item->sales_id)
+                                        <span class="frm-status is-on">Assigned</span>
+                                    @else
+                                        <span class="frm-status is-warn">Belum Assigned</span>
+                                    @endif
+                                </td>
+                                <td class="is-end">
+                                    <a href="{{ route('admin.sales.customer-assignments.edit', $item) }}" class="adm-btn adm-btn-ghost adm-btn-sm">
+                                        @if ($item->sales_id)
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg>
+                                            Reassign
+                                        @else
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6"/><path d="M22 11h-6"/></svg>
+                                            Assign
+                                        @endif
+                                    </a>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
 
-        <div class="mt-4">{{ $items->links() }}</div>
-    </div>
+            @if ($items->hasPages())
+                <div class="frm-pager">{{ $items->withQueryString()->links() }}</div>
+            @endif
+        @else
+            <div class="frm-empty">
+                <div class="frm-empty-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                </div>
+                <p class="frm-empty-title">{{ $isFiltered ? 'Tidak ada hasil' : 'Belum ada data' }}</p>
+                <p class="frm-empty-text">
+                    {{ $isFiltered ? 'Coba ubah kata kunci atau filter yang dipakai.' : 'Data customer akan tampil di sini.' }}
+                </p>
+                @if ($isFiltered)
+                    <a href="{{ route('admin.sales.customer-assignments.index') }}" class="adm-btn adm-btn-ghost adm-btn-sm">Reset Filter</a>
+                @endif
+            </div>
+        @endif
+    </section>
+
+    <script>
+        document.querySelectorAll('[data-alert]').forEach(function (el) {
+            var close = function () {
+                el.classList.add('is-leaving');
+                setTimeout(function () { el.remove(); }, 300);
+            };
+            var btn = el.querySelector('.frm-alert-close');
+            if (btn) btn.addEventListener('click', close);
+            setTimeout(close, 6000);
+        });
+    </script>
 </x-admin-layout>

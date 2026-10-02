@@ -1,68 +1,138 @@
 <x-admin-layout>
-    <div class="p-6 max-w-2xl">
-        <div class="flex items-center justify-between mb-4">
-            <h1 class="text-xl font-semibold">Assign / Reassign Customer</h1>
-            <a href="{{ route('admin.sales.customer-assignments.index') }}" class="text-sm text-gray-500 hover:underline">&larr; Kembali</a>
+    <div class="frm-page">
+        {{-- Kepala halaman --}}
+        <div class="frm-head">
+            <div>
+                <h1 class="frm-title">Assign / Reassign Customer</h1>
+                <p class="frm-sub">Tentukan Sales penanggung jawab customer dan lihat riwayat perubahannya.</p>
+            </div>
+            <a href="{{ route('admin.sales.customer-assignments.index') }}" class="adm-btn adm-btn-ghost adm-btn-sm">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+                Kembali
+            </a>
         </div>
 
-        <div class="bg-white rounded shadow p-4 mb-6">
-            <p class="text-sm text-gray-500">Customer</p>
-            <p class="font-medium">{{ $customer->name }} <span class="text-gray-400 font-normal">({{ $customer->code }})</span></p>
-            <p class="text-sm text-gray-500 mt-3">Sales Saat Ini</p>
-            <p class="font-medium">{{ $customer->sales->name ?? 'Belum ada' }}</p>
-        </div>
+        <div class="frm-stack">
+            {{-- Ringkasan customer --}}
+            <section class="panel">
+                <div class="panel-head">
+                    <h2 class="panel-title">Informasi Customer</h2>
+                </div>
+                <dl class="frm-detail">
+                    <div>
+                        <dt>Kode</dt>
+                        <dd><span class="frm-code">{{ $customer->code }}</span></dd>
+                    </div>
+                    <div>
+                        <dt>Nama Customer</dt>
+                        <dd>{{ $customer->name }}</dd>
+                    </div>
+                    <div>
+                        <dt>Sales Saat Ini</dt>
+                        <dd>
+                            @if ($customer->sales)
+                                {{ $customer->sales->name }}
+                            @else
+                                <span class="frm-status is-warn">Belum ada</span>
+                            @endif
+                        </dd>
+                    </div>
+                </dl>
+            </section>
 
-        <form method="POST" action="{{ route('admin.sales.customer-assignments.update', $customer) }}" class="bg-white rounded shadow p-4 mb-6 space-y-4">
-            @csrf
-            @method('PUT')
+            {{-- Form assign --}}
+            <section class="panel">
+                <div class="panel-head">
+                    <h2 class="panel-title">Ubah Assignment</h2>
+                </div>
 
-            <div>
-                <label class="block text-sm font-medium mb-1">Assign ke Sales</label>
-                <select name="sales_id" class="w-full border-gray-300 rounded px-3 py-2 text-sm">
-                    <option value="">-- Tidak ada (lepas dari Sales saat ini) --</option>
-                    @foreach ($saless as $sales)
-                        <option value="{{ $sales->id }}" @selected((string) $customer->sales_id === (string) $sales->id)>{{ $sales->name }}</option>
-                    @endforeach
-                </select>
-                @error('sales_id')<p class="text-red-600 text-xs mt-1">{{ $message }}</p>@enderror
-            </div>
+                <form method="POST" action="{{ route('admin.sales.customer-assignments.update', $customer) }}">
+                    @csrf
+                    @method('PUT')
 
-            <div>
-                <label class="block text-sm font-medium mb-1">Alasan (opsional)</label>
-                <input type="text" name="reason" maxlength="255" placeholder="mis. Sales lama resign, area dipindah, dst."
-                       class="w-full border-gray-300 rounded px-3 py-2 text-sm">
-                @error('reason')<p class="text-red-600 text-xs mt-1">{{ $message }}</p>@enderror
-            </div>
+                    <div class="frm-panel-body">
+                        <div class="frm-field">
+                            <label for="sales_id" class="frm-label">Assign ke Sales</label>
+                            <select id="sales_id" name="sales_id" class="frm-input is-select @error('sales_id') is-invalid @enderror">
+                                <option value="">-- Tidak ada (lepas dari Sales saat ini) --</option>
+                                @foreach ($saless as $sales)
+                                    <option value="{{ $sales->id }}" @selected((string) old('sales_id', $customer->sales_id) === (string) $sales->id)>{{ $sales->name }}</option>
+                                @endforeach
+                            </select>
+                            @error('sales_id')<p class="frm-error">{{ $message }}</p>@enderror
+                            <p class="frm-hint">Pilih "Tidak ada" untuk melepas customer dari Sales saat ini.</p>
+                        </div>
 
-            <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded text-sm">Simpan</button>
-        </form>
+                        <div class="frm-field">
+                            <label for="reason" class="frm-label">Alasan <span class="frm-opt">(opsional)</span></label>
+                            <input type="text" id="reason" name="reason" value="{{ old('reason') }}" maxlength="255"
+                                   placeholder="mis. Sales lama resign, area dipindah, dst."
+                                   class="frm-input @error('reason') is-invalid @enderror">
+                            @error('reason')<p class="frm-error">{{ $message }}</p>@enderror
+                        </div>
+                    </div>
 
-        <div class="bg-white rounded shadow overflow-x-auto">
-            <div class="px-4 py-3 border-b font-medium text-sm">Riwayat Assignment</div>
-            <table class="w-full text-sm">
-                <thead class="bg-gray-50 border-b">
-                    <tr>
-                        <th class="px-3 py-2 text-left">Sales</th>
-                        <th class="px-3 py-2 text-left">Ditugaskan</th>
-                        <th class="px-3 py-2 text-left">Berakhir</th>
-                        <th class="px-3 py-2 text-left">Oleh</th>
-                        <th class="px-3 py-2 text-left">Alasan</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse ($history as $row)
-                        <tr class="border-b {{ $row->isCurrent() ? 'bg-green-50' : '' }}">
-                            <td class="px-3 py-2">{{ $row->sales->name ?? '-' }}</td>
-                            <td class="px-3 py-2">{{ $row->assigned_at->format('d M Y H:i') }}</td>
-                            <td class="px-3 py-2">{{ $row->unassigned_at?->format('d M Y H:i') ?? '—' }}</td>
-                            <td class="px-3 py-2">{{ $row->assignedBy->name ?? 'Sistem' }}</td>
-                            <td class="px-3 py-2">{{ $row->reason ?? '-' }}</td>
-                        </tr>
-                    @empty
-                        <tr><td colspan="99" class="px-3 py-6 text-center text-gray-500">Belum ada riwayat assignment.</td></tr>
-                    @endforelse
-                </tbody>
-            </table>
+                    <div class="frm-panel-foot">
+                        <a href="{{ route('admin.sales.customer-assignments.index') }}" class="adm-btn adm-btn-ghost adm-btn-sm">Batal</a>
+                        <button type="submit" class="adm-btn adm-btn-primary adm-btn-sm">Simpan</button>
+                    </div>
+                </form>
+            </section>
+
+            {{-- Riwayat --}}
+            <section class="panel">
+                <div class="panel-head">
+                    <h2 class="panel-title">Riwayat Assignment</h2>
+                    <span class="frm-count">{{ $history->count() }} catatan</span>
+                </div>
+
+                @if ($history->count())
+                    <div class="frm-table-wrap">
+                        <table class="frm-table">
+                            <thead>
+                                <tr>
+                                    <th>Sales</th>
+                                    <th>Ditugaskan</th>
+                                    <th>Berakhir</th>
+                                    <th>Oleh</th>
+                                    <th>Alasan</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($history as $row)
+                                    <tr @class(['is-current' => $row->isCurrent()])>
+                                        <td><span class="frm-name">{{ $row->sales->name ?? '-' }}</span></td>
+                                        <td data-label="Ditugaskan" class="frm-nowrap">{{ $row->assigned_at->format('d M Y H:i') }}</td>
+                                        <td data-label="Berakhir" class="frm-nowrap">
+                                            @if ($row->unassigned_at)
+                                                {{ $row->unassigned_at->format('d M Y H:i') }}
+                                            @else
+                                                <span class="frm-status is-on">Saat ini</span>
+                                            @endif
+                                        </td>
+                                        <td data-label="Oleh">{{ $row->assignedBy->name ?? 'Sistem' }}</td>
+                                        <td data-label="Alasan">
+                                            @if ($row->reason)
+                                                <span class="frm-clamp" title="{{ $row->reason }}">{{ $row->reason }}</span>
+                                            @else
+                                                <span class="frm-dash">—</span>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @else
+                    <div class="frm-empty">
+                        <div class="frm-empty-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                        </div>
+                        <p class="frm-empty-title">Belum ada riwayat</p>
+                        <p class="frm-empty-text">Perubahan assignment customer ini akan tercatat di sini.</p>
+                    </div>
+                @endif
+            </section>
         </div>
     </div>
 </x-admin-layout>

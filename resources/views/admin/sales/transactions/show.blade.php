@@ -1,55 +1,96 @@
 <x-admin-layout>
-    <div class="p-6 max-w-3xl">
-        <div class="flex items-center justify-between mb-4">
-            <h1 class="text-xl font-semibold">Transaksi {{ $transaction->code }}</h1>
-            <div class="text-sm space-x-3">
-                <a href="{{ route('admin.sales.transactions.print', $transaction) }}" target="_blank" class="text-gray-700 hover:underline">Cetak</a>
-                <a href="{{ route('admin.sales.transactions.index') }}" class="text-gray-600 hover:underline">&larr; Kembali</a>
+    @php
+        $qty = fn ($v) => rtrim(rtrim(number_format($v, 2, '.', ''), '0'), '.');
+        $rp  = fn ($v) => number_format($v, 0, ',', '.');
+    @endphp
+
+    <div class="frm-page">
+        {{-- Kepala halaman --}}
+        <div class="frm-head">
+            <div>
+                <h1 class="frm-title">Transaksi {{ $transaction->code }}</h1>
+                <p class="frm-sub">{{ $transaction->customer->name ?? '-' }} &middot; {{ $transaction->created_at->format('d M Y H:i') }}</p>
+            </div>
+            <div class="frm-head-actions">
+                <a href="{{ route('admin.sales.transactions.print', $transaction) }}" target="_blank" rel="noopener" class="adm-btn adm-btn-ghost adm-btn-sm">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                    Cetak
+                </a>
+                <a href="{{ route('admin.sales.transactions.index') }}" class="adm-btn adm-btn-ghost adm-btn-sm">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+                    Kembali
+                </a>
             </div>
         </div>
 
-        <div class="bg-white rounded shadow p-4 space-y-2 text-sm mb-4">
-            <div class="flex justify-between"><span class="text-gray-500">Tanggal</span><span>{{ $transaction->created_at->format('d M Y H:i') }}</span></div>
-            <div class="flex justify-between"><span class="text-gray-500">Sales</span><span>{{ $transaction->sales->name ?? '-' }}</span></div>
-            <div class="flex justify-between"><span class="text-gray-500">Customer</span><span>{{ $transaction->customer->name ?? '-' }}</span></div>
-            <div class="flex justify-between"><span class="text-gray-500">Status</span><span>{{ ucfirst($transaction->status) }}</span></div>
-            @if ($transaction->invoice)
-                <div class="flex justify-between"><span class="text-gray-500">Invoice</span>
-                    <a href="{{ route('admin.sales.invoices.show', $transaction->invoice) }}" class="text-blue-600 hover:underline">{{ $transaction->invoice->code }}</a>
+        <div class="frm-stack">
+            {{-- Informasi transaksi --}}
+            <section class="panel">
+                <div class="panel-head">
+                    <h2 class="panel-title">Informasi Transaksi</h2>
+                    @if ($transaction->status === 'completed')
+                        <span class="frm-status is-on">Completed</span>
+                    @elseif ($transaction->status === 'cancelled')
+                        <span class="frm-status is-danger">Cancelled</span>
+                    @else
+                        <span class="frm-status is-off">{{ ucfirst($transaction->status) }}</span>
+                    @endif
                 </div>
-            @endif
-            @if ($transaction->notes)
-                <div class="flex justify-between"><span class="text-gray-500">Catatan</span><span class="text-right">{{ $transaction->notes }}</span></div>
-            @endif
-        </div>
+                <dl class="frm-detail">
+                    <div><dt>Tanggal</dt><dd>{{ $transaction->created_at->format('d M Y H:i') }}</dd></div>
+                    <div><dt>Sales</dt><dd>{{ $transaction->sales->name ?? '-' }}</dd></div>
+                    <div><dt>Customer</dt><dd>{{ $transaction->customer->name ?? '-' }}</dd></div>
+                    @if ($transaction->invoice)
+                        <div>
+                            <dt>Invoice</dt>
+                            <dd><a href="{{ route('admin.sales.invoices.show', $transaction->invoice) }}" class="panel-link">{{ $transaction->invoice->code }}</a></dd>
+                        </div>
+                    @endif
+                    @if ($transaction->notes)
+                        <div><dt>Catatan</dt><dd>{{ $transaction->notes }}</dd></div>
+                    @endif
+                </dl>
+            </section>
 
-        <div class="bg-white rounded shadow overflow-x-auto">
-            <table class="w-full text-sm">
-                <thead class="bg-gray-50 border-b">
-                    <tr>
-                        <th class="px-3 py-2 text-left">Produk</th>
-                        <th class="px-3 py-2 text-right">Qty</th>
-                        <th class="px-3 py-2 text-right">Harga</th>
-                        <th class="px-3 py-2 text-right">Subtotal</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach ($transaction->items as $line)
-                        <tr class="border-b">
-                            <td class="px-3 py-2">{{ $line->product->name ?? '-' }}</td>
-                            <td class="px-3 py-2 text-right">{{ rtrim(rtrim(number_format($line->quantity, 2, '.', ''), '0'), '.') }}</td>
-                            <td class="px-3 py-2 text-right">Rp {{ number_format($line->price, 0, ',', '.') }}</td>
-                            <td class="px-3 py-2 text-right">Rp {{ number_format($line->subtotal, 0, ',', '.') }}</td>
-                        </tr>
-                    @endforeach
-                </tbody>
-                <tfoot>
-                    <tr class="border-t font-semibold">
-                        <td colspan="3" class="px-3 py-2 text-right">Total</td>
-                        <td class="px-3 py-2 text-right">Rp {{ number_format($transaction->total, 0, ',', '.') }}</td>
-                    </tr>
-                </tfoot>
-            </table>
+            {{-- Item --}}
+            <section class="panel">
+                <div class="panel-head">
+                    <h2 class="panel-title">Rincian Item</h2>
+                    <span class="frm-count">{{ $transaction->items->count() }} item</span>
+                </div>
+                <div class="frm-table-wrap">
+                    <table class="frm-table">
+                        <thead>
+                            <tr>
+                                <th>Produk</th>
+                                <th class="is-num">Qty</th>
+                                <th class="is-num">Harga</th>
+                                <th class="is-num">Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($transaction->items as $line)
+                                <tr>
+                                    <td><span class="frm-name">{{ $line->product->name ?? '-' }}</span></td>
+                                    <td data-label="Qty" class="is-num"><span class="frm-num">{{ $qty($line->quantity) }}</span></td>
+                                    <td data-label="Harga" class="is-num"><span class="frm-num">Rp {{ $rp($line->price) }}</span></td>
+                                    <td data-label="Subtotal" class="is-num"><span class="frm-num is-strong">Rp {{ $rp($line->subtotal) }}</span></td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            {{-- Total --}}
+            <section class="panel frm-totals">
+                <dl class="frm-detail">
+                    <div><dt>Subtotal</dt><dd class="frm-num">Rp {{ $rp($transaction->subtotal) }}</dd></div>
+                    <div><dt>Diskon</dt><dd class="frm-num">Rp {{ $rp($transaction->discount) }}</dd></div>
+                    <div><dt>Pajak</dt><dd class="frm-num">Rp {{ $rp($transaction->tax) }}</dd></div>
+                    <div class="is-total"><dt>Total</dt><dd class="frm-num">Rp {{ $rp($transaction->total) }}</dd></div>
+                </dl>
+            </section>
         </div>
     </div>
 </x-admin-layout>

@@ -1,55 +1,97 @@
 <x-admin-layout>
-    <div class="p-6">
-        <h1 class="text-xl font-semibold mb-4">Invoice</h1>
+    @php
+        $tabs = [
+            ''        => 'Semua',
+            'unpaid'  => 'Unpaid',
+            'partial' => 'Partial',
+            'paid'    => 'Paid',
+        ];
+        $emptyText = [
+            'unpaid'  => 'Tidak ada invoice yang belum dibayar.',
+            'partial' => 'Tidak ada invoice yang dibayar sebagian.',
+            'paid'    => 'Belum ada invoice yang lunas.',
+        ][$status ?? ''] ?? 'Invoice akan tampil di sini setelah transaksi penjualan dibuat.';
+    @endphp
 
-        <div class="mb-4 flex gap-2 text-sm">
-            <a href="{{ route('admin.sales.invoices.index') }}" class="px-3 py-1.5 rounded {{ ! $status ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700' }}">Semua</a>
-            <a href="{{ route('admin.sales.invoices.index', ['status' => 'unpaid']) }}" class="px-3 py-1.5 rounded {{ $status === 'unpaid' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700' }}">Unpaid</a>
-            <a href="{{ route('admin.sales.invoices.index', ['status' => 'partial']) }}" class="px-3 py-1.5 rounded {{ $status === 'partial' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700' }}">Partial</a>
-            <a href="{{ route('admin.sales.invoices.index', ['status' => 'paid']) }}" class="px-3 py-1.5 rounded {{ $status === 'paid' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700' }}">Paid</a>
+    {{-- Kepala halaman --}}
+    <div class="frm-head">
+        <div>
+            <h1 class="frm-title">Invoice</h1>
+            <p class="frm-sub">Daftar invoice penjualan beserta status pembayarannya.</p>
         </div>
-
-        <div class="bg-white rounded shadow overflow-x-auto">
-            <table class="w-full text-sm">
-                <thead class="bg-gray-50 border-b">
-                    <tr>
-                        <th class="px-3 py-2 text-left">Kode</th>
-                        <th class="px-3 py-2 text-left">Tanggal</th>
-                        <th class="px-3 py-2 text-left">Customer</th>
-                        <th class="px-3 py-2 text-left">Sales</th>
-                        <th class="px-3 py-2 text-right">Grand Total</th>
-                        <th class="px-3 py-2 text-left">Status</th>
-                        <th class="px-3 py-2 text-right">Aksi</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse ($items as $item)
-                        <tr class="border-b">
-                            <td class="px-3 py-2 font-medium">{{ $item->code }}</td>
-                            <td class="px-3 py-2">{{ $item->date->format('d M Y') }}</td>
-                            <td class="px-3 py-2">{{ $item->customer->name ?? '-' }}</td>
-                            <td class="px-3 py-2">{{ $item->sales->name ?? '-' }}</td>
-                            <td class="px-3 py-2 text-right">Rp {{ number_format($item->grand_total, 0, ',', '.') }}</td>
-                            <td class="px-3 py-2">
-                                @if ($item->status === 'paid')
-                                    <span class="text-green-700 bg-green-100 px-2 py-0.5 rounded text-xs">Paid</span>
-                                @elseif ($item->status === 'partial')
-                                    <span class="text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded text-xs">Partial</span>
-                                @else
-                                    <span class="text-red-700 bg-red-100 px-2 py-0.5 rounded text-xs">Unpaid</span>
-                                @endif
-                            </td>
-                            <td class="px-3 py-2 text-right">
-                                <a href="{{ route('admin.sales.invoices.show', $item) }}" class="text-blue-600 hover:underline">Detail</a>
-                            </td>
-                        </tr>
-                    @empty
-                        <tr><td colspan="99" class="px-3 py-6 text-center text-gray-500">Belum ada data.</td></tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
-
-        <div class="mt-4">{{ $items->links() }}</div>
     </div>
+
+    <section class="panel">
+        {{-- Tab status --}}
+        <nav class="frm-tabs" aria-label="Status invoice">
+            @foreach ($tabs as $key => $label)
+                <a href="{{ $key === '' ? route('admin.sales.invoices.index') : route('admin.sales.invoices.index', ['status' => $key]) }}"
+                   class="frm-tab {{ ($status ?? '') === $key ? 'is-active' : '' }}"
+                   @if (($status ?? '') === $key) aria-current="page" @endif>{{ $label }}</a>
+            @endforeach
+            <span class="frm-count">{{ number_format($items->total(), 0, ',', '.') }} invoice</span>
+        </nav>
+
+        @if ($items->count())
+            <div class="frm-table-wrap">
+                <table class="frm-table">
+                    <thead>
+                        <tr>
+                            <th>Kode</th>
+                            <th>Tanggal</th>
+                            <th>Customer</th>
+                            <th>Sales</th>
+                            <th class="is-num">Grand Total</th>
+                            <th>Status</th>
+                            <th class="is-end">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($items as $item)
+                            <tr>
+                                <td><span class="frm-code">{{ $item->code }}</span></td>
+                                <td data-label="Tanggal" class="frm-nowrap">{{ $item->date->format('d M Y') }}</td>
+                                <td data-label="Customer"><span class="frm-name">{{ $item->customer->name ?? '-' }}</span></td>
+                                <td data-label="Sales">{{ $item->sales->name ?? '-' }}</td>
+                                <td data-label="Total" class="is-num"><span class="frm-num is-strong">Rp {{ number_format($item->grand_total, 0, ',', '.') }}</span></td>
+                                <td class="frm-cell-status">
+                                    @if ($item->status === 'paid')
+                                        <span class="frm-status is-on">Paid</span>
+                                    @elseif ($item->status === 'partial')
+                                        <span class="frm-status is-warn">Partial</span>
+                                    @else
+                                        <span class="frm-status is-danger">Unpaid</span>
+                                    @endif
+                                </td>
+                                <td class="is-end">
+                                    <div class="frm-actions">
+                                        <a href="{{ route('admin.sales.invoices.print', $item) }}" target="_blank" rel="noopener"
+                                           class="frm-icon-btn" title="Cetak" aria-label="Cetak {{ $item->code }}">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                                        </a>
+                                        <a href="{{ route('admin.sales.invoices.show', $item) }}" class="adm-btn adm-btn-ghost adm-btn-sm">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+                                            Detail
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+
+            @if ($items->hasPages())
+                <div class="frm-pager">{{ $items->withQueryString()->links() }}</div>
+            @endif
+        @else
+            <div class="frm-empty">
+                <div class="frm-empty-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg>
+                </div>
+                <p class="frm-empty-title">Belum ada data</p>
+                <p class="frm-empty-text">{{ $emptyText }}</p>
+            </div>
+        @endif
+    </section>
 </x-admin-layout>

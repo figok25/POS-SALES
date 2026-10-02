@@ -1,58 +1,98 @@
 <x-admin-layout>
-    <div class="p-6">
-        <div class="flex items-center justify-between mb-4">
-            <h1 class="text-xl font-semibold">Transaksi Penjualan</h1>
-            <a href="{{ route('admin.sales.transactions.export', request()->query()) }}" class="bg-gray-200 px-3 py-2 rounded text-sm hover:bg-gray-300">Download Laporan</a>
-        </div>
+    @php $isFiltered = filled($salesId); @endphp
 
-        <form method="GET" class="mb-4 flex gap-2 text-sm">
-            <select name="sales_id" class="border rounded px-3 py-2" onchange="this.form.submit()">
+    {{-- Kepala halaman --}}
+    <div class="frm-head">
+        <div>
+            <h1 class="frm-title">Transaksi Penjualan</h1>
+            <p class="frm-sub">Riwayat transaksi penjualan dari seluruh Sales.</p>
+        </div>
+        <a href="{{ route('admin.sales.transactions.export', request()->query()) }}" class="adm-btn adm-btn-ghost">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg>
+            Download Laporan
+        </a>
+    </div>
+
+    <section class="panel">
+        {{-- Filter --}}
+        <form method="GET" class="frm-toolbar">
+            <select name="sales_id" class="frm-input is-select is-filter" aria-label="Filter Sales" onchange="this.form.submit()">
                 <option value="">Semua Sales</option>
                 @foreach ($salesList as $s)
                     <option value="{{ $s->id }}" @selected((string) $salesId === (string) $s->id)>{{ $s->name }}</option>
                 @endforeach
             </select>
+
+            <noscript><button type="submit" class="adm-btn adm-btn-primary adm-btn-sm">Filter</button></noscript>
+
+            @if ($isFiltered)
+                <a href="{{ route('admin.sales.transactions.index') }}" class="adm-btn adm-btn-ghost adm-btn-sm">Reset</a>
+            @endif
+
+            <span class="frm-count">{{ number_format($items->total(), 0, ',', '.') }} transaksi</span>
         </form>
 
-        <div class="bg-white rounded shadow overflow-x-auto">
-            <table class="w-full text-sm">
-                <thead class="bg-gray-50 border-b">
-                    <tr>
-                        <th class="px-3 py-2 text-left">Kode</th>
-                        <th class="px-3 py-2 text-left">Tanggal</th>
-                        <th class="px-3 py-2 text-left">Sales</th>
-                        <th class="px-3 py-2 text-left">Customer</th>
-                        <th class="px-3 py-2 text-right">Total</th>
-                        <th class="px-3 py-2 text-left">Status</th>
-                        <th class="px-3 py-2 text-right">Aksi</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse ($items as $item)
-                        <tr class="border-b">
-                            <td class="px-3 py-2 font-medium">{{ $item->code }}</td>
-                            <td class="px-3 py-2">{{ $item->created_at->format('d M Y H:i') }}</td>
-                            <td class="px-3 py-2">{{ $item->sales->name ?? '-' }}</td>
-                            <td class="px-3 py-2">{{ $item->customer->name ?? '-' }}</td>
-                            <td class="px-3 py-2 text-right">Rp {{ number_format($item->total, 0, ',', '.') }}</td>
-                            <td class="px-3 py-2">
-                                @if ($item->status === 'completed')
-                                    <span class="text-green-700 bg-green-100 px-2 py-0.5 rounded text-xs">Completed</span>
-                                @else
-                                    <span class="text-red-700 bg-red-100 px-2 py-0.5 rounded text-xs">Cancelled</span>
-                                @endif
-                            </td>
-                            <td class="px-3 py-2 text-right">
-                                <a href="{{ route('admin.sales.transactions.show', $item) }}" class="text-blue-600 hover:underline">Detail</a>
-                            </td>
+        @if ($items->count())
+            <div class="frm-table-wrap">
+                <table class="frm-table">
+                    <thead>
+                        <tr>
+                            <th>Kode</th>
+                            <th>Tanggal</th>
+                            <th>Sales</th>
+                            <th>Customer</th>
+                            <th class="is-num">Total</th>
+                            <th>Status</th>
+                            <th class="is-end">Aksi</th>
                         </tr>
-                    @empty
-                        <tr><td colspan="99" class="px-3 py-6 text-center text-gray-500">Belum ada data.</td></tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
+                    </thead>
+                    <tbody>
+                        @foreach ($items as $item)
+                            <tr>
+                                <td><span class="frm-code">{{ $item->code }}</span></td>
+                                <td data-label="Tanggal" class="frm-nowrap">{{ $item->created_at->format('d M Y H:i') }}</td>
+                                <td data-label="Sales">{{ $item->sales->name ?? '-' }}</td>
+                                <td data-label="Customer"><span class="frm-name">{{ $item->customer->name ?? '-' }}</span></td>
+                                <td data-label="Total" class="is-num"><span class="frm-num is-strong">Rp {{ number_format($item->total, 0, ',', '.') }}</span></td>
+                                <td class="frm-cell-status">
+                                    @if ($item->status === 'completed')
+                                        <span class="frm-status is-on">Completed</span>
+                                    @else
+                                        <span class="frm-status is-danger">Cancelled</span>
+                                    @endif
+                                </td>
+                                <td class="is-end">
+                                    <div class="frm-actions">
+                                        <a href="{{ route('admin.sales.transactions.print', $item) }}" target="_blank" rel="noopener"
+                                           class="frm-icon-btn" title="Cetak" aria-label="Cetak {{ $item->code }}">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                                        </a>
+                                        <a href="{{ route('admin.sales.transactions.show', $item) }}" class="adm-btn adm-btn-ghost adm-btn-sm">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+                                            Detail
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
 
-        <div class="mt-4">{{ $items->links() }}</div>
-    </div>
+            @if ($items->hasPages())
+                <div class="frm-pager">{{ $items->withQueryString()->links() }}</div>
+            @endif
+        @else
+            <div class="frm-empty">
+                <div class="frm-empty-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
+                </div>
+                <p class="frm-empty-title">{{ $isFiltered ? 'Tidak ada hasil' : 'Belum ada data' }}</p>
+                <p class="frm-empty-text">{{ $isFiltered ? 'Sales ini belum punya transaksi.' : 'Transaksi penjualan akan tampil di sini.' }}</p>
+                @if ($isFiltered)
+                    <a href="{{ route('admin.sales.transactions.index') }}" class="adm-btn adm-btn-ghost adm-btn-sm">Reset Filter</a>
+                @endif
+            </div>
+        @endif
+    </section>
 </x-admin-layout>

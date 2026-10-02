@@ -1,170 +1,245 @@
 <x-admin-layout>
-    <div class="p-6">
-        <div class="flex items-center justify-between mb-4">
-            <h1 class="text-xl font-semibold">Tagging Toko</h1>
-        </div>
+    @php
+        $isFiltered = filled($salesId) || filled($dateFrom) || filled($dateTo);
+        $isPending  = $status === 'pending';
+        $tabParams  = fn (string $s) => array_merge(request()->except(['status', 'page']), ['status' => $s]);
+        $tabs       = ['pending' => 'Pending', 'approved' => 'Approved', 'rejected' => 'Rejected'];
+        $emptyText  = [
+            'pending'  => 'Belum ada tagging yang menunggu review.',
+            'approved' => 'Belum ada tagging yang disetujui.',
+            'rejected' => 'Belum ada tagging yang ditolak.',
+        ][$status] ?? 'Data tagging akan tampil di sini.';
+    @endphp
 
-        @if (session('status'))
-            <div class="mb-4 p-3 bg-green-100 text-green-800 rounded text-sm">{{ session('status') }}</div>
-        @endif
-        @if (session('error'))
-            <div class="mb-4 p-3 bg-red-100 text-red-800 rounded text-sm">{{ session('error') }}</div>
-        @endif
-
-        <div class="mb-4 flex gap-2 text-sm">
-            @php
-                $tabParams = fn (string $s) => array_merge(request()->except(['status', 'page']), ['status' => $s]);
-            @endphp
-            <a href="{{ route('admin.sales.customer-taggings.index', $tabParams('pending')) }}"
-               class="px-3 py-1.5 rounded {{ $status === 'pending' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700' }}">Pending</a>
-            <a href="{{ route('admin.sales.customer-taggings.index', $tabParams('approved')) }}"
-               class="px-3 py-1.5 rounded {{ $status === 'approved' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700' }}">Approved</a>
-            <a href="{{ route('admin.sales.customer-taggings.index', $tabParams('rejected')) }}"
-               class="px-3 py-1.5 rounded {{ $status === 'rejected' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700' }}">Rejected</a>
+    {{-- Kepala halaman --}}
+    <div class="frm-head">
+        <div>
+            <h1 class="frm-title">Tagging Toko</h1>
+            <p class="frm-sub">Review toko baru yang di-tag oleh Sales di lapangan.</p>
         </div>
+    </div>
+
+    {{-- Notifikasi --}}
+    @if (session('status'))
+        <div class="frm-alert" role="status" data-alert="auto">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+            <span class="frm-alert-text">{{ session('status') }}</span>
+            <button type="button" class="frm-alert-close" aria-label="Tutup notifikasi">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
+        </div>
+    @endif
+    @if (session('error'))
+        <div class="frm-alert is-error" role="alert" data-alert>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+            <span class="frm-alert-text">{{ session('error') }}</span>
+            <button type="button" class="frm-alert-close" aria-label="Tutup notifikasi">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
+        </div>
+    @endif
+
+    <section class="panel">
+        {{-- Tab status --}}
+        <nav class="frm-tabs" aria-label="Status tagging">
+            @foreach ($tabs as $key => $label)
+                <a href="{{ route('admin.sales.customer-taggings.index', $tabParams($key)) }}"
+                   class="frm-tab {{ $status === $key ? 'is-active' : '' }}"
+                   @if ($status === $key) aria-current="page" @endif>{{ $label }}</a>
+            @endforeach
+        </nav>
 
         {{-- Filter: Sales + Rentang Tanggal Tagging --}}
-        <form method="GET" class="mb-4 bg-white p-3 rounded shadow flex flex-wrap items-end gap-3 text-sm">
+        <form method="GET" class="frm-toolbar is-fields">
             <input type="hidden" name="status" value="{{ $status }}">
-            <div>
-                <label class="block text-xs font-medium mb-1">Sales</label>
-                <select name="sales_id" class="border rounded px-3 py-2 text-sm min-w-[180px]">
-                    <option value="">- Semua Sales -</option>
+
+            <div class="frm-field">
+                <label for="f-sales" class="frm-label">Sales</label>
+                <select id="f-sales" name="sales_id" class="frm-input is-select is-filter">
+                    <option value="">Semua Sales</option>
                     @foreach ($salesList as $sales)
                         <option value="{{ $sales->id }}" @selected((string) $salesId === (string) $sales->id)>{{ $sales->name }}</option>
                     @endforeach
                 </select>
             </div>
-            <div>
-                <label class="block text-xs font-medium mb-1">Dari Tanggal</label>
-                <input type="date" name="date_from" value="{{ $dateFrom }}" class="border rounded px-3 py-2 text-sm">
+            <div class="frm-field">
+                <label for="f-from" class="frm-label">Dari Tanggal</label>
+                <input type="date" id="f-from" name="date_from" value="{{ $dateFrom }}" class="frm-input is-filter">
             </div>
-            <div>
-                <label class="block text-xs font-medium mb-1">Sampai Tanggal</label>
-                <input type="date" name="date_to" value="{{ $dateTo }}" class="border rounded px-3 py-2 text-sm">
+            <div class="frm-field">
+                <label for="f-to" class="frm-label">Sampai Tanggal</label>
+                <input type="date" id="f-to" name="date_to" value="{{ $dateTo }}" class="frm-input is-filter">
             </div>
-            <button type="submit" class="bg-blue-600 text-white px-3 py-2 rounded text-sm hover:bg-blue-700">Filter</button>
-            @if ($salesId || $dateFrom || $dateTo)
-                <a href="{{ route('admin.sales.customer-taggings.index', ['status' => $status]) }}" class="px-3 py-2 text-sm rounded border">Reset Filter</a>
-            @endif
+
+            <div class="frm-toolbar-actions">
+                <button type="submit" class="adm-btn adm-btn-primary adm-btn-sm">Filter</button>
+                @if ($isFiltered)
+                    <a href="{{ route('admin.sales.customer-taggings.index', ['status' => $status]) }}" class="adm-btn adm-btn-ghost adm-btn-sm">Reset</a>
+                @endif
+            </div>
+
+            <span class="frm-count">{{ number_format($items->total(), 0, ',', '.') }} tagging</span>
         </form>
 
-        @if ($status === 'pending')
-            <form id="bulk-approve-form" method="POST" action="{{ route('admin.sales.customer-taggings.bulk-approve') }}">
+        {{-- Bulk approve (hanya tab Pending). Form dibuat terpisah; checkbox baris terhubung lewat atribut form="". --}}
+        @if ($isPending)
+            <form id="bulk-approve-form" method="POST" action="{{ route('admin.sales.customer-taggings.bulk-approve') }}" hidden>
                 @csrf
-                <div class="mb-3 flex items-center gap-3">
-                    <button type="submit"
-                            id="bulk-approve-btn"
-                            disabled
-                            onclick="return confirm('Approve semua tagging terpilih? Customer akan langsung dibuat dan masuk Rute Kanvas.')"
-                            class="px-3 py-1.5 rounded text-sm bg-green-600 text-white disabled:bg-gray-300 disabled:cursor-not-allowed">
+            </form>
+
+            @if ($items->count())
+                <div class="frm-bulk">
+                    <label class="frm-bulk-all">
+                        <input type="checkbox" id="select-all-taggings" class="frm-check">
+                        <span>Pilih semua di halaman ini</span>
+                    </label>
+                    <button type="button" id="bulk-approve-btn" class="adm-btn adm-btn-success adm-btn-sm" disabled>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
                         Approve Terpilih (<span id="bulk-approve-count">0</span>)
                     </button>
                 </div>
+            @endif
+        @endif
 
-                <div class="bg-white rounded shadow overflow-x-auto">
-                    <table class="w-full text-sm">
-                        <thead class="bg-gray-50 border-b">
-                            <tr>
-                                <th class="px-3 py-2 text-left w-8"><input type="checkbox" id="select-all-taggings"></th>
-                                <th class="px-3 py-2 text-left">Waktu Tagging</th>
-                                <th class="px-3 py-2 text-left">Sales</th>
-                                <th class="px-3 py-2 text-left">Nama Toko</th>
-                                <th class="px-3 py-2 text-left">Telepon</th>
-                                <th class="px-3 py-2 text-left">Tipe</th>
-                                <th class="px-3 py-2 text-left">Status</th>
-                                <th class="px-3 py-2 text-right">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse ($items as $item)
-                                <tr class="border-b">
-                                    <td class="px-3 py-2">
-                                        <input type="checkbox" name="tagging_ids[]" value="{{ $item->id }}" class="tagging-checkbox">
-                                    </td>
-                                    <td class="px-3 py-2">{{ $item->tagged_at->format('d M Y H:i') }}</td>
-                                    <td class="px-3 py-2">{{ $item->sales->name ?? '-' }}</td>
-                                    <td class="px-3 py-2">{{ $item->name }}</td>
-                                    <td class="px-3 py-2">{{ $item->phone ?? '-' }}</td>
-                                    <td class="px-3 py-2">{{ $item->customer_type ?? '-' }}</td>
-                                    <td class="px-3 py-2">
-                                        <span class="text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded text-xs">Pending</span>
-                                    </td>
-                                    <td class="px-3 py-2 text-right">
-                                        <a href="{{ route('admin.sales.customer-taggings.show', $item) }}" class="text-blue-600 hover:underline">Detail</a>
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr><td colspan="99" class="px-3 py-6 text-center text-gray-500">Belum ada data.</td></tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-            </form>
-
-            <script>
-                (function () {
-                    const selectAll = document.getElementById('select-all-taggings');
-                    const checkboxes = document.querySelectorAll('.tagging-checkbox');
-                    const countEl = document.getElementById('bulk-approve-count');
-                    const btn = document.getElementById('bulk-approve-btn');
-
-                    function refresh() {
-                        const checked = document.querySelectorAll('.tagging-checkbox:checked').length;
-                        countEl.textContent = checked;
-                        btn.disabled = checked === 0;
-                    }
-
-                    selectAll?.addEventListener('change', function () {
-                        checkboxes.forEach(cb => { cb.checked = selectAll.checked; });
-                        refresh();
-                    });
-
-                    checkboxes.forEach(cb => cb.addEventListener('change', refresh));
-                    refresh();
-                })();
-            </script>
-        @else
-            <div class="bg-white rounded shadow overflow-x-auto">
-                <table class="w-full text-sm">
-                    <thead class="bg-gray-50 border-b">
+        @if ($items->count())
+            <div class="frm-table-wrap">
+                <table class="frm-table">
+                    <thead>
                         <tr>
-                            <th class="px-3 py-2 text-left">Waktu Tagging</th>
-                            <th class="px-3 py-2 text-left">Sales</th>
-                            <th class="px-3 py-2 text-left">Nama Toko</th>
-                            <th class="px-3 py-2 text-left">Telepon</th>
-                            <th class="px-3 py-2 text-left">Tipe</th>
-                            <th class="px-3 py-2 text-left">Status</th>
-                            <th class="px-3 py-2 text-right">Aksi</th>
+                            @if ($isPending)<th class="frm-cell-check"><span class="sr-only">Pilih</span></th>@endif
+                            <th>Waktu Tagging</th>
+                            <th>Sales</th>
+                            <th>Nama Toko</th>
+                            <th>Telepon</th>
+                            <th>Tipe</th>
+                            <th>Status</th>
+                            <th class="is-end">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @forelse ($items as $item)
-                            <tr class="border-b">
-                                <td class="px-3 py-2">{{ $item->tagged_at->format('d M Y H:i') }}</td>
-                                <td class="px-3 py-2">{{ $item->sales->name ?? '-' }}</td>
-                                <td class="px-3 py-2">{{ $item->name }}</td>
-                                <td class="px-3 py-2">{{ $item->phone ?? '-' }}</td>
-                                <td class="px-3 py-2">{{ $item->customer_type ?? '-' }}</td>
-                                <td class="px-3 py-2">
+                        @foreach ($items as $item)
+                            <tr @class(['has-check' => $isPending])>
+                                @if ($isPending)
+                                    <td class="frm-cell-check">
+                                        <input type="checkbox" name="tagging_ids[]" value="{{ $item->id }}" form="bulk-approve-form"
+                                               class="frm-check tagging-checkbox" aria-label="Pilih {{ $item->name }}">
+                                    </td>
+                                @endif
+                                <td data-label="Waktu" class="frm-nowrap">{{ $item->tagged_at->format('d M Y H:i') }}</td>
+                                <td data-label="Sales">{{ $item->sales->name ?? '-' }}</td>
+                                <td><span class="frm-name">{{ $item->name }}</span></td>
+                                <td data-label="Telepon">
+                                    @if ($item->phone) {{ $item->phone }} @else <span class="frm-dash">—</span> @endif
+                                </td>
+                                <td data-label="Tipe">
+                                    @if ($item->customer_type) {{ $item->customer_type }} @else <span class="frm-dash">—</span> @endif
+                                </td>
+                                <td class="frm-cell-status">
                                     @if ($item->status === 'approved')
-                                        <span class="text-green-700 bg-green-100 px-2 py-0.5 rounded text-xs">Approved</span>
+                                        <span class="frm-status is-on">Approved</span>
+                                    @elseif ($item->status === 'rejected')
+                                        <span class="frm-status is-danger">Rejected</span>
                                     @else
-                                        <span class="text-red-700 bg-red-100 px-2 py-0.5 rounded text-xs">Rejected</span>
+                                        <span class="frm-status is-warn">Pending</span>
                                     @endif
                                 </td>
-                                <td class="px-3 py-2 text-right">
-                                    <a href="{{ route('admin.sales.customer-taggings.show', $item) }}" class="text-blue-600 hover:underline">Detail</a>
+                                <td class="is-end">
+                                    <a href="{{ route('admin.sales.customer-taggings.show', $item) }}" class="adm-btn adm-btn-ghost adm-btn-sm">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+                                        Detail
+                                    </a>
                                 </td>
                             </tr>
-                        @empty
-                            <tr><td colspan="99" class="px-3 py-6 text-center text-gray-500">Belum ada data.</td></tr>
-                        @endforelse
+                        @endforeach
                     </tbody>
                 </table>
             </div>
-        @endif
 
-        <div class="mt-4">{{ $items->links() }}</div>
-    </div>
+            @if ($items->hasPages())
+                <div class="frm-pager">{{ $items->withQueryString()->links() }}</div>
+            @endif
+        @else
+            <div class="frm-empty">
+                <div class="frm-empty-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                </div>
+                <p class="frm-empty-title">{{ $isFiltered ? 'Tidak ada hasil' : 'Belum ada data' }}</p>
+                <p class="frm-empty-text">{{ $isFiltered ? 'Coba ubah Sales atau rentang tanggal yang dipakai.' : $emptyText }}</p>
+                @if ($isFiltered)
+                    <a href="{{ route('admin.sales.customer-taggings.index', ['status' => $status]) }}" class="adm-btn adm-btn-ghost adm-btn-sm">Reset Filter</a>
+                @endif
+            </div>
+        @endif
+    </section>
+
+    {{-- Konfirmasi bulk approve --}}
+    @if ($isPending)
+        <dialog id="bulk-approve-dialog" class="frm-modal is-sm" aria-labelledby="bulk-approve-title">
+            <div class="frm-confirm">
+                <div class="frm-confirm-icon is-ok">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+                </div>
+                <h2 id="bulk-approve-title" class="frm-modal-title">Approve tagging terpilih?</h2>
+                <p class="frm-confirm-text">
+                    <strong id="bulk-dialog-count">0</strong> tagging akan di-approve. Customer langsung dibuat dan masuk Rute Kanvas.
+                </p>
+            </div>
+            <div class="frm-modal-foot">
+                <button type="button" class="adm-btn adm-btn-ghost adm-btn-sm" data-close>Batal</button>
+                <button type="submit" form="bulk-approve-form" class="adm-btn adm-btn-success adm-btn-sm">Ya, Approve</button>
+            </div>
+        </dialog>
+    @endif
+
+    <script>
+        (function () {
+            // Notifikasi: tombol tutup; yang bertanda data-alert="auto" hilang sendiri.
+            document.querySelectorAll('[data-alert]').forEach(function (el) {
+                var close = function () {
+                    el.classList.add('is-leaving');
+                    setTimeout(function () { el.remove(); }, 300);
+                };
+                var btn = el.querySelector('.frm-alert-close');
+                if (btn) btn.addEventListener('click', close);
+                if (el.dataset.alert === 'auto') setTimeout(close, 6000);
+            });
+
+            // Bulk approve
+            var selectAll = document.getElementById('select-all-taggings');
+            var approveBtn = document.getElementById('bulk-approve-btn');
+            var dialog = document.getElementById('bulk-approve-dialog');
+            if (!approveBtn || !dialog) return;
+
+            var boxes = Array.prototype.slice.call(document.querySelectorAll('.tagging-checkbox'));
+            var countEl = document.getElementById('bulk-approve-count');
+            var dialogCount = document.getElementById('bulk-dialog-count');
+
+            function refresh() {
+                var checked = boxes.filter(function (cb) { return cb.checked; }).length;
+                countEl.textContent = checked;
+                dialogCount.textContent = checked;
+                approveBtn.disabled = checked === 0;
+                if (selectAll) {
+                    selectAll.checked = checked > 0 && checked === boxes.length;
+                    selectAll.indeterminate = checked > 0 && checked < boxes.length;
+                }
+            }
+
+            if (selectAll) {
+                selectAll.addEventListener('change', function () {
+                    boxes.forEach(function (cb) { cb.checked = selectAll.checked; });
+                    refresh();
+                });
+            }
+            boxes.forEach(function (cb) { cb.addEventListener('change', refresh); });
+
+            approveBtn.addEventListener('click', function () {
+                if (!approveBtn.disabled) dialog.showModal();
+            });
+            dialog.querySelector('[data-close]').addEventListener('click', function () { dialog.close(); });
+            dialog.addEventListener('click', function (e) { if (e.target === dialog) dialog.close(); });
+
+            refresh();
+        })();
+    </script>
 </x-admin-layout>
