@@ -1,43 +1,66 @@
 <x-admin-layout>
-    <div class="p-6 max-w-2xl">
-        <div class="flex items-center justify-between mb-4">
-            <h1 class="text-xl font-semibold">Detail Kunjungan</h1>
-            <a href="{{ route('admin.sales.visits.index') }}" class="text-sm text-gray-600 hover:underline">&larr; Kembali</a>
+    @php
+        $hasInLoc  = filled($visit->check_in_latitude) && filled($visit->check_in_longitude);
+        $hasOutLoc = filled($visit->check_out_latitude) && filled($visit->check_out_longitude);
+        $mins      = $visit->check_out_at ? abs((int) $visit->check_in_at->diffInMinutes($visit->check_out_at)) : null;
+        $duration  = $mins === null ? null : ($mins >= 60 ? intdiv($mins, 60) . ' jam ' . ($mins % 60) . ' menit' : $mins . ' menit');
+    @endphp
+
+    <div class="frm-page">
+        {{-- Kepala halaman --}}
+        <div class="frm-head">
+            <div>
+                <h1 class="frm-title">Detail Kunjungan</h1>
+                <p class="frm-sub">{{ $visit->customer->name ?? '-' }} &middot; {{ $visit->check_in_at->format('d M Y') }}</p>
+            </div>
+            <a href="{{ route('admin.sales.visits.index') }}" class="adm-btn adm-btn-ghost adm-btn-sm">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+                Kembali
+            </a>
         </div>
 
-        <div class="bg-white rounded shadow p-4 space-y-2 text-sm">
-            <div class="flex justify-between"><span class="text-gray-500">Sales</span><span>{{ $visit->sales->name ?? '-' }}</span></div>
-            <div class="flex justify-between"><span class="text-gray-500">Customer</span><span>{{ $visit->customer->name ?? '-' }}</span></div>
-            <div class="flex justify-between"><span class="text-gray-500">Check-in</span><span>{{ $visit->check_in_at->format('d M Y H:i') }}</span></div>
-            <div class="flex justify-between">
-                <span class="text-gray-500">Lokasi Check-in</span>
-                <span>
-                    @if ($visit->check_in_latitude)
-                        <a class="text-blue-600 hover:underline" target="_blank" href="https://maps.google.com/?q={{ $visit->check_in_latitude }},{{ $visit->check_in_longitude }}">{{ $visit->check_in_latitude }}, {{ $visit->check_in_longitude }}</a>
-                    @else - @endif
-                </span>
+        <section class="panel">
+            <div class="panel-head">
+                <h2 class="panel-title">Informasi Kunjungan</h2>
+                @if ($visit->status === 'ongoing')
+                    <span class="frm-status is-warn">Berjalan</span>
+                @else
+                    <span class="frm-status is-on">Selesai</span>
+                @endif
             </div>
-            <div class="flex justify-between"><span class="text-gray-500">Check-out</span><span>{{ $visit->check_out_at?->format('d M Y H:i') ?? '-' }}</span></div>
-            @if ($visit->check_out_at)
-                <div class="flex justify-between">
-                    <span class="text-gray-500">Lokasi Check-out</span>
-                    <span>
-                        @if ($visit->check_out_latitude)
-                            <a class="text-blue-600 hover:underline" target="_blank" href="https://maps.google.com/?q={{ $visit->check_out_latitude }},{{ $visit->check_out_longitude }}">{{ $visit->check_out_latitude }}, {{ $visit->check_out_longitude }}</a>
-                        @else - @endif
-                    </span>
+
+            <dl class="frm-detail">
+                <div><dt>Sales</dt><dd>{{ $visit->sales->name ?? '-' }}</dd></div>
+                <div><dt>Customer</dt><dd>{{ $visit->customer->name ?? '-' }}</dd></div>
+                <div><dt>Check-in</dt><dd>{{ $visit->check_in_at->format('d M Y H:i') }}</dd></div>
+                <div>
+                    <dt>Lokasi Check-in</dt>
+                    <dd>
+                        @if ($hasInLoc)
+                            <a class="panel-link" target="_blank" rel="noopener"
+                               href="https://maps.google.com/?q={{ $visit->check_in_latitude }},{{ $visit->check_in_longitude }}">{{ $visit->check_in_latitude }}, {{ $visit->check_in_longitude }}</a>
+                        @else
+                            -
+                        @endif
+                    </dd>
                 </div>
-            @endif
-            <div class="flex justify-between"><span class="text-gray-500">Catatan</span><span class="text-right">{{ $visit->notes ?? '-' }}</span></div>
-            <div class="flex justify-between"><span class="text-gray-500">Status</span>
-                <span>
-                    @if ($visit->status === 'ongoing')
-                        <span class="text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded text-xs">Berjalan</span>
-                    @else
-                        <span class="text-green-700 bg-green-100 px-2 py-0.5 rounded text-xs">Selesai</span>
-                    @endif
-                </span>
-            </div>
-        </div>
+                <div><dt>Check-out</dt><dd>{{ $visit->check_out_at?->format('d M Y H:i') ?? '-' }}</dd></div>
+                @if ($visit->check_out_at)
+                    <div>
+                        <dt>Lokasi Check-out</dt>
+                        <dd>
+                            @if ($hasOutLoc)
+                                <a class="panel-link" target="_blank" rel="noopener"
+                                   href="https://maps.google.com/?q={{ $visit->check_out_latitude }},{{ $visit->check_out_longitude }}">{{ $visit->check_out_latitude }}, {{ $visit->check_out_longitude }}</a>
+                            @else
+                                -
+                            @endif
+                        </dd>
+                    </div>
+                    <div><dt>Durasi</dt><dd>{{ $duration }}</dd></div>
+                @endif
+                <div><dt>Catatan</dt><dd>{{ $visit->notes ?? '-' }}</dd></div>
+            </dl>
+        </section>
     </div>
 </x-admin-layout>

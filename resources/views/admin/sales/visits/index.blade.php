@@ -1,50 +1,104 @@
 <x-admin-layout>
-    <div class="p-6">
-        <h1 class="text-xl font-semibold mb-4">Kunjungan (Visit)</h1>
+    @php
+        $status = $status ?? null;
+        $tabs = [
+            ''          => 'Semua',
+            'ongoing'   => 'Sedang Berjalan',
+            'completed' => 'Selesai',
+        ];
+        $emptyText = [
+            'ongoing'   => 'Tidak ada kunjungan yang sedang berjalan.',
+            'completed' => 'Belum ada kunjungan yang selesai.',
+        ][$status ?? ''] ?? 'Kunjungan akan tampil di sini setelah Sales melakukan check-in.';
+        $duration = function ($in, $out) {
+            if (! $out) {
+                return null;
+            }
+            $mins = abs((int) $in->diffInMinutes($out));
+            return $mins >= 60 ? intdiv($mins, 60) . ' j ' . ($mins % 60) . ' m' : $mins . ' m';
+        };
+    @endphp
 
-        <div class="mb-4 flex gap-2 text-sm">
-            <a href="{{ route('admin.sales.visits.index') }}" class="px-3 py-1.5 rounded {{ ! $status ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700' }}">Semua</a>
-            <a href="{{ route('admin.sales.visits.index', ['status' => 'ongoing']) }}" class="px-3 py-1.5 rounded {{ $status === 'ongoing' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700' }}">Sedang Berjalan</a>
-            <a href="{{ route('admin.sales.visits.index', ['status' => 'completed']) }}" class="px-3 py-1.5 rounded {{ $status === 'completed' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700' }}">Selesai</a>
+    {{-- Kepala halaman --}}
+    <div class="frm-head">
+        <div>
+            <h1 class="frm-title">Kunjungan (Visit)</h1>
+            <p class="frm-sub">Pantau check-in dan check-out Sales di setiap customer.</p>
         </div>
-
-        <div class="bg-white rounded shadow overflow-x-auto">
-            <table class="w-full text-sm">
-                <thead class="bg-gray-50 border-b">
-                    <tr>
-                        <th class="px-3 py-2 text-left">Sales</th>
-                        <th class="px-3 py-2 text-left">Customer</th>
-                        <th class="px-3 py-2 text-left">Check-in</th>
-                        <th class="px-3 py-2 text-left">Check-out</th>
-                        <th class="px-3 py-2 text-left">Status</th>
-                        <th class="px-3 py-2 text-right">Aksi</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse ($items as $item)
-                        <tr class="border-b">
-                            <td class="px-3 py-2">{{ $item->sales->name ?? '-' }}</td>
-                            <td class="px-3 py-2">{{ $item->customer->name ?? '-' }}</td>
-                            <td class="px-3 py-2">{{ $item->check_in_at->format('d M Y H:i') }}</td>
-                            <td class="px-3 py-2">{{ $item->check_out_at?->format('d M Y H:i') ?? '-' }}</td>
-                            <td class="px-3 py-2">
-                                @if ($item->status === 'ongoing')
-                                    <span class="text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded text-xs">Berjalan</span>
-                                @else
-                                    <span class="text-green-700 bg-green-100 px-2 py-0.5 rounded text-xs">Selesai</span>
-                                @endif
-                            </td>
-                            <td class="px-3 py-2 text-right">
-                                <a href="{{ route('admin.sales.visits.show', $item) }}" class="text-blue-600 hover:underline">Detail</a>
-                            </td>
-                        </tr>
-                    @empty
-                        <tr><td colspan="99" class="px-3 py-6 text-center text-gray-500">Belum ada data.</td></tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
-
-        <div class="mt-4">{{ $items->links() }}</div>
     </div>
+
+    <section class="panel">
+        {{-- Tab status --}}
+        <nav class="frm-tabs" aria-label="Status kunjungan">
+            @foreach ($tabs as $key => $label)
+                <a href="{{ $key === '' ? route('admin.sales.visits.index') : route('admin.sales.visits.index', ['status' => $key]) }}"
+                   class="frm-tab {{ ($status ?? '') === $key ? 'is-active' : '' }}"
+                   @if (($status ?? '') === $key) aria-current="page" @endif>{{ $label }}</a>
+            @endforeach
+            <span class="frm-count">{{ number_format($items->total(), 0, ',', '.') }} kunjungan</span>
+        </nav>
+
+        @if ($items->count())
+            <div class="frm-table-wrap">
+                <table class="frm-table">
+                    <thead>
+                        <tr>
+                            <th>Sales</th>
+                            <th>Customer</th>
+                            <th>Check-in</th>
+                            <th>Check-out</th>
+                            <th>Durasi</th>
+                            <th>Status</th>
+                            <th class="is-end">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($items as $item)
+                            @php $dur = $duration($item->check_in_at, $item->check_out_at); @endphp
+                            <tr>
+                                <td><span class="frm-name">{{ $item->sales->name ?? '-' }}</span></td>
+                                <td data-label="Customer">{{ $item->customer->name ?? '-' }}</td>
+                                <td data-label="Check-in" class="frm-nowrap">{{ $item->check_in_at->format('d M Y H:i') }}</td>
+                                <td data-label="Check-out" class="frm-nowrap">
+                                    @if ($item->check_out_at)
+                                        {{ $item->check_out_at->format('d M Y H:i') }}
+                                    @else
+                                        <span class="frm-dash">—</span>
+                                    @endif
+                                </td>
+                                <td data-label="Durasi" class="frm-nowrap">
+                                    @if ($dur) {{ $dur }} @else <span class="frm-dash">—</span> @endif
+                                </td>
+                                <td class="frm-cell-status">
+                                    @if ($item->status === 'ongoing')
+                                        <span class="frm-status is-warn">Berjalan</span>
+                                    @else
+                                        <span class="frm-status is-on">Selesai</span>
+                                    @endif
+                                </td>
+                                <td class="is-end">
+                                    <a href="{{ route('admin.sales.visits.show', $item) }}" class="adm-btn adm-btn-ghost adm-btn-sm">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+                                        Detail
+                                    </a>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+
+            @if ($items->hasPages())
+                <div class="frm-pager">{{ $items->withQueryString()->links() }}</div>
+            @endif
+        @else
+            <div class="frm-empty">
+                <div class="frm-empty-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                </div>
+                <p class="frm-empty-title">Belum ada data</p>
+                <p class="frm-empty-text">{{ $emptyText }}</p>
+            </div>
+        @endif
+    </section>
 </x-admin-layout>

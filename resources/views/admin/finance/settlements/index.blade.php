@@ -1,70 +1,131 @@
 <x-admin-layout>
-    <div class="p-6">
-        <div class="flex items-center justify-between mb-4">
-            <h1 class="text-xl font-semibold">Settlement</h1>
-            <a href="{{ route('admin.finance.settlements.create') }}" class="px-3 py-1.5 bg-indigo-600 text-white rounded text-sm">+ Buat Draft</a>
+    @php $isFiltered = filled($status); @endphp
+
+    {{-- Kepala halaman --}}
+    <div class="frm-head">
+        <div>
+            <h1 class="frm-title">Settlement</h1>
+            <p class="frm-sub">Setoran uang dan retur barang Sales ke Warehouse.</p>
         </div>
+        <a href="{{ route('admin.finance.settlements.create') }}" class="adm-btn adm-btn-primary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+            Buat Draft
+        </a>
+    </div>
 
-        @if (session('status'))
-            <div class="mb-4 p-3 bg-green-100 text-green-800 rounded text-sm">{{ session('status') }}</div>
-        @endif
-        @if ($errors->any())
-            <div class="mb-4 p-3 bg-red-100 text-red-800 rounded text-sm">{{ $errors->first() }}</div>
-        @endif
+    {{-- Notifikasi --}}
+    @if (session('status'))
+        <div class="frm-alert" role="status" data-alert="auto">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+            <span class="frm-alert-text">{{ session('status') }}</span>
+            <button type="button" class="frm-alert-close" aria-label="Tutup notifikasi">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
+        </div>
+    @endif
+    @if ($errors->any())
+        <div class="frm-alert is-error" role="alert" data-alert>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+            <span class="frm-alert-text">{{ $errors->first() }}</span>
+            <button type="button" class="frm-alert-close" aria-label="Tutup notifikasi">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
+        </div>
+    @endif
 
-        <form method="GET" class="mb-4 flex gap-2 text-sm">
-            <select name="status" class="border-gray-300 rounded px-3 py-1.5" onchange="this.form.submit()">
+    <section class="panel">
+        {{-- Filter --}}
+        <form method="GET" class="frm-toolbar">
+            <select name="status" class="frm-input is-select is-filter" aria-label="Filter status" onchange="this.form.submit()">
                 <option value="">Semua Status</option>
                 <option value="draft" @selected($status === 'draft')>Draft</option>
                 <option value="applied" @selected($status === 'applied')>Applied</option>
             </select>
+
+            <noscript><button type="submit" class="adm-btn adm-btn-primary adm-btn-sm">Filter</button></noscript>
+
+            @if ($isFiltered)
+                <a href="{{ route('admin.finance.settlements.index') }}" class="adm-btn adm-btn-ghost adm-btn-sm">Reset</a>
+            @endif
+
+            <span class="frm-count">{{ number_format($items->total(), 0, ',', '.') }} settlement</span>
         </form>
 
-        <div class="bg-white rounded shadow overflow-x-auto">
-            <table class="w-full text-sm">
-                <thead class="bg-gray-50 border-b">
-                    <tr>
-                        <th class="px-3 py-2 text-left">Kode</th>
-                        <th class="px-3 py-2 text-left">Sales</th>
-                        <th class="px-3 py-2 text-left">Tanggal</th>
-                        <th class="px-3 py-2 text-right">Cash Expected</th>
-                        <th class="px-3 py-2 text-right">Cash Deposited</th>
-                        <th class="px-3 py-2 text-right">Selisih</th>
-                        <th class="px-3 py-2 text-left">Status</th>
-                        <th class="px-3 py-2 text-right">Aksi</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse ($items as $settlement)
-                        <tr class="border-b">
-                            <td class="px-3 py-2">{{ $settlement->code }}</td>
-                            <td class="px-3 py-2">{{ $settlement->sales->name ?? '-' }}</td>
-                            <td class="px-3 py-2">{{ $settlement->settled_at->format('d M Y') }}</td>
-                            <td class="px-3 py-2 text-right">Rp {{ number_format($settlement->cash_expected, 0, ',', '.') }}</td>
-                            <td class="px-3 py-2 text-right">Rp {{ number_format($settlement->cash_deposited, 0, ',', '.') }}</td>
-                            <td class="px-3 py-2 text-right {{ $settlement->cash_variance < 0 ? 'text-red-600' : ($settlement->cash_variance > 0 ? 'text-blue-600' : '') }}">
-                                Rp {{ number_format($settlement->cash_variance, 0, ',', '.') }}
-                            </td>
-                            <td class="px-3 py-2">
-                                @if ($settlement->status === 'applied')
-                                    <span class="text-green-700 bg-green-100 px-2 py-0.5 rounded text-xs">Applied</span>
-                                @else
-                                    <span class="text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded text-xs">Draft</span>
-                                @endif
-                            </td>
-                            <td class="px-3 py-2 text-right">
-                                @if ($settlement->status === 'draft')
-                                    <a href="{{ route('admin.finance.settlements.edit', $settlement) }}" class="text-blue-600 hover:underline">Lanjutkan</a>
-                                @endif
-                            </td>
+        @if ($items->count())
+            <div class="frm-table-wrap">
+                <table class="frm-table">
+                    <thead>
+                        <tr>
+                            <th>Kode</th>
+                            <th>Sales</th>
+                            <th>Tanggal</th>
+                            <th class="is-num">Cash Expected</th>
+                            <th class="is-num">Cash Deposited</th>
+                            <th class="is-num">Selisih</th>
+                            <th>Status</th>
+                            <th class="is-end">Aksi</th>
                         </tr>
-                    @empty
-                        <tr><td colspan="99" class="px-3 py-6 text-center text-gray-500">Belum ada settlement.</td></tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
+                    </thead>
+                    <tbody>
+                        @foreach ($items as $settlement)
+                            <tr>
+                                <td><span class="frm-code">{{ $settlement->code }}</span></td>
+                                <td data-label="Sales"><span class="frm-name">{{ $settlement->sales->name ?? '-' }}</span></td>
+                                <td data-label="Tanggal" class="frm-nowrap">{{ $settlement->settled_at->format('d M Y') }}</td>
+                                <td data-label="Expected" class="is-num"><span class="frm-num">Rp {{ number_format($settlement->cash_expected, 0, ',', '.') }}</span></td>
+                                <td data-label="Deposited" class="is-num"><span class="frm-num">Rp {{ number_format($settlement->cash_deposited, 0, ',', '.') }}</span></td>
+                                <td data-label="Selisih" class="is-num">
+                                    <span @class(['frm-num', 'is-strong', 'is-neg' => $settlement->cash_variance < 0, 'is-over' => $settlement->cash_variance > 0])>Rp {{ number_format($settlement->cash_variance, 0, ',', '.') }}</span>
+                                </td>
+                                <td class="frm-cell-status">
+                                    @if ($settlement->status === 'applied')
+                                        <span class="frm-status is-on">Applied</span>
+                                    @else
+                                        <span class="frm-status is-warn">Draft</span>
+                                    @endif
+                                </td>
+                                <td class="is-end">
+                                    @if ($settlement->status === 'draft')
+                                        <a href="{{ route('admin.finance.settlements.edit', $settlement) }}" class="adm-btn adm-btn-ghost adm-btn-sm">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                                            Lanjutkan
+                                        </a>
+                                    @endif
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
 
-        <div class="mt-4">{{ $items->links() }}</div>
-    </div>
+            @if ($items->hasPages())
+                <div class="frm-pager">{{ $items->withQueryString()->links() }}</div>
+            @endif
+        @else
+            <div class="frm-empty">
+                <div class="frm-empty-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="m9 15 2 2 4-4"/></svg>
+                </div>
+                <p class="frm-empty-title">{{ $isFiltered ? 'Tidak ada hasil' : 'Belum ada settlement' }}</p>
+                <p class="frm-empty-text">{{ $isFiltered ? 'Tidak ada settlement dengan status ini.' : 'Buat draft untuk mulai menyetor uang dan retur barang Sales.' }}</p>
+                @if ($isFiltered)
+                    <a href="{{ route('admin.finance.settlements.index') }}" class="adm-btn adm-btn-ghost adm-btn-sm">Reset Filter</a>
+                @else
+                    <a href="{{ route('admin.finance.settlements.create') }}" class="adm-btn adm-btn-primary adm-btn-sm">Buat Draft</a>
+                @endif
+            </div>
+        @endif
+    </section>
+
+    <script>
+        document.querySelectorAll('[data-alert]').forEach(function (el) {
+            var close = function () {
+                el.classList.add('is-leaving');
+                setTimeout(function () { el.remove(); }, 300);
+            };
+            var btn = el.querySelector('.frm-alert-close');
+            if (btn) btn.addEventListener('click', close);
+            if (el.dataset.alert === 'auto') setTimeout(close, 6000);
+        });
+    </script>
 </x-admin-layout>

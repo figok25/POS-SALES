@@ -1,61 +1,105 @@
 <x-admin-layout>
-    <div class="p-6 max-w-lg">
-        <div class="flex items-center justify-between mb-4">
-            <h1 class="text-xl font-semibold">Catat Payment</h1>
-            <a href="{{ route('admin.sales.invoices.show', $invoice) }}" class="text-sm text-gray-500 hover:underline">&larr; Kembali</a>
-        </div>
+    @php $outstanding = $invoice->outstanding(); @endphp
 
-        <div class="bg-white rounded shadow p-4 mb-4 text-sm">
-            <div class="flex justify-between"><span class="text-gray-500">Invoice</span><span>{{ $invoice->code }}</span></div>
-            <div class="flex justify-between"><span class="text-gray-500">Customer</span><span>{{ $invoice->customer->name ?? '-' }}</span></div>
-            <div class="flex justify-between"><span class="text-gray-500">Grand Total</span><span>Rp {{ number_format($invoice->grand_total, 0, ',', '.') }}</span></div>
-            <div class="flex justify-between font-medium"><span>Outstanding</span><span>Rp {{ number_format($invoice->outstanding(), 0, ',', '.') }}</span></div>
+    <div class="frm-page is-narrow">
+        {{-- Kepala halaman --}}
+        <div class="frm-head">
+            <div>
+                <h1 class="frm-title">Catat Payment</h1>
+                <p class="frm-sub">Catat pembayaran untuk invoice {{ $invoice->code }}.</p>
+            </div>
+            <a href="{{ route('admin.sales.invoices.show', $invoice) }}" class="adm-btn adm-btn-ghost adm-btn-sm">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+                Kembali
+            </a>
         </div>
 
         @if ($errors->any())
-            <div class="mb-4 p-3 bg-red-100 text-red-800 rounded text-sm">
-                <ul class="list-disc list-inside">
-                    @foreach ($errors->all() as $error)
-                        <li>{{ $error }}</li>
-                    @endforeach
-                </ul>
+            <div class="frm-alert is-error is-block" role="alert">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+                <div class="frm-alert-text">
+                    <ul>
+                        @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
             </div>
         @endif
 
-        <form method="POST" action="{{ route('admin.finance.payments.store', $invoice) }}" class="bg-white rounded shadow p-4 space-y-4">
-            @csrf
+        <div class="frm-stack">
+            {{-- Ringkasan invoice --}}
+            <section class="panel">
+                <div class="panel-head">
+                    <h2 class="panel-title">Ringkasan Invoice</h2>
+                </div>
+                <dl class="frm-detail">
+                    <div><dt>Invoice</dt><dd><span class="frm-code">{{ $invoice->code }}</span></dd></div>
+                    <div><dt>Customer</dt><dd>{{ $invoice->customer->name ?? '-' }}</dd></div>
+                    <div><dt>Grand Total</dt><dd class="frm-num">Rp {{ number_format($invoice->grand_total, 0, ',', '.') }}</dd></div>
+                    <div class="is-total"><dt>Outstanding</dt><dd class="frm-num">Rp {{ number_format($outstanding, 0, ',', '.') }}</dd></div>
+                </dl>
+            </section>
 
-            <div>
-                <label class="block text-sm font-medium mb-1">Jumlah</label>
-                <input type="number" name="amount" step="0.01" min="0.01" max="{{ $invoice->outstanding() }}"
-                       value="{{ old('amount', $invoice->outstanding()) }}" class="w-full border-gray-300 rounded px-3 py-2 text-sm">
-            </div>
+            {{-- Form payment --}}
+            <section class="panel">
+                <div class="panel-head">
+                    <h2 class="panel-title">Detail Payment</h2>
+                </div>
 
-            <div>
-                <label class="block text-sm font-medium mb-1">Metode</label>
-                <select name="method" class="w-full border-gray-300 rounded px-3 py-2 text-sm">
-                    <option value="cash" selected>Cash</option>
-                    <option value="transfer">Transfer</option>
-                    <option value="other">Lainnya</option>
-                </select>
-            </div>
+                <form method="POST" action="{{ route('admin.finance.payments.store', $invoice) }}">
+                    @csrf
 
-            <div>
-                <label class="block text-sm font-medium mb-1">Tanggal Bayar</label>
-                <input type="date" name="paid_at" value="{{ old('paid_at', now()->toDateString()) }}" class="w-full border-gray-300 rounded px-3 py-2 text-sm">
-            </div>
+                    <div class="frm-panel-body">
+                        <div class="frm-grid">
+                            <div class="frm-field">
+                                <label for="amount" class="frm-label">Jumlah (Rp) <span class="frm-req">*</span></label>
+                                <input type="number" id="amount" name="amount" required step="0.01" min="0.01" max="{{ $outstanding }}" inputmode="decimal"
+                                       value="{{ old('amount', $outstanding) }}"
+                                       class="frm-input @error('amount') is-invalid @enderror">
+                                @error('amount')<p class="frm-error">{{ $message }}</p>@enderror
+                                <p class="frm-hint">Maksimal Rp {{ number_format($outstanding, 0, ',', '.') }} (sisa outstanding).</p>
+                            </div>
 
-            <div>
-                <label class="block text-sm font-medium mb-1">No. Referensi (opsional)</label>
-                <input type="text" name="reference_no" value="{{ old('reference_no') }}" class="w-full border-gray-300 rounded px-3 py-2 text-sm">
-            </div>
+                            <div class="frm-field">
+                                <label for="method" class="frm-label">Metode <span class="frm-req">*</span></label>
+                                <select id="method" name="method" required class="frm-input is-select @error('method') is-invalid @enderror">
+                                    <option value="cash" @selected(old('method', 'cash') === 'cash')>Cash</option>
+                                    <option value="transfer" @selected(old('method') === 'transfer')>Transfer</option>
+                                    <option value="other" @selected(old('method') === 'other')>Lainnya</option>
+                                </select>
+                                @error('method')<p class="frm-error">{{ $message }}</p>@enderror
+                            </div>
 
-            <div>
-                <label class="block text-sm font-medium mb-1">Catatan (opsional)</label>
-                <input type="text" name="notes" value="{{ old('notes') }}" class="w-full border-gray-300 rounded px-3 py-2 text-sm">
-            </div>
+                            <div class="frm-field">
+                                <label for="paid_at" class="frm-label">Tanggal Bayar <span class="frm-req">*</span></label>
+                                <input type="date" id="paid_at" name="paid_at" required value="{{ old('paid_at', now()->toDateString()) }}"
+                                       class="frm-input @error('paid_at') is-invalid @enderror">
+                                @error('paid_at')<p class="frm-error">{{ $message }}</p>@enderror
+                            </div>
 
-            <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded text-sm">Simpan Payment</button>
-        </form>
+                            <div class="frm-field">
+                                <label for="reference_no" class="frm-label">No. Referensi <span class="frm-opt">(opsional)</span></label>
+                                <input type="text" id="reference_no" name="reference_no" value="{{ old('reference_no') }}"
+                                       class="frm-input @error('reference_no') is-invalid @enderror">
+                                @error('reference_no')<p class="frm-error">{{ $message }}</p>@enderror
+                            </div>
+
+                            <div class="frm-field is-full">
+                                <label for="notes" class="frm-label">Catatan <span class="frm-opt">(opsional)</span></label>
+                                <input type="text" id="notes" name="notes" value="{{ old('notes') }}"
+                                       class="frm-input @error('notes') is-invalid @enderror">
+                                @error('notes')<p class="frm-error">{{ $message }}</p>@enderror
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="frm-panel-foot">
+                        <a href="{{ route('admin.sales.invoices.show', $invoice) }}" class="adm-btn adm-btn-ghost adm-btn-sm">Batal</a>
+                        <button type="submit" class="adm-btn adm-btn-primary adm-btn-sm">Simpan Payment</button>
+                    </div>
+                </form>
+            </section>
+        </div>
     </div>
 </x-admin-layout>

@@ -577,6 +577,87 @@ html[data-theme="dark"] { --adm-warning: #f0b95c; --adm-warning-bg: rgba(240, 18
     .frm-items-table { min-width: 420px; }
 }
 
+.frm-vp-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 16px;
+    align-items: start;
+}
+ 
+.frm-vp-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-height: 340px;
+    padding: 8px;
+    overflow-y: auto;
+}
+ 
+.frm-vp-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    font-size: 14px;
+    color: var(--adm-body);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background-color 0.15s, color 0.15s;
+}
+.frm-vp-item:hover,
+.frm-vp-item:focus-within { background: var(--adm-hover); }
+.frm-vp-item.is-checked { font-weight: 700; color: var(--adm-ink); }
+ 
+/* Nomor urut kunjungan (diisi JS; kosong = tersembunyi tapi tetap memakai ruang) */
+.frm-vp-no {
+    flex-shrink: 0;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11.5px;
+    font-weight: 800;
+    color: var(--adm-blue-deep);
+    background: var(--adm-hover);
+    border-radius: 999px;
+}
+.frm-vp-no:empty { visibility: hidden; }
+ 
+.frm-vp-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+ 
+/* Label kecil (mis. "dari tagging") */
+.frm-tag {
+    flex-shrink: 0;
+    padding: 2px 8px;
+    font-size: 10.5px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    color: var(--adm-blue-deep);
+    background: var(--adm-hover);
+    border-radius: 999px;
+}
+ 
+.frm-vp-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+ 
+@media (max-width: 600px) {
+    .frm-vp-grid { grid-template-columns: minmax(0, 1fr); }
+    .frm-vp-actions .adm-btn { flex: 1; }
+}
+
+/* Halaman form sempit (satu kolom isian) */
+.frm-page.is-narrow { max-width: 640px; }
+ 
+/* Warna jumlah: positif (income) */
+.frm-num.is-pos { color: var(--adm-success); }
+ 
+/* Nilai KPI hijau (padanan .kpi-value.is-danger di app.css) */
+.kpi-value.is-success { color: var(--adm-success); }
+ 
+
 /* Halaman form/detail berlebar terbatas + tumpukan panel */
 .frm-page { max-width: 100%; }
 .frm-stack { display: grid; gap: 16px; }
@@ -811,6 +892,37 @@ html[data-theme="dark"] { --adm-warning: #f0b95c; --adm-warning-bg: rgba(240, 18
  
     .row-item.is-stop { flex-wrap: wrap; }
     .row-item.is-stop .row-side { width: 100%; padding-left: 40px; align-items: flex-start; text-align: left; }
+}
+
+/* Alert di dalam badan panel tidak butuh jarak bawah ekstra */
+.frm-panel-body .frm-alert { margin-bottom: 0; }
+ 
+/* Selisih lebih (positif) berwarna biru, padanan .is-neg */
+.frm-num.is-over { color: var(--adm-blue-deep); }
+ 
+/* Input angka di sel tabel (qty retur) */
+.frm-input.is-qty { width: 140px; text-align: right; font-variant-numeric: tabular-nums; }
+ 
+/* Footer panel dengan aksi di dua sisi (mis. Batalkan Draft | Apply) */
+.frm-panel-foot.is-split { justify-content: space-between; }
+ 
+/* Tombol ghost berwarna bahaya */
+.adm-btn.adm-btn-ghost.is-danger { color: var(--adm-danger); }
+.adm-btn.adm-btn-ghost.is-danger:hover { color: var(--adm-danger); background: var(--adm-danger-bg); border-color: transparent; }
+ 
+/* Pratinjau selisih setoran */
+.frm-variance { margin: 6px 0 0; font-size: 13px; font-weight: 600; color: var(--adm-muted); }
+.frm-variance strong { font-weight: 800; font-variant-numeric: tabular-nums; color: var(--adm-ink); }
+.frm-variance strong.is-neg { color: var(--adm-danger); }
+.frm-variance strong.is-over { color: var(--adm-blue-deep); }
+ 
+@media (max-width: 720px) {
+    /* Di kartu mobile input qty rata kiri dan selebar kolom */
+    .frm-table td .frm-input.is-qty { width: min(100%, 200px); text-align: left; }
+}
+ 
+@media (max-width: 600px) {
+    .frm-panel-foot.is-split { flex-wrap: wrap; }
 }
 
 /* --------------------------------------------------------------------------
