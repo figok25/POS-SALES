@@ -558,7 +558,7 @@ html[data-theme="dark"] { --adm-warning: #f0b95c; --adm-warning-bg: rgba(240, 18
 }
 
 /* Halaman form/detail berlebar terbatas + tumpukan panel */
-.frm-page { max-width: 920px; }
+.frm-page { max-width: 100%; }
 .frm-stack { display: grid; gap: 16px; }
  
 /* Isi & footer panel yang berisi form (versi non-modal dari .frm-modal-body/.frm-modal-foot) */
