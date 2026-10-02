@@ -508,6 +508,26 @@ html[data-theme="dark"] { --adm-warning: #f0b95c; --adm-warning-bg: rgba(240, 18
 }
 
 /* --------------------------------------------------------------------------
+   Kartu-link (halaman hub Reports)
+   -------------------------------------------------------------------------- */
+.frm-link-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; }
+.frm-link-card {
+    display: block;
+    padding: 18px 20px;
+    color: inherit;
+    text-decoration: none;
+    background: var(--adm-surface);
+    border: 1px solid var(--adm-line);
+    border-radius: 16px;
+    box-shadow: var(--adm-shadow);
+    transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+}
+.frm-link-card:hover { border-color: var(--adm-blue); box-shadow: 0 10px 24px rgba(79, 123, 224, 0.14); transform: translateY(-1px); }
+.frm-link-card:focus-visible { outline: 2px solid var(--adm-blue); outline-offset: 2px; }
+.frm-link-card-title { margin: 0; font-size: 15px; font-weight: 800; color: var(--adm-ink); }
+.frm-link-card-text { margin: 4px 0 0; font-size: 13px; color: var(--adm-muted); }
+
+/* --------------------------------------------------------------------------
    Editor baris item dokumen (Permintaan Barang, BKB/BTB, Branch Transfer)
    Tabel item produk yang bisa ditambah/dihapus barisnya sebelum submit, dan
    tabel "Terima Barang" (quantity_received) yang baris-nya sudah tetap.

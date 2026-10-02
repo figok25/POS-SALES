@@ -1,26 +1,34 @@
 <x-admin-layout>
-    <div class="p-6">
-        <h1 class="text-xl font-semibold mb-4">Reports</h1>
-        <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
-            <a href="{{ route('admin.reports.sales') }}" class="bg-white rounded shadow p-4 hover:shadow-md">
-                <p class="font-medium">Sales Report</p>
-                <p class="text-xs text-gray-500 mt-1">Rekap penjualan per Sales periode tertentu.</p>
+    <x-slot name="header">Reports</x-slot>
+
+    <div class="frm-page">
+        <div class="frm-head">
+            <div>
+                <h1 class="frm-title">Reports</h1>
+                <p class="frm-sub">Reporting murni dari data yang sudah ada di modul lain — pilih salah satu di bawah.</p>
+            </div>
+        </div>
+
+        <div class="frm-link-grid">
+            <a href="{{ route('admin.reports.sales') }}" class="frm-link-card">
+                <p class="frm-link-card-title">Sales Report</p>
+                <p class="frm-link-card-text">Rekap penjualan per Sales periode tertentu.</p>
             </a>
-            <a href="{{ route('admin.reports.delivery') }}" class="bg-white rounded shadow p-4 hover:shadow-md">
-                <p class="font-medium">Delivery Report</p>
-                <p class="text-xs text-gray-500 mt-1">Status Delivery Order & pengiriman terbaru.</p>
+            <a href="{{ route('admin.reports.delivery') }}" class="frm-link-card">
+                <p class="frm-link-card-title">Delivery Report</p>
+                <p class="frm-link-card-text">Status Delivery Order &amp; pengiriman terbaru.</p>
             </a>
-            <a href="{{ route('admin.reports.stock') }}" class="bg-white rounded shadow p-4 hover:shadow-md">
-                <p class="font-medium">Stock Report</p>
-                <p class="text-xs text-gray-500 mt-1">Posisi stok per lokasi (Warehouse & Sales).</p>
+            <a href="{{ route('admin.reports.stock') }}" class="frm-link-card">
+                <p class="frm-link-card-title">Stock Report</p>
+                <p class="frm-link-card-text">Posisi stok per lokasi (Warehouse &amp; Sales).</p>
             </a>
-            <a href="{{ route('admin.reports.outstanding') }}" class="bg-white rounded shadow p-4 hover:shadow-md">
-                <p class="font-medium">Outstanding Invoice</p>
-                <p class="text-xs text-gray-500 mt-1">Invoice yang belum lunas / partial.</p>
+            <a href="{{ route('admin.reports.outstanding') }}" class="frm-link-card">
+                <p class="frm-link-card-title">Outstanding Invoice</p>
+                <p class="frm-link-card-text">Invoice yang belum lunas / partial.</p>
             </a>
-            <a href="{{ route('admin.reports.audit') }}" class="bg-white rounded shadow p-4 hover:shadow-md">
-                <p class="font-medium">Audit Report</p>
-                <p class="text-xs text-gray-500 mt-1">Riwayat aktivitas seluruh modul (Audit Log).</p>
+            <a href="{{ route('admin.reports.audit') }}" class="frm-link-card">
+                <p class="frm-link-card-title">Audit Report</p>
+                <p class="frm-link-card-text">Riwayat aktivitas seluruh modul (Audit Log).</p>
             </a>
         </div>
     </div>
