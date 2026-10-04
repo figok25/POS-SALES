@@ -506,6 +506,10 @@ html[data-theme="dark"] { --adm-warning: #f0b95c; --adm-warning-bg: rgba(240, 18
 .frm-batch-meta { font-size: 12.5px; font-weight: 600; color: var(--adm-muted); }
 .frm-table tr.is-child .frm-name::before { content: '\21B3'; margin-right: 6px; font-weight: 400; color: var(--adm-faint); }
 .frm-table .is-check { width: 44px; }
+.frm-table tr[hidden] { display: none; }
+.frm-batch-toggle { width: 28px; height: 28px; margin-left: -6px; }
+.frm-batch-toggle svg { transition: transform 0.15s ease; }
+.frm-batch-toggle[aria-expanded="true"] svg { transform: rotate(90deg); }
 .frm-alert-list { margin: 6px 0 0; padding-left: 18px; font-weight: 600; }
 
 /* ---- Switch ---- */

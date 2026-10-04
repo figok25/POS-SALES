@@ -165,6 +165,9 @@
                                             @endif
                                             <td colspan="5">
                                                 <div class="frm-batch-title">
+                                                    <button type="button" class="frm-icon-btn frm-batch-toggle" data-batch-toggle="{{ $batch }}" aria-expanded="false" aria-label="Lihat detail paket {{ $batch }}" title="Lihat detail paket">
+                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+                                                    </button>
                                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
                                                     <span>Paket</span>
                                                     <span class="frm-code">{{ $batch }}</span>
@@ -202,7 +205,7 @@
                                         </tr>
                                     @endif
 
-                                    <tr @class(['is-child' => (bool) $batch])>
+                                    <tr @class(['is-child' => (bool) $batch]) @if ($batch) data-batch-row="{{ $batch }}" hidden @endif>
                                         @if ($canBulk)
                                             <td class="is-check">
                                                 @if ($item->isDraft())
@@ -756,5 +759,18 @@
                 }, 6000);
             }
         })();
+    </script>
+<script>
+        // Detail paket: baris produk disembunyikan, dibuka lewat panah di kepala paket.
+        // Baris tersembunyi tetap ikut terkirim di form (checkbox tidak terpengaruh).
+        document.addEventListener('click', function (e) {
+            var btn = e.target.closest('[data-batch-toggle]');
+            if (!btn) return;
+            var open = btn.getAttribute('aria-expanded') !== 'true';
+            btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+            document.querySelectorAll('[data-batch-row]').forEach(function (row) {
+                if (row.dataset.batchRow === btn.dataset.batchToggle) row.hidden = !open;
+            });
+        });
     </script>
 </x-admin-layout>
