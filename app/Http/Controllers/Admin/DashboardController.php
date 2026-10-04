@@ -9,13 +9,17 @@ use App\Models\DeliveryOrder;
 use App\Models\Invoice;
 use App\Models\Product;
 use App\Models\Sales;
+use App\Models\SalesTask;
 use App\Models\SalesTransaction;
+use App\Models\SalesTransactionItem;
 use App\Models\Settlement;
+use App\Models\SalesTaskStock;
 use App\Models\SettlementItem;
 use App\Models\Visit;
 use App\Support\BranchContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -37,6 +41,14 @@ use Illuminate\Support\Facades\DB;
  * draft) sengaja TIDAK di-scope tanggal -- backlog itu status hari ini,
  * bukan aktivitas dalam rentang waktu tertentu -- tapi tetap ikut
  * di-scope Branch & Sales kalau dipilih.
+ *
+ * Tabel "Penjualan per Sales": ringkasan performa tiap Sales (stok dibawa,
+ * qty terjual, nilai terjual, akumulasi total transaksi). Punya filter
+ * SENDIRI (?tbl_view=today|date|all, ?tbl_date=, ?tbl_sales=) supaya
+ * default-nya "hari ini" walaupun filter periode utama default-nya bulan
+ * berjalan. Pilihan "all" = mengikuti rentang tanggal filter utama.
+ * Selalu di-scope Branch context (Sales di luar Depo yang diizinkan tidak
+ * pernah ikut terhitung).
  */
 class DashboardController extends Controller
 {
@@ -68,6 +80,32 @@ class DashboardController extends Controller
         }
 
         $salesList = $branchContext->applyTo(Sales::where('is_active', true))->orderBy('name')->get();
+
+        // ---- Tabel Penjualan per Sales (filter sendiri, default hari ini) ----
+        $tblView = in_array($request->query('tbl_view'), ['today', 'date', 'all'], true)
+            ? $request->query('tbl_view')
+            : 'today';
+
+        $tblDate = $this->parseDate($request->query('tbl_date'), now()->startOfDay());
+
+        [$tblFrom, $tblTo] = match ($tblView) {
+            'date' => [$tblDate->copy()->startOfDay(), $tblDate->copy()->endOfDay()],
+            'all' => [$dateFrom->copy(), $dateTo->copy()],
+            default => [now()->startOfDay(), now()->endOfDay()],
+        };
+
+        // Anti-IDOR: hanya Sales yang ada di $salesList (sudah di-scope
+        // Branch context) yang boleh dipilih; selain itu diabaikan.
+        $tblSalesId = $request->filled('tbl_sales') ? (int) $request->query('tbl_sales') : null;
+        if ($tblSalesId !== null && ! $salesList->contains('id', $tblSalesId)) {
+            $tblSalesId = null;
+        }
+
+        $salesPerformance = $this->buildSalesPerformance(
+            $tblSalesId ? $salesList->where('id', $tblSalesId)->values() : $salesList,
+            $tblFrom,
+            $tblTo,
+        );
 
         $transactions = fn () => $branchContext->applyVia(
             SalesTransaction::where('status', SalesTransaction::STATUS_COMPLETED)
@@ -192,6 +230,12 @@ class DashboardController extends Controller
             'recentTransactions' => $recentTransactions,
             'recentInvoices' => $recentInvoices,
             'salesList' => $salesList,
+            'salesPerformance' => $salesPerformance,
+            'tblView' => $tblView,
+            'tblDate' => $tblDate->toDateString(),
+            'tblSalesId' => $tblSalesId,
+            'tblFrom' => $tblFrom->toDateString(),
+            'tblTo' => $tblTo->toDateString(),
             'selectedSalesId' => $salesId,
             'dateFrom' => $dateFrom->toDateString(),
             'dateTo' => $dateTo->toDateString(),
@@ -203,6 +247,86 @@ class DashboardController extends Controller
             'branches' => Branch::where('is_active', true)->orderBy('name')->get(),
             'branchContext' => $branchContext,
         ]);
+    }
+
+    /**
+     * Ringkasan performa penjualan per Sales untuk rentang waktu tertentu.
+     *
+     * Definisi kolom:
+     *  - Stok Dibawa      : total qty item pada Sales Task (task_date dalam
+     *                       rentang) yang sudah lewat tahap draft & tidak
+     *                       cancelled. Memakai qty hasil verifikasi Sales
+     *                       bila ada, kalau belum pakai qty yang di-assign.
+     *  - Produk Terjual   : total qty item transaksi COMPLETED.
+     *  - Nilai Produk     : total subtotal item transaksi COMPLETED
+     *                       (harga satuan x qty, sebelum diskon/pajak).
+     *  - Total Transaksi  : akumulasi `total` transaksi COMPLETED
+     *                       (setelah diskon/pajak) + jumlah transaksinya.
+     *
+     * Hanya 3 query agregat (group by sales_id), bukan N+1 per Sales.
+     *
+     * @param  Collection<int, Sales>  $salesRows  Sales yang sudah di-scope Branch context
+     * @return array{rows: Collection, totals: array<string, float|int>}
+     */
+    private function buildSalesPerformance(Collection $salesRows, Carbon $from, Carbon $to): array
+    {
+        $ids = $salesRows->pluck('id')->all();
+
+        $carried = SalesTaskStock::query()
+            ->join('sales_tasks', 'sales_tasks.id', '=', 'sales_task_stocks.sales_task_id')
+            ->whereIn('sales_tasks.sales_id', $ids)
+            ->whereBetween('sales_tasks.task_date', [$from->toDateString(), $to->toDateString()])
+            ->whereNotIn('sales_tasks.status', [SalesTask::STATUS_DRAFT, SalesTask::STATUS_CANCELLED])
+            ->groupBy('sales_tasks.sales_id')
+            ->selectRaw('sales_tasks.sales_id as sales_id')
+            ->selectRaw('SUM(COALESCE(sales_task_stocks.quantity_verified, sales_task_stocks.quantity_assigned)) as qty')
+            ->selectRaw('COUNT(DISTINCT sales_task_stocks.product_id) as products')
+            ->get()
+            ->keyBy('sales_id');
+
+        $sold = SalesTransactionItem::query()
+            ->join('sales_transactions', 'sales_transactions.id', '=', 'sales_transaction_items.sales_transaction_id')
+            ->whereIn('sales_transactions.sales_id', $ids)
+            ->where('sales_transactions.status', SalesTransaction::STATUS_COMPLETED)
+            ->whereBetween('sales_transactions.created_at', [$from, $to])
+            ->groupBy('sales_transactions.sales_id')
+            ->selectRaw('sales_transactions.sales_id as sales_id')
+            ->selectRaw('SUM(sales_transaction_items.quantity) as qty')
+            ->selectRaw('SUM(sales_transaction_items.subtotal) as sold_value')
+            ->get()
+            ->keyBy('sales_id');
+
+        $trx = SalesTransaction::query()
+            ->whereIn('sales_id', $ids)
+            ->where('status', SalesTransaction::STATUS_COMPLETED)
+            ->whereBetween('created_at', [$from, $to])
+            ->groupBy('sales_id')
+            ->selectRaw('sales_id, COUNT(*) as trx_count, SUM(total) as trx_total')
+            ->get()
+            ->keyBy('sales_id');
+
+        $rows = $salesRows->map(fn (Sales $s) => [
+            'id' => $s->id,
+            'name' => $s->name,
+            'code' => $s->code,
+            'carried_qty' => (float) ($carried[$s->id]->qty ?? 0),
+            'carried_products' => (int) ($carried[$s->id]->products ?? 0),
+            'sold_qty' => (float) ($sold[$s->id]->qty ?? 0),
+            'sold_value' => (float) ($sold[$s->id]->sold_value ?? 0),
+            'trx_count' => (int) ($trx[$s->id]->trx_count ?? 0),
+            'trx_total' => (float) ($trx[$s->id]->trx_total ?? 0),
+        ])->sortBy([['trx_total', 'desc'], ['name', 'asc']])->values();
+
+        return [
+            'rows' => $rows,
+            'totals' => [
+                'carried_qty' => $rows->sum('carried_qty'),
+                'sold_qty' => $rows->sum('sold_qty'),
+                'sold_value' => $rows->sum('sold_value'),
+                'trx_count' => $rows->sum('trx_count'),
+                'trx_total' => $rows->sum('trx_total'),
+            ],
+        ];
     }
 
     private function parseDate(?string $value, Carbon $default, bool $endOfDay = false): Carbon

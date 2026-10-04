@@ -115,6 +115,10 @@
                 @endforeach
             </select>
         </div>
+        {{-- Pertahankan filter tabel "Penjualan per Sales" saat filter utama diterapkan --}}
+        @foreach (['tbl_view' => $tblView, 'tbl_date' => request('tbl_date'), 'tbl_sales' => $tblSalesId] as $k => $v)
+            @if (filled($v))<input type="hidden" name="{{ $k }}" value="{{ $v }}">@endif
+        @endforeach
         <div class="dash-actions">
             <button type="submit" class="adm-btn adm-btn-primary">Terapkan</button>
             <a href="{{ route('admin.dashboard') }}" class="adm-btn adm-btn-ghost">Reset</a>
@@ -147,6 +151,120 @@
             </div>
         </section>
     @endforeach
+
+    @php
+        $fmtQty = fn ($n) => rtrim(rtrim(number_format($n, 2, ',', '.'), '0'), ',');
+        $perfRows = $salesPerformance['rows'];
+        $perfTotals = $salesPerformance['totals'];
+        $perfPeriod = $tblFrom === $tblTo
+            ? \Carbon\Carbon::parse($tblFrom)->format('d M Y')
+            : \Carbon\Carbon::parse($tblFrom)->format('d M Y').' – '.\Carbon\Carbon::parse($tblTo)->format('d M Y');
+        $perfLabel = match ($tblView) {
+            'date' => 'Tanggal '.$perfPeriod,
+            'all' => 'Seluruh periode · '.$perfPeriod,
+            default => 'Hari ini · '.$perfPeriod,
+        };
+        // Query string dasar (filter utama) untuk tombol Reset tabel.
+        $perfResetQuery = request()->except(['tbl_view', 'tbl_date', 'tbl_sales']);
+    @endphp
+
+    <section class="panel dash-section" id="sales-performance">
+        <div class="panel-head">
+            <div>
+                <h2 class="panel-title">Penjualan per Sales</h2>
+                <span class="dash-section-note">{{ $perfLabel }}</span>
+            </div>
+            <span class="frm-count">{{ number_format($perfRows->count(), 0, ',', '.') }} sales</span>
+        </div>
+
+        <form method="GET" action="{{ route('admin.dashboard') }}#sales-performance" class="frm-toolbar">
+            {{-- Pertahankan filter utama (Depo, periode, sales) --}}
+            @foreach (request()->only(['branch', 'date_from', 'date_to', 'sales_id']) as $k => $v)
+                @if (filled($v))<input type="hidden" name="{{ $k }}" value="{{ $v }}">@endif
+            @endforeach
+
+            <select name="tbl_view" id="tbl_view" class="frm-input is-select is-filter" aria-label="Tampilan data"
+                    onchange="document.getElementById('tbl_date').hidden = (this.value !== 'date'); this.form.submit()">
+                <option value="today" @selected($tblView === 'today')>Hari Ini</option>
+                <option value="date" @selected($tblView === 'date')>Pilih Tanggal</option>
+                <option value="all" @selected($tblView === 'all')>Keseluruhan (sesuai periode di atas)</option>
+            </select>
+
+            <input type="date" name="tbl_date" id="tbl_date" class="frm-input is-filter" value="{{ $tblDate }}"
+                   aria-label="Tanggal" @if ($tblView !== 'date') hidden @endif onchange="this.form.submit()">
+
+            <select name="tbl_sales" class="frm-input is-select is-filter" aria-label="Filter Sales" onchange="this.form.submit()">
+                <option value="">Semua Sales</option>
+                @foreach ($salesList as $s)
+                    <option value="{{ $s->id }}" @selected($tblSalesId === $s->id)>{{ $s->name }}</option>
+                @endforeach
+            </select>
+
+            <noscript><button type="submit" class="adm-btn adm-btn-primary adm-btn-sm">Terapkan</button></noscript>
+
+            @if ($tblView !== 'today' || $tblSalesId)
+                <a href="{{ route('admin.dashboard', $perfResetQuery) }}#sales-performance" class="adm-btn adm-btn-ghost adm-btn-sm">Reset</a>
+            @endif
+        </form>
+
+        @if ($perfRows->isNotEmpty())
+            <div class="frm-table-wrap">
+                <table class="frm-table">
+                    <thead>
+                        <tr>
+                            <th>Sales</th>
+                            <th class="is-num">Stok Dibawa</th>
+                            <th class="is-num">Produk Terjual</th>
+                            <th class="is-num">Nilai Produk Terjual</th>
+                            <th class="is-num">Total Transaksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($perfRows as $row)
+                            @php $idle = $row['carried_qty'] == 0 && $row['trx_count'] == 0; @endphp
+                            <tr @if ($idle) style="opacity: .6" @endif>
+                                <td>
+                                    <span class="frm-name">{{ $row['name'] }}</span>
+                                    @if ($row['code'])<p class="frm-meta">{{ $row['code'] }}</p>@endif
+                                </td>
+                                <td data-label="Stok Dibawa" class="is-num">
+                                    <span class="frm-num">{{ $fmtQty($row['carried_qty']) }}</span>
+                                    @if ($row['carried_products'] > 0)
+                                        <p class="frm-meta">{{ $row['carried_products'] }} produk</p>
+                                    @endif
+                                </td>
+                                <td data-label="Produk Terjual" class="is-num">
+                                    <span class="frm-num">{{ $fmtQty($row['sold_qty']) }}</span>
+                                    @if ($row['carried_qty'] > 0)
+                                        <p class="frm-meta">{{ round($row['sold_qty'] / $row['carried_qty'] * 100) }}% dari stok</p>
+                                    @endif
+                                </td>
+                                <td data-label="Nilai Produk" class="is-num"><span class="frm-num">{{ $fmtRp($row['sold_value']) }}</span></td>
+                                <td data-label="Total Transaksi" class="is-num">
+                                    <span class="frm-num is-strong">{{ $fmtRp($row['trx_total']) }}</span>
+                                    <p class="frm-meta">{{ number_format($row['trx_count'], 0, ',', '.') }} transaksi</p>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                    <tfoot>
+                        <tr class="perf-total">
+                            <th>Total{{ $tblSalesId ? '' : ' Seluruh Sales' }}</th>
+                            <th class="is-num"><span class="frm-num">{{ $fmtQty($perfTotals['carried_qty']) }}</span></th>
+                            <th class="is-num"><span class="frm-num">{{ $fmtQty($perfTotals['sold_qty']) }}</span></th>
+                            <th class="is-num"><span class="frm-num">{{ $fmtRp($perfTotals['sold_value']) }}</span></th>
+                            <th class="is-num">
+                                <span class="frm-num">{{ $fmtRp($perfTotals['trx_total']) }}</span>
+                                <p class="frm-meta">{{ number_format($perfTotals['trx_count'], 0, ',', '.') }} transaksi</p>
+                            </th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        @else
+            <p class="panel-empty">Tidak ada Sales aktif pada Depo/filter yang dipilih.</p>
+        @endif
+    </section>
 
     <div class="dash-cols">
         <section class="panel">
