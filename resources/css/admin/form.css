@@ -402,6 +402,7 @@ html[data-theme="dark"] { --adm-warning: #f0b95c; --adm-warning-bg: rgba(240, 18
         background: var(--adm-faint);
         -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") center / contain no-repeat;
         mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") center / contain no-repeat;
+        color: var(--adm-faint);
         transition: rotate 0.2s ease;
     }
     .frm-input.is-select:open::picker-icon { rotate: 180deg; }
@@ -583,7 +584,7 @@ html[data-theme="dark"] { --adm-warning: #f0b95c; --adm-warning-bg: rgba(240, 18
     .frm-head-actions { width: 100%; }
     .frm-head-actions .adm-btn { flex: 1; }
 }
- 
+
 @media (max-width: 600px) {
     .frm-detail > div { flex-direction: column; gap: 2px; padding: 12px 14px; }
     .frm-detail dd { text-align: left; }
@@ -666,7 +667,7 @@ html[data-theme="dark"] { --adm-warning: #f0b95c; --adm-warning-bg: rgba(240, 18
     gap: 16px;
     align-items: start;
 }
- 
+
 .frm-vp-list {
     display: flex;
     flex-direction: column;
@@ -675,7 +676,7 @@ html[data-theme="dark"] { --adm-warning: #f0b95c; --adm-warning-bg: rgba(240, 18
     padding: 8px;
     overflow-y: auto;
 }
- 
+
 .frm-vp-item {
     display: flex;
     align-items: center;
@@ -690,7 +691,7 @@ html[data-theme="dark"] { --adm-warning: #f0b95c; --adm-warning-bg: rgba(240, 18
 .frm-vp-item:hover,
 .frm-vp-item:focus-within { background: var(--adm-hover); }
 .frm-vp-item.is-checked { font-weight: 700; color: var(--adm-ink); }
- 
+
 /* Nomor urut kunjungan (diisi JS; kosong = tersembunyi tapi tetap memakai ruang) */
 .frm-vp-no {
     flex-shrink: 0;
@@ -707,9 +708,9 @@ html[data-theme="dark"] { --adm-warning: #f0b95c; --adm-warning-bg: rgba(240, 18
     border-radius: 999px;
 }
 .frm-vp-no:empty { visibility: hidden; }
- 
+
 .frm-vp-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
- 
+
 /* Label kecil (mis. "dari tagging") */
 .frm-tag {
     flex-shrink: 0;
@@ -723,9 +724,9 @@ html[data-theme="dark"] { --adm-warning: #f0b95c; --adm-warning-bg: rgba(240, 18
     background: var(--adm-hover);
     border-radius: 999px;
 }
- 
+
 .frm-vp-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
- 
+
 @media (max-width: 600px) {
     .frm-vp-grid { grid-template-columns: minmax(0, 1fr); }
     .frm-vp-actions .adm-btn { flex: 1; }
@@ -733,18 +734,18 @@ html[data-theme="dark"] { --adm-warning: #f0b95c; --adm-warning-bg: rgba(240, 18
 
 /* Halaman form sempit (satu kolom isian) */
 .frm-page.is-narrow { max-width: 640px; }
- 
+
 /* Warna jumlah: positif (income) */
 .frm-num.is-pos { color: var(--adm-success); }
- 
+
 /* Nilai KPI hijau (padanan .kpi-value.is-danger di app.css) */
 .kpi-value.is-success { color: var(--adm-success); }
- 
+
 
 /* Halaman form/detail berlebar terbatas + tumpukan panel */
 .frm-page { max-width: 100%; }
 .frm-stack { display: grid; gap: 16px; }
- 
+
 /* Isi & footer panel yang berisi form (versi non-modal dari .frm-modal-body/.frm-modal-foot) */
 .frm-panel-body { display: flex; flex-direction: column; gap: 16px; padding: 18px; }
 .frm-panel-foot {
@@ -758,15 +759,15 @@ html[data-theme="dark"] { --adm-warning: #f0b95c; --adm-warning-bg: rgba(240, 18
 .frm-field > .frm-hint { margin-top: 0; }
 .frm-opt { font-weight: 600; color: var(--adm-faint); }
 .panel-head .frm-count { margin-left: 0; }
- 
+
 /* Switch di dalam toolbar filter: lebih ringkas & tidak melompat saat fokus */
 .frm-toolbar .frm-switch { position: relative; gap: 10px; }
 .frm-toolbar .frm-switch-text { font-size: 13.5px; font-weight: 600; color: var(--adm-body); }
- 
+
 /* Baris riwayat yang masih berlaku */
 .frm-table tbody tr.is-current { background: var(--adm-success-bg); }
 .frm-table tbody tr.is-current:hover td { background: transparent; }
- 
+
 @media (max-width: 600px) {
     .frm-panel-body { padding: 16px; }
     .frm-panel-foot { padding: 12px 16px; }
@@ -783,7 +784,7 @@ html[data-theme="dark"] { --adm-warning: #f0b95c; --adm-warning-bg: rgba(240, 18
 .adm-btn.adm-btn-success:hover { filter: brightness(1.06); }
 .adm-btn.adm-btn-success:disabled { box-shadow: none; }
 .adm-btn.adm-btn-block { width: 100%; }
- 
+
 /* Tab status di dalam panel */
 .frm-tabs {
     display: flex;
@@ -806,11 +807,11 @@ html[data-theme="dark"] { --adm-warning: #f0b95c; --adm-warning-bg: rgba(240, 18
 .frm-tab:hover { color: var(--adm-blue-deep); }
 .frm-tab:focus-visible { outline: 2px solid var(--adm-blue); outline-offset: -2px; border-radius: 6px; }
 .frm-tab.is-active { color: var(--adm-blue-deep); border-bottom-color: var(--adm-blue); }
- 
+
 /* Toolbar dengan label di atas field (filter tanggal, dll.) */
 .frm-toolbar.is-fields { align-items: flex-end; }
 .frm-toolbar.is-fields .frm-count { line-height: 40px; }
- 
+
 /* Checkbox & bar aksi massal */
 .frm-check { width: 17px; height: 17px; margin: 0; cursor: pointer; accent-color: var(--adm-blue-deep); }
 .frm-bulk {
@@ -826,21 +827,21 @@ html[data-theme="dark"] { --adm-warning: #f0b95c; --adm-warning-bg: rgba(240, 18
 .frm-bulk-all { display: inline-flex; align-items: center; gap: 10px; font-size: 13.5px; font-weight: 700; color: var(--adm-body); cursor: pointer; }
 .frm-table th.frm-cell-check,
 .frm-table td.frm-cell-check { width: 44px; padding-right: 0; }
- 
+
 /* Alert multi-baris (judul + daftar) */
 .frm-alert.is-block { align-items: flex-start; }
 .frm-alert.is-block > svg { margin-top: 2px; }
 .frm-alert-title { margin: 0 0 4px; font-weight: 800; }
 .frm-alert-text ul { margin: 0; padding-left: 18px; list-style: disc; font-weight: 600; }
- 
+
 @media (max-width: 720px) {
     .frm-bulk { padding: 12px 14px; }
     .frm-bulk .adm-btn { flex: 1; }
- 
+
     /* Kartu mobile: checkbox di sisi kiri kartu */
     .frm-table tbody tr.has-check { padding-left: 48px; }
     .frm-table td.frm-cell-check { position: absolute; top: 16px; left: 16px; width: auto; padding: 0; }
- 
+
     .frm-toolbar.is-fields .frm-field { flex: 1 1 150px; }
     .frm-toolbar.is-fields .frm-input.is-filter { width: 100%; }
     .frm-toolbar.is-fields .frm-count { line-height: 1.4; }
@@ -848,20 +849,20 @@ html[data-theme="dark"] { --adm-warning: #f0b95c; --adm-warning-bg: rgba(240, 18
 
 /* Jumlah data di ujung kanan bar tab */
 .frm-tabs .frm-count { align-self: center; padding: 0 4px 6px 12px; white-space: nowrap; }
- 
+
 /* Panel total: rapat ke kanan, lebar terbatas */
 .frm-totals { width: min(100%, 380px); justify-self: end; }
 .frm-detail > div.is-total { background: var(--adm-fill); }
 .frm-detail > div.is-total dt,
 .frm-detail > div.is-total dd { font-size: 15px; font-weight: 800; color: var(--adm-ink); }
 .frm-detail dd.frm-num { font-weight: 600; }
- 
+
 /* Huruf kapital di awal kata (metode payment) */
 .frm-cap { text-transform: capitalize; }
- 
+
 /* Header panel: jumlah data tidak perlu didorong ke kanan lagi */
 .panel-head .frm-count { margin-left: 0; }
- 
+
 @media (max-width: 720px) {
     .frm-tabs .frm-count { display: none; }
     .frm-totals { width: 100%; }
@@ -869,7 +870,7 @@ html[data-theme="dark"] { --adm-warning: #f0b95c; --adm-warning-bg: rgba(240, 18
 
 /* Select lebar untuk pilih Sales */
 .frm-input.is-wide { width: min(100%, 360px); }
- 
+
 /* Chip hari (Senin - Minggu) */
 .frm-days { display: flex; gap: 8px; padding: 14px 18px 0; overflow-x: auto; }
 .frm-day {
@@ -896,7 +897,7 @@ html[data-theme="dark"] { --adm-warning: #f0b95c; --adm-warning-bg: rgba(240, 18
     box-shadow: 0 6px 14px rgba(123, 158, 232, 0.35);
 }
 .frm-day.is-active .frm-day-date { color: rgba(255, 255, 255, 0.85); }
- 
+
 /* Ringkasan rute, legenda, progres */
 .frm-route-meta {
     display: flex;
@@ -912,16 +913,17 @@ html[data-theme="dark"] { --adm-warning: #f0b95c; --adm-warning-bg: rgba(240, 18
 .frm-route-meta strong { color: var(--adm-ink); }
 .frm-route-body { display: grid; gap: 12px; padding: 14px 18px 18px; }
 .frm-route-body .frm-alert { margin-bottom: 0; }
- 
+
 .frm-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; font-size: 13px; font-weight: 600; color: var(--adm-body); }
 .frm-legend > span { display: inline-flex; align-items: center; gap: 7px; }
 .frm-legend-total { margin-left: auto; color: var(--adm-muted); }
 .frm-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--adm-neutral); }
+.frm-dot.is-ec { background: #d97706; }
 .frm-dot.is-visited { background: var(--adm-success); }
- 
+
 .frm-progress { height: 6px; overflow: hidden; background: var(--adm-line); border-radius: 999px; }
 .frm-progress > span { display: block; width: var(--p, 0%); height: 100%; background: var(--adm-success); border-radius: inherit; transition: width 0.3s ease; }
- 
+
 /* Peta & penanda (class dipakai JS MapLibre) */
 .frm-map { width: 100%; height: 380px; background: var(--adm-fill); }
 .frm-marker {
@@ -939,12 +941,14 @@ html[data-theme="dark"] { --adm-warning: #f0b95c; --adm-warning-bg: rgba(240, 18
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
     cursor: pointer;
 }
+/* EC = kunjungan + transaksi: warna & isi (bintang) berbeda dari Call Meet (centang) */
+.frm-marker.is-ec { background: #d97706; }
 .frm-marker.is-visited { background: #23855a; }
 /* Popup MapLibre selalu berlatar putih -> warna literal, bukan variabel tema */
 .frm-popup-title { font-size: 13px; font-weight: 800; color: #2b3345; }
 .frm-popup-sub { margin-top: 2px; font-size: 12px; color: #6b7590; }
 .frm-popup-sub.is-visited { color: #23855a; }
- 
+.frm-popup-sub.is-ec { color: #b45309; }
 /* Baris daftar toko */
 .frm-stop { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .frm-stop-no {
@@ -960,50 +964,51 @@ html[data-theme="dark"] { --adm-warning: #f0b95c; --adm-warning-bg: rgba(240, 18
     background: var(--adm-neutral-bg);
     border-radius: 50%;
 }
+.frm-stop-no.is-ec { color: #b45309; background: #fef3c7; }
 .frm-stop-no.is-visited { color: var(--adm-success); background: var(--adm-success-bg); }
 .row-item.is-stop .row-side { display: flex; flex-direction: column; align-items: flex-end; }
 .frm-loc { display: inline-flex; align-items: center; gap: 4px; margin-top: 5px; font-size: 12px; font-weight: 600; color: var(--adm-faint); }
 .frm-loc svg { width: 13px; height: 13px; }
 .frm-loc.is-set { color: var(--adm-success); }
- 
+
 @media (max-width: 600px) {
     .frm-days { padding: 12px 14px 0; }
     .frm-route-meta { padding: 12px 14px 0; }
     .frm-route-body { padding: 12px 14px 14px; }
     .frm-legend-total { margin-left: 0; }
     .frm-map { height: 300px; }
- 
+
     .row-item.is-stop { flex-wrap: wrap; }
     .row-item.is-stop .row-side { width: 100%; padding-left: 40px; align-items: flex-start; text-align: left; }
 }
 
 /* Alert di dalam badan panel tidak butuh jarak bawah ekstra */
 .frm-panel-body .frm-alert { margin-bottom: 0; }
- 
+
 /* Selisih lebih (positif) berwarna biru, padanan .is-neg */
 .frm-num.is-over { color: var(--adm-blue-deep); }
- 
+
 /* Input angka di sel tabel (qty retur) */
 .frm-input.is-qty { width: 140px; text-align: right; font-variant-numeric: tabular-nums; }
- 
+
 /* Footer panel dengan aksi di dua sisi (mis. Batalkan Draft | Apply) */
 .frm-panel-foot.is-split { justify-content: space-between; }
- 
+
 /* Tombol ghost berwarna bahaya */
 .adm-btn.adm-btn-ghost.is-danger { color: var(--adm-danger); }
 .adm-btn.adm-btn-ghost.is-danger:hover { color: var(--adm-danger); background: var(--adm-danger-bg); border-color: transparent; }
- 
+
 /* Pratinjau selisih setoran */
 .frm-variance { margin: 6px 0 0; font-size: 13px; font-weight: 600; color: var(--adm-muted); }
 .frm-variance strong { font-weight: 800; font-variant-numeric: tabular-nums; color: var(--adm-ink); }
 .frm-variance strong.is-neg { color: var(--adm-danger); }
 .frm-variance strong.is-over { color: var(--adm-blue-deep); }
- 
+
 @media (max-width: 720px) {
     /* Di kartu mobile input qty rata kiri dan selebar kolom */
     .frm-table td .frm-input.is-qty { width: min(100%, 200px); text-align: left; }
 }
- 
+
 @media (max-width: 600px) {
     .frm-panel-foot.is-split { flex-wrap: wrap; }
 }

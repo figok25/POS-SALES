@@ -49,13 +49,22 @@
                         </select>
                     </div>
                     <div>
+                        <label class="block text-xs text-gray-500 mb-1">Route</label>
+                        <select name="route_id" class="border rounded px-2 py-1.5 text-sm">
+                            <option value="">- pilih -</option>
+                            @foreach ($routes ?? [] as $r)
+                                <option value="{{ $r->id }}">{{ $r->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
                         <label class="block text-xs text-gray-500 mb-1">Jadwal</label>
                         <input type="date" name="scheduled_date" class="border rounded px-2 py-1.5 text-sm">
                     </div>
                     <button type="submit" id="bulk-dispatch-submit" class="bg-green-600 text-white px-3 py-2 rounded text-sm hover:bg-green-700">
                         Apply &amp; Dispatch yang Dicentang
                     </button>
-                    <button type="submit" id="bulk-complete-submit" formaction="{{ route('admin.operations.delivery-orders.bulk-complete') }}"
+                    <button type="submit" id="bulk-complete-submit" onclick="return confirm('Dispatch + Delivered sekaligus untuk DO terpilih? Tidak bisa dibatalkan.')" formaction="{{ route('admin.operations.delivery-orders.bulk-complete') }}"
                             class="bg-indigo-600 text-white px-3 py-2 rounded text-sm hover:bg-indigo-700">
                         Selesaikan Sekaligus (Dispatch + Delivered)
                     </button>
@@ -113,6 +122,13 @@
                             </td>
                             <td class="px-3 py-2 text-right">
                                 <a href="{{ route('admin.operations.delivery-orders.show', $item) }}" class="text-blue-700 hover:underline">Detail</a>
+                                @can('operations.manage')
+                                    @if (in_array($item->status, ['draft', 'dispatched']))
+                                        <button type="submit" data-row-action formaction="{{ route('admin.operations.delivery-orders.complete', $item) }}"
+                                                onclick="return confirm('{{ $item->status === 'draft' ? 'Dispatch + Delivered sekaligus?' : 'Tandai Delivered sekarang?' }}')"
+                                                class="ml-3 text-indigo-700 hover:underline">Selesaikan</button>
+                                    @endif
+                                @endcan
                             </td>
                         </tr>
                     @empty
@@ -174,6 +190,8 @@
 
                 if (form) {
                     form.addEventListener('submit', function (e) {
+                        // Tombol "Selesaikan" per baris tidak butuh centang tabel.
+                        if (e.submitter && e.submitter.hasAttribute('data-row-action')) return;
                         const allEverywhere = selectAllFlag && selectAllFlag.value === '1';
                         const anyChecked = Array.from(rowCheckboxes()).some(cb => cb.checked);
 

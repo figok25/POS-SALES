@@ -42,12 +42,13 @@ class DeliveryOrderController extends Controller
         // Branch yang jelas tidak dipaksa branch-scoped).
         $vehicles = Vehicle::where('is_active', true)->orderBy('name')->get();
         $drivers = Employee::drivers()->where('is_active', true)->orderBy('name')->get();
+        $routes = DeliveryRoute::where('is_active', true)->orderBy('name')->get();
         $draftCount = $branchContext->applyVia(
             DeliveryOrder::where('status', DeliveryOrder::STATUS_DRAFT),
             fn ($q, $branchId) => $q->whereHas('salesTransaction.sales', fn ($qq) => $qq->where('branch_id', $branchId))
         )->count();
 
-        return view('admin.operations.delivery-orders.index', compact('items', 'status', 'vehicles', 'drivers', 'draftCount'));
+        return view('admin.operations.delivery-orders.index', compact('items', 'status', 'vehicles', 'drivers', 'routes', 'draftCount'));
     }
 
     public function create()
@@ -269,22 +270,8 @@ class DeliveryOrderController extends Controller
             return back()->with('error', 'Hanya dokumen berstatus Draft atau Dispatched yang bisa diselesaikan sekaligus.');
         }
 
-        $before = $deliveryOrder->toArray();
         $wasDraft = $deliveryOrder->isDraft();
-
-        $updates = [
-            'status' => DeliveryOrder::STATUS_DELIVERED,
-            'delivered_by' => auth()->id(),
-            'delivered_at' => now(),
-        ];
-        if ($wasDraft) {
-            $updates['dispatched_by'] = auth()->id();
-            $updates['dispatched_at'] = now();
-        }
-
-        $deliveryOrder->update($updates);
-
-        AuditLogger::log('complete_all', 'Operations', DeliveryOrder::class, $deliveryOrder->id, $before, $deliveryOrder->toArray());
+        $this->completeOne($deliveryOrder);
 
         return back()->with('status', $wasDraft
             ? 'Delivery Order langsung diselesaikan (Dispatch + Delivered sekaligus).'
@@ -336,32 +323,44 @@ class DeliveryOrderController extends Controller
 
         DB::transaction(function () use ($orders, $data) {
             foreach ($orders as $do) {
-                $before = $do->toArray();
-                $wasDraft = $do->isDraft();
-
-                $do->update(array_filter([
-                    'vehicle_id' => $data['vehicle_id'] ?? $do->vehicle_id,
-                    'driver_id' => $data['driver_id'] ?? $do->driver_id,
-                    'route_id' => $data['route_id'] ?? $do->route_id,
-                    'scheduled_date' => $data['scheduled_date'] ?? $do->scheduled_date,
-                ], fn ($v) => $v !== null));
-
-                $updates = [
-                    'status' => DeliveryOrder::STATUS_DELIVERED,
-                    'delivered_by' => auth()->id(),
-                    'delivered_at' => now(),
-                ];
-                if ($wasDraft) {
-                    $updates['dispatched_by'] = auth()->id();
-                    $updates['dispatched_at'] = now();
-                }
-                $do->update($updates);
-
-                AuditLogger::log('complete_all', 'Operations', DeliveryOrder::class, $do->id, $before, $do->fresh()->toArray());
+                $this->completeOne($do, $data);
             }
         });
 
         return back()->with('status', $orders->count().' Delivery Order langsung diselesaikan sekaligus (Dispatch + Delivered).');
+    }
+
+    /**
+     * Satu-satunya tempat logika "Apply + Dispatch + Delivered sekaligus"
+     * (dipakai complete() dan bulkComplete() supaya perilakunya identik).
+     *  - Apply   : isi vehicle/driver/route/jadwal bila diberikan ($assign).
+     *  - Dispatch: hanya bila masih Draft (dispatched_by/at diisi).
+     *  - Delivered: selalu (delivered_by/at diisi).
+     * Pemanggil wajib sudah memastikan status Draft/Dispatched & akses Branch.
+     */
+    private function completeOne(DeliveryOrder $do, array $assign = []): void
+    {
+        $before = $do->toArray();
+        $wasDraft = $do->isDraft();
+
+        $do->fill(array_filter([
+            'vehicle_id' => $assign['vehicle_id'] ?? null,
+            'driver_id' => $assign['driver_id'] ?? null,
+            'route_id' => $assign['route_id'] ?? null,
+            'scheduled_date' => $assign['scheduled_date'] ?? null,
+        ], fn ($v) => $v !== null));
+
+        if ($wasDraft) {
+            $do->dispatched_by = auth()->id();
+            $do->dispatched_at = now();
+        }
+
+        $do->status = DeliveryOrder::STATUS_DELIVERED;
+        $do->delivered_by = auth()->id();
+        $do->delivered_at = now();
+        $do->save();
+
+        AuditLogger::log('complete_all', 'Operations', DeliveryOrder::class, $do->id, $before, $do->fresh()->toArray());
     }
 
     public function cancel(DeliveryOrder $deliveryOrder)
