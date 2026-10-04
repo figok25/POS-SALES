@@ -22,6 +22,13 @@ Route::middleware('permission:inventory.view')->group(function () {
 
 Route::middleware('permission:inventory.manage')->group(function () {
     Route::post('adjustments', [StockAdjustmentController::class, 'store'])->name('adjustments.store');
+    Route::post('adjustments/bulk-apply', [StockAdjustmentController::class, 'bulkApply'])->name('adjustments.bulk-apply');
+
+    // Paket (batch): Apply / hapus semua Draft dengan kode batch yang sama.
+    Route::post('adjustments/batch/{batchCode}/apply', [StockAdjustmentController::class, 'applyBatch'])
+        ->where('batchCode', 'BATCH-[A-Za-z0-9-]+')->name('adjustments.batch.apply');
+    Route::delete('adjustments/batch/{batchCode}', [StockAdjustmentController::class, 'destroyBatch'])
+        ->where('batchCode', 'BATCH-[A-Za-z0-9-]+')->name('adjustments.batch.destroy');
     Route::post('adjustments/{item}/apply', [StockAdjustmentController::class, 'apply'])->name('adjustments.apply');
     Route::delete('adjustments/{item}', [StockAdjustmentController::class, 'destroy'])->name('adjustments.destroy');
 });

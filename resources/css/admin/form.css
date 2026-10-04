@@ -396,7 +396,12 @@ html[data-theme="dark"] { --adm-warning: #f0b95c; --adm-warning-bg: rgba(240, 18
         background-image: none; /* panah diganti ::picker-icon */
     }
     .frm-input.is-select::picker-icon {
-        color: var(--adm-faint);
+        content: '';
+        width: 16px;
+        height: 16px;
+        background: var(--adm-faint);
+        -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") center / contain no-repeat;
+        mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") center / contain no-repeat;
         transition: rotate 0.2s ease;
     }
     .frm-input.is-select:open::picker-icon { rotate: 180deg; }
@@ -421,6 +426,7 @@ html[data-theme="dark"] { --adm-warning: #f0b95c; --adm-warning-bg: rgba(240, 18
     .frm-input.is-select option:hover { color: var(--adm-blue-deep); background: var(--adm-hover); }
     .frm-input.is-select option:checked { font-weight: 800; color: var(--adm-blue-deep); }
     .frm-input.is-select option[value=""] { color: var(--adm-faint); }
+    .frm-input.is-select option[value=""]:checked { font-weight: 600; color: var(--adm-faint); }
 }
 
 .frm-error { margin: 0; font-size: 12.5px; font-weight: 600; color: var(--adm-danger); }
@@ -428,6 +434,79 @@ html[data-theme="dark"] { --adm-warning: #f0b95c; --adm-warning-bg: rgba(240, 18
 
 /* Dropdown filter di toolbar (mis. Semua Lokasi / Semua Status) */
 .frm-input.is-filter { width: auto; min-width: 168px; height: 40px; }
+
+/* ---- Baris produk (input batch: banyak produk dalam satu dokumen) ---- */
+.frm-lines { display: flex; flex-direction: column; gap: 10px; }
+/* Nama class sengaja .adj-prow (bukan .frm-line): .frm-line sudah dipakai sel tabel
+   multi-baris di atas, sehingga memakai nama yang sama membuat keduanya saling menimpa. */
+.adj-prow {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 120px 34px;
+    gap: 8px;
+    align-items: start;
+}
+.adj-prow .frm-icon-btn { margin-top: 4px; }
+.frm-icon-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.adj-prow .frm-error { grid-column: 1 / -1; }
+.frm-line-add { align-self: flex-start; margin-top: 4px; }
+
+/* ---- Aksi massal (pilih banyak baris, lalu proses sekaligus) ---- */
+.frm-bulkbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    background: var(--adm-hover);
+    border-bottom: 1px solid var(--adm-line);
+}
+.frm-bulkbar-info { margin-left: auto; font-size: 13px; font-weight: 700; color: var(--adm-body); }
+.frm-bulkbar-check {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--adm-body);
+    cursor: pointer;
+}
+.frm-bulkbar-check input { flex: 0 0 auto; width: 16px; height: 16px; accent-color: var(--adm-blue-deep); cursor: pointer; }
+.frm-table .adj-batch-check, .frm-table .adj-checkbox, .frm-table #checkAllRows { width: 16px; height: 16px; accent-color: var(--adm-blue-deep); cursor: pointer; }
+
+/* ---- Pilihan jenis input (segmented control) ---- */
+.frm-seg {
+    display: inline-flex;
+    gap: 3px;
+    padding: 3px;
+    background: var(--adm-fill);
+    border: 1px solid var(--adm-line);
+    border-radius: 12px;
+}
+.frm-seg label { position: relative; cursor: pointer; }
+.frm-seg input { position: absolute; opacity: 0; pointer-events: none; }
+.frm-seg span {
+    display: block;
+    padding: 7px 14px;
+    border-radius: 9px;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--adm-body);
+    transition: background 0.15s, color 0.15s;
+}
+.frm-seg input:checked + span { background: var(--adm-surface); color: var(--adm-blue-deep); box-shadow: var(--adm-shadow); }
+.frm-seg input:focus-visible + span { outline: 2px solid var(--adm-blue); outline-offset: 1px; }
+
+/* ---- Baris paket (kelompok draft dalam satu batch) ---- */
+.frm-table tr.frm-batch-row td { background: var(--adm-fill); border-bottom: 1px solid var(--adm-line); }
+.frm-table tr.frm-batch-row:hover td { background: var(--adm-fill); }
+.frm-batch-title { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; font-weight: 800; color: var(--adm-ink); }
+.frm-batch-title svg { width: 18px; height: 18px; color: var(--adm-blue-deep); flex: 0 0 auto; }
+.frm-batch-meta { font-size: 12.5px; font-weight: 600; color: var(--adm-muted); }
+.frm-table tr.is-child .frm-name::before { content: '\21B3'; margin-right: 6px; font-weight: 400; color: var(--adm-faint); }
+.frm-table .is-check { width: 44px; }
+.frm-alert-list { margin: 6px 0 0; padding-left: 18px; font-weight: 600; }
 
 /* ---- Switch ---- */
 .frm-switch { display: inline-flex; align-items: center; gap: 12px; cursor: pointer; }
@@ -950,6 +1029,8 @@ html[data-theme="dark"] { --adm-warning: #f0b95c; --adm-warning-bg: rgba(240, 18
     .frm-clamp { max-width: 100%; }
     .frm-table td.frm-cell-status { margin-top: 6px; }
     .frm-table td.is-num { text-align: left; }
+    .frm-table td.is-check { width: auto; padding-bottom: 0; }
+    .adj-prow { grid-template-columns: minmax(0, 1fr) 96px 34px; }
     .frm-table td[data-label]::before {
         content: attr(data-label);
         display: inline-block;

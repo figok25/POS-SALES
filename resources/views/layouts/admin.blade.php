@@ -4,7 +4,35 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ $__admAppName ?? config('app.name', 'POS & Sales') }} - Admin</title>
+
+    @php
+        // Nama aplikasi & logo dari System > Settings (App\Models\AppSetting,
+        // singleton). Dihitung di awal <head> (dipakai <title> & favicon) --
+        // dibungkus try/catch supaya layout tidak ikut error kalau tabel
+        // app_settings belum sempat di-migrate di server ini -- seluruh
+        // shell admin (termasuk halaman lain) memuat layout ini, jadi ini
+        // WAJIB aman-gagal (fail-safe), bukan cuma halaman Settings-nya sendiri.
+        $__admAppSetting = null;
+        try {
+            $__admAppSetting = \App\Models\AppSetting::query()->first();
+        } catch (\Throwable $e) {
+            $__admAppSetting = null;
+        }
+        $__admAppName = $__admAppSetting?->app_name ?: config('app.name', 'POS & Sales');
+        $__admLogoUrl = $__admAppSetting?->logo_path ? $__admAppSetting->logoUrl() : null;
+        // Fallback lama (file statis di public/images) tetap didukung kalau
+        // Admin belum sempat upload lewat Settings.
+        if (! $__admLogoUrl) {
+            $__admHasStaticLogo = file_exists(public_path('images/logo.png')) ? 'images/logo.png'
+                : (file_exists(public_path('images/logo.svg')) ? 'images/logo.svg' : null);
+            $__admLogoUrl = $__admHasStaticLogo ? asset($__admHasStaticLogo) : null;
+        }
+    @endphp
+
+    <title>{{ $__admAppName }} - Admin</title>
+    @if ($__admLogoUrl)
+        <link rel="icon" href="{{ $__admLogoUrl }}">
+    @endif
 
     {{-- Pasang tema SEBELUM stylesheet & body digambar supaya tidak berkedip
          terang dulu saat mode gelap. Urutan prioritas: pilihan user
@@ -165,28 +193,6 @@
             'items' => $items,
             'active' => $groupActive,
         ];
-    }
-
-    $hasLogo = file_exists(public_path('images/logo.png')) ? 'images/logo.png'
-        : (file_exists(public_path('images/logo.svg')) ? 'images/logo.svg' : null);
-
-    // Nama aplikasi & logo dari System > Settings (App\Models\AppSetting,
-    // singleton). Dibungkus try/catch supaya layout tidak ikut error kalau
-    // tabel `app_settings` belum sempat di-migrate di server ini -- seluruh
-    // shell admin (termasuk halaman lain) memuat layout ini, jadi ini WAJIB
-    // aman-gagal (fail-safe), bukan cuma halaman Settings-nya sendiri.
-    $__admAppSetting = null;
-    try {
-        $__admAppSetting = \App\Models\AppSetting::query()->first();
-    } catch (\Throwable $e) {
-        $__admAppSetting = null;
-    }
-    $__admAppName = $__admAppSetting?->app_name ?: config('app.name', 'POS & Sales');
-    $__admLogoUrl = $__admAppSetting?->logo_path ? $__admAppSetting->logoUrl() : null;
-    // Fallback lama (file statis di public/images) tetap didukung kalau
-    // Admin belum sempat upload lewat Settings.
-    if (! $__admLogoUrl) {
-        $__admLogoUrl = $hasLogo ? asset($hasLogo) : null;
     }
 
     $userName = auth()->user()->name ?? 'Admin';
