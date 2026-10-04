@@ -19,7 +19,7 @@ class StockAdjustment extends Model
     public const TYPE_OUT = 'out';
 
     protected $fillable = [
-        'product_id', 'location_type', 'location_id', 'type',
+        'batch_code', 'product_id', 'location_type', 'location_id', 'type',
         'quantity', 'reason', 'status', 'created_by', 'applied_by', 'applied_at',
     ];
 
@@ -58,5 +58,10 @@ class StockAdjustment extends Model
     public function isDraft(): bool
     {
         return $this->status === self::STATUS_DRAFT;
+    }
+
+    public function scopeInBatch($query, string $batchCode)
+    {
+        return $query->where('batch_code', $batchCode);
     }
 }

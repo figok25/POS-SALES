@@ -63,6 +63,16 @@
                         <button class="bg-green-600 text-white px-3 py-2 rounded text-sm hover:bg-green-700">Tandai Delivered</button>
                     </form>
                 @endif
+
+                @if ($deliveryOrder->isDraft() || $deliveryOrder->isDispatched())
+                    <form action="{{ route('admin.operations.delivery-orders.complete', $deliveryOrder) }}" method="POST"
+                          onsubmit="return confirm('{{ $deliveryOrder->isDraft() ? 'Langsung Dispatch + Delivered sekaligus?' : 'Tandai Delivered sekarang?' }}')">
+                        @csrf
+                        <button class="bg-indigo-600 text-white px-3 py-2 rounded text-sm hover:bg-indigo-700">
+                            {{ $deliveryOrder->isDraft() ? 'Selesaikan Sekaligus (Dispatch + Delivered)' : 'Selesaikan Sekaligus' }}
+                        </button>
+                    </form>
+                @endif
             @endcan
         </div>
     </div>

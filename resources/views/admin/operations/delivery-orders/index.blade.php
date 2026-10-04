@@ -55,13 +55,17 @@
                     <button type="submit" id="bulk-dispatch-submit" class="bg-green-600 text-white px-3 py-2 rounded text-sm hover:bg-green-700">
                         Apply &amp; Dispatch yang Dicentang
                     </button>
+                    <button type="submit" id="bulk-complete-submit" formaction="{{ route('admin.operations.delivery-orders.bulk-complete') }}"
+                            class="bg-indigo-600 text-white px-3 py-2 rounded text-sm hover:bg-indigo-700">
+                        Selesaikan Sekaligus (Dispatch + Delivered)
+                    </button>
                     @if ($draftCount > 0)
                         <label class="flex items-center gap-2 text-sm ml-2 bg-yellow-50 border border-yellow-200 px-3 py-2 rounded">
                             <input type="checkbox" id="select-all-draft-everywhere">
                             Pilih SEMUA {{ $draftCount }} Draft DO (termasuk yang tidak tampil di halaman ini)
                         </label>
                     @endif
-                    <span id="select-all-draft-note" class="hidden text-xs text-yellow-800">Seluruh Draft DO akan diproses saat tombol Apply &amp; Dispatch ditekan, terlepas dari centang di tabel.</span>
+                    <span id="select-all-draft-note" class="hidden text-xs text-yellow-800">"Apply &amp; Dispatch" memproses seluruh Draft DO. "Selesaikan Sekaligus" memproses seluruh Draft + Dispatched DO. Berlaku terlepas dari centang di tabel.</span>
                 </div>
             @endcan
 
@@ -86,8 +90,8 @@
                         <tr class="border-b">
                             @can('operations.manage')
                                 <td class="px-3 py-2">
-                                    @if ($item->status === 'draft')
-                                        <input type="checkbox" name="delivery_order_ids[]" value="{{ $item->id }}" class="do-checkbox">
+                                    @if (in_array($item->status, ['draft', 'dispatched']))
+                                        <input type="checkbox" name="delivery_order_ids[]" value="{{ $item->id }}" class="do-checkbox" data-status="{{ $item->status }}">
                                     @endif
                                 </td>
                             @endcan

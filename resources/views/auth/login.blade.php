@@ -4,7 +4,27 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ config('app.name', 'Laravel') }} - Login</title>
+    @php
+        // Sama persis dengan logic layouts/admin.blade.php: ambil dari
+        // System > Settings (App\Models\AppSetting), fallback ke
+        // config('app.name') kalau belum pernah diisi. Dibungkus try/catch
+        // supaya halaman login tidak ikut error kalau tabel app_settings
+        // belum ter-migrate di server ini -- halaman login WAJIB tetap
+        // bisa diakses apapun kondisi datanya.
+        $__loginSetting = null;
+        try {
+            $__loginSetting = \App\Models\AppSetting::query()->first();
+        } catch (\Throwable $e) {
+            $__loginSetting = null;
+        }
+        $__loginAppName = $__loginSetting?->app_name ?: config('app.name', 'POS & Sales');
+        $__loginLogoUrl = $__loginSetting?->logo_path ? $__loginSetting->logoUrl() : null;
+        if (! $__loginLogoUrl) {
+            $__loginLogoUrl = file_exists(public_path('images/logo.png')) ? asset('images/logo.png')
+                : (file_exists(public_path('images/logo.svg')) ? asset('images/logo.svg') : null);
+        }
+    @endphp
+    <title>{{ $__loginAppName }} - Login</title>
 
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=nunito:400,600,700,800&display=swap" rel="stylesheet" />
@@ -206,12 +226,10 @@
 <body>
     <main class="login-card">
         <div class="login-logo">
-            @if (file_exists(public_path('images/logo.png')))
-                <img src="{{ asset('images/logo.png') }}" alt="{{ config('app.name') }}">
-            @elseif (file_exists(public_path('images/logo.svg')))
-                <img src="{{ asset('images/logo.svg') }}" alt="{{ config('app.name') }}">
+            @if ($__loginLogoUrl)
+                <img src="{{ $__loginLogoUrl }}" alt="{{ $__loginAppName }}">
             @else
-                <div class="login-logo-placeholder">LOGO</div>
+                <div class="login-logo-placeholder">{{ \Illuminate\Support\Str::limit(strtoupper($__loginAppName), 16, '') }}</div>
             @endif
         </div>
 

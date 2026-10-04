@@ -46,6 +46,8 @@ Route::middleware('permission:operations.manage')->group(function () {
     Route::post('delivery-orders/{deliveryOrder}/dispatch', [DeliveryOrderController::class, 'dispatch'])->name('delivery-orders.dispatch');
     Route::post('delivery-orders/bulk-dispatch', [DeliveryOrderController::class, 'bulkDispatch'])->name('delivery-orders.bulk-dispatch');
     Route::post('delivery-orders/{deliveryOrder}/deliver', [DeliveryOrderController::class, 'deliver'])->name('delivery-orders.deliver');
+    Route::post('delivery-orders/{deliveryOrder}/complete', [DeliveryOrderController::class, 'complete'])->name('delivery-orders.complete');
+    Route::post('delivery-orders/bulk-complete', [DeliveryOrderController::class, 'bulkComplete'])->name('delivery-orders.bulk-complete');
     Route::post('delivery-orders/{deliveryOrder}/cancel', [DeliveryOrderController::class, 'cancel'])->name('delivery-orders.cancel');
 
     Route::resource('routes', DeliveryRouteController::class)->parameters(['routes' => 'item'])->except(['index', 'show']);

@@ -249,6 +249,121 @@ class DeliveryOrderController extends Controller
         return back()->with('status', 'Delivery Order berhasil ditandai Delivered.');
     }
 
+    /**
+     * Otomatisasi Status DO Sekaligus: 1 aksi yang langsung menjalankan
+     * Dispatch (kalau masih Draft) lalu Delivered, tanpa Admin perlu klik
+     * dua kali terpisah. Boleh dipanggil dari Draft MAUPUN Dispatched --
+     * dari Dispatched, cuma langkah Delivered yang dijalankan.
+     *
+     * Dipakai tombol "Selesaikan Sekaligus" di show() dan index() (per
+     * baris), serta bulkComplete() di bawah untuk versi massalnya.
+     */
+    public function complete(DeliveryOrder $deliveryOrder)
+    {
+        $deliveryOrder->loadMissing('salesTransaction.sales');
+        if (! BranchContext::current()->allows($deliveryOrder->salesTransaction->sales->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke Delivery Order ini.');
+        }
+
+        if (! in_array($deliveryOrder->status, [DeliveryOrder::STATUS_DRAFT, DeliveryOrder::STATUS_DISPATCHED], true)) {
+            return back()->with('error', 'Hanya dokumen berstatus Draft atau Dispatched yang bisa diselesaikan sekaligus.');
+        }
+
+        $before = $deliveryOrder->toArray();
+        $wasDraft = $deliveryOrder->isDraft();
+
+        $updates = [
+            'status' => DeliveryOrder::STATUS_DELIVERED,
+            'delivered_by' => auth()->id(),
+            'delivered_at' => now(),
+        ];
+        if ($wasDraft) {
+            $updates['dispatched_by'] = auth()->id();
+            $updates['dispatched_at'] = now();
+        }
+
+        $deliveryOrder->update($updates);
+
+        AuditLogger::log('complete_all', 'Operations', DeliveryOrder::class, $deliveryOrder->id, $before, $deliveryOrder->toArray());
+
+        return back()->with('status', $wasDraft
+            ? 'Delivery Order langsung diselesaikan (Dispatch + Delivered sekaligus).'
+            : 'Delivery Order ditandai Delivered.');
+    }
+
+    /**
+     * Versi massal dari complete() di atas: bisa dipanggil atas DO
+     * berstatus Draft MAUPUN Dispatched sekaligus dalam satu submit --
+     * tiap baris diproses sesuai status aslinya masing-masing (Draft
+     * lewat Dispatch dulu baru Delivered; Dispatched langsung Delivered).
+     * Pola select_all_draft/anti-IDOR sama persis dengan bulkDispatch().
+     */
+    public function bulkComplete(Request $request)
+    {
+        $selectAllDraft = $request->boolean('select_all_draft');
+        $eligibleStatuses = [DeliveryOrder::STATUS_DRAFT, DeliveryOrder::STATUS_DISPATCHED];
+
+        $data = $request->validate([
+            'delivery_order_ids' => [$selectAllDraft ? 'nullable' : 'required', 'array'],
+            'delivery_order_ids.*' => ['integer', 'exists:delivery_orders,id'],
+            'vehicle_id' => ['nullable', 'exists:vehicles,id'],
+            'driver_id' => ['nullable', 'exists:employees,id'],
+            'route_id' => ['nullable', 'exists:routes,id'],
+            'scheduled_date' => ['nullable', 'date'],
+        ]);
+
+        $branchContext = BranchContext::current();
+
+        if ($selectAllDraft) {
+            $orders = $branchContext->applyVia(
+                DeliveryOrder::whereIn('status', $eligibleStatuses),
+                fn ($q, $branchId) => $q->whereHas('salesTransaction.sales', fn ($qq) => $qq->where('branch_id', $branchId))
+            )->get();
+        } else {
+            if (empty($data['delivery_order_ids'])) {
+                return back()->with('error', 'Pilih minimal 1 DO dulu.');
+            }
+
+            $orders = $branchContext->applyVia(
+                DeliveryOrder::whereIn('id', $data['delivery_order_ids'])->whereIn('status', $eligibleStatuses),
+                fn ($q, $branchId) => $q->whereHas('salesTransaction.sales', fn ($qq) => $qq->where('branch_id', $branchId))
+            )->get();
+        }
+
+        if ($orders->isEmpty()) {
+            return back()->with('error', 'Tidak ada DO yang valid untuk diselesaikan (mungkin sudah Delivered/Cancelled).');
+        }
+
+        DB::transaction(function () use ($orders, $data) {
+            foreach ($orders as $do) {
+                $before = $do->toArray();
+                $wasDraft = $do->isDraft();
+
+                $do->update(array_filter([
+                    'vehicle_id' => $data['vehicle_id'] ?? $do->vehicle_id,
+                    'driver_id' => $data['driver_id'] ?? $do->driver_id,
+                    'route_id' => $data['route_id'] ?? $do->route_id,
+                    'scheduled_date' => $data['scheduled_date'] ?? $do->scheduled_date,
+                ], fn ($v) => $v !== null));
+
+                $updates = [
+                    'status' => DeliveryOrder::STATUS_DELIVERED,
+                    'delivered_by' => auth()->id(),
+                    'delivered_at' => now(),
+                ];
+                if ($wasDraft) {
+                    $updates['dispatched_by'] = auth()->id();
+                    $updates['dispatched_at'] = now();
+                }
+                $do->update($updates);
+
+                AuditLogger::log('complete_all', 'Operations', DeliveryOrder::class, $do->id, $before, $do->fresh()->toArray());
+            }
+        });
+
+        return back()->with('status', $orders->count().' Delivery Order langsung diselesaikan sekaligus (Dispatch + Delivered).');
+    }
+
     public function cancel(DeliveryOrder $deliveryOrder)
     {
         $deliveryOrder->loadMissing('salesTransaction.sales');
