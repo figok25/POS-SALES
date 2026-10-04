@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Admin\System;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
+use App\Models\Branch;
 use App\Models\User;
+use App\Support\BranchContext;
 use Illuminate\Http\Request;
 
 /**
@@ -13,6 +15,10 @@ use Illuminate\Http\Request;
  * READ-ONLY. Datanya sudah ditulis dari banyak modul lewat
  * App\Services\AuditLogger sejak awal -- halaman ini cuma jendela untuk
  * melihatnya, tidak pernah membuat/mengubah/menghapus baris audit_logs.
+ *
+ * Multi Branch/Depo: audit_logs.branch_id diisi otomatis oleh AuditLogger.
+ * Admin hanya melihat log Depo-nya sendiri; Super Admin melihat semua
+ * (termasuk log Global ber-branch_id NULL) atau satu Depo lewat ?branch=.
  */
 class AuditLogController extends Controller
 {
@@ -24,7 +30,11 @@ class AuditLogController extends Controller
         $dateFrom = $request->query('date_from');
         $dateTo = $request->query('date_to');
 
-        $logs = AuditLog::with('user')
+        $branchContext = BranchContext::current();
+        $scoped = fn () => $branchContext->applyTo(AuditLog::query());
+
+        $logs = $scoped()
+            ->with(['user', 'branch'])
             ->when($module, fn ($q) => $q->where('module', $module))
             ->when($action, fn ($q) => $q->where('action', $action))
             ->when($userId, fn ($q) => $q->where('user_id', $userId))
@@ -34,18 +44,29 @@ class AuditLogController extends Controller
             ->paginate(30)
             ->withQueryString();
 
-        $modules = AuditLog::query()->whereNotNull('module')->distinct()->orderBy('module')->pluck('module');
-        $actions = AuditLog::query()->distinct()->orderBy('action')->pluck('action');
-        $users = User::orderBy('name')->get();
+        // Pilihan filter ikut dibatasi Depo, supaya Admin tidak melihat
+        // nama modul/aksi/user dari Depo lain lewat dropdown.
+        $modules = $scoped()->whereNotNull('module')->distinct()->orderBy('module')->pluck('module');
+        $actions = $scoped()->distinct()->orderBy('action')->pluck('action');
+        $users = $branchContext->applyTo(User::query())->orderBy('name')->get();
+
+        $branches = Branch::where('is_active', true)->orderBy('name')->get(['id', 'name']);
 
         return view('admin.system.audit-log.index', compact(
-            'logs', 'modules', 'actions', 'users', 'module', 'action', 'userId', 'dateFrom', 'dateTo'
+            'logs', 'modules', 'actions', 'users', 'module', 'action', 'userId', 'dateFrom', 'dateTo',
+            'branches', 'branchContext'
         ));
     }
 
     public function show(AuditLog $auditLog)
     {
-        $auditLog->load('user');
+        // Anti-IDOR (Multi Branch/Depo): log Depo lain & log Global tidak
+        // boleh dibuka Admin walau ID-nya diketahui.
+        if (! BranchContext::current()->allows($auditLog->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke log ini.');
+        }
+
+        $auditLog->load(['user', 'branch']);
 
         return view('admin.system.audit-log.show', compact('auditLog'));
     }

@@ -161,24 +161,21 @@ class ReportController extends Controller
     }
 
     /**
-     * CATATAN Multi Branch/Depo: laporan ini SENGAJA BELUM di-scope Branch.
-     * AuditLog bersifat generik untuk SEMUA jenis dokumen (document_type +
-     * document_id polimorfik) tanpa branch_id/sales_id langsung - scoping
-     * yang benar butuh resolve Branch per document_type satu-satu (BKB,
-     * BTB, Customer, Sales, dst - masing-masing beda jalur relasi), yang
-     * merupakan keputusan desain tersendiri di luar scope perbaikan ini.
-     * Untuk saat ini: Audit Log tetap terlihat lintas-Branch oleh Admin
-     * mana pun yang punya permission 'audit-log.view'.
+     * Multi Branch/Depo: audit_logs.branch_id diisi otomatis oleh
+     * AuditLogger, jadi laporan (tampilan maupun export) cukup difilter
+     * lewat BranchContext. Admin hanya melihat log Depo-nya sendiri; log
+     * Global (branch_id NULL) hanya terlihat Super Admin.
      */
     public function audit(Request $request)
     {
         $module = $request->query('module');
+        $scopedLogs = fn () => BranchContext::current()->applyTo(AuditLog::query());
 
         if ($request->filled('export')) {
             // Export mengambil SELURUH baris yang cocok filter (tidak
             // dibatasi 30/halaman seperti tampilan layar) -- itu memang
             // tujuan tombol export: ambil semua datanya sekaligus.
-            $allLogs = AuditLog::with('user')
+            $allLogs = $scopedLogs()->with('user')
                 ->when($module, fn ($q) => $q->where('module', $module))
                 ->orderByDesc('id')
                 ->get();
@@ -196,13 +193,13 @@ class ReportController extends Controller
             }
         }
 
-        $logs = AuditLog::with('user')
+        $logs = $scopedLogs()->with(['user', 'branch'])
             ->when($module, fn ($q) => $q->where('module', $module))
             ->orderByDesc('id')
             ->paginate(30)
             ->withQueryString();
 
-        $modules = AuditLog::query()->select('module')->distinct()->orderBy('module')->pluck('module');
+        $modules = $scopedLogs()->select('module')->distinct()->orderBy('module')->pluck('module');
 
         return view('admin.reports.audit', compact('logs', 'modules', 'module'));
     }

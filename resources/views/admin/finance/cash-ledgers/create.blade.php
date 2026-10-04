@@ -29,6 +29,23 @@
 
                 <div class="frm-panel-body">
                     <div class="frm-grid">
+                        <div class="frm-field is-full">
+                            @if (auth()->user()->isSuperAdmin())
+                                <label for="branch_id" class="frm-label">Depo <span class="frm-req">*</span></label>
+                                <select id="branch_id" name="branch_id" required class="frm-input is-select @error('branch_id') is-invalid @enderror">
+                                    <option value="">Pilih Depo</option>
+                                    @foreach ($branches as $b)
+                                        <option value="{{ $b->id }}" @selected((string) old('branch_id', $branchContext->isAll() ? '' : $branchContext->branchId()) === (string) $b->id)>{{ $b->name }}</option>
+                                    @endforeach
+                                </select>
+                            @else
+                                {{-- Admin: Depo terkunci ke akunnya; server mengabaikan nilai dari form. --}}
+                                <label class="frm-label">Depo</label>
+                                <p class="frm-hint" style="margin:0">{{ auth()->user()->branch->name ?? '-' }}</p>
+                            @endif
+                            @error('branch_id')<p class="frm-error">{{ $message }}</p>@enderror
+                        </div>
+
                         <div class="frm-field">
                             <label for="type" class="frm-label">Tipe <span class="frm-req">*</span></label>
                             <select id="type" name="type" required class="frm-input is-select @error('type') is-invalid @enderror">

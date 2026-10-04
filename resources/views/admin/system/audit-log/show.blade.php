@@ -24,6 +24,10 @@
                     <dd>{{ $auditLog->user->name ?? '(sistem)' }} @if ($auditLog->user)<span class="frm-meta">{{ $auditLog->user->email }}</span>@endif</dd>
                 </div>
                 <div>
+                    <dt>Depo</dt>
+                    <dd>{{ $auditLog->branch->name ?? 'Global' }}</dd>
+                </div>
+                <div>
                     <dt>Modul</dt>
                     <dd>{{ $auditLog->module ?? '—' }}</dd>
                 </div>

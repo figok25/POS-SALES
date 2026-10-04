@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\CashLedger;
+use App\Models\User;
 use App\Services\AuditLogger;
 use App\Support\DocumentCode;
 
@@ -12,9 +13,19 @@ use App\Support\DocumentCode;
  */
 class CashLedgerService
 {
+    /**
+     * Multi Branch/Depo: `branch_id` boleh dikirim eksplisit di $data
+     * (controller memaksanya sesuai BranchContext). Kalau tidak ada,
+     * dipakai Branch milik user pembuat, supaya pemanggil lain (mis. test
+     * atau service lain) tetap menghasilkan catatan yang punya Depo.
+     */
     public function create(array $data, ?int $createdByUserId): CashLedger
     {
+        $branchId = $data['branch_id']
+            ?? ($createdByUserId ? User::query()->whereKey($createdByUserId)->value('branch_id') : null);
+
         $entry = CashLedger::create([
+            'branch_id' => $branchId,
             'code' => 'TEMP',
             'type' => $data['type'],
             'category' => $data['category'],

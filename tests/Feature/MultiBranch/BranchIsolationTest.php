@@ -125,6 +125,7 @@ class BranchIsolationTest extends TestCase
             'branch_id' => $branchB->id, // mencoba menyuntik Branch lain
             'code' => 'SLS-INJECT-1',
             'name' => 'Sales Suntikan',
+            'type' => 'retail', // wajib sejak ada kategori harga Retail/WS
             'is_active' => 1,
         ])->assertRedirect();
 

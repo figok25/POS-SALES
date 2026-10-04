@@ -9,7 +9,20 @@
             </div>
         </div>
 
+        @php($isSuper = auth()->user()->isSuperAdmin())
+
         <form method="GET" class="dash-filter">
+            @if ($isSuper)
+                <div class="dash-field">
+                    <label for="algBranch">Depo</label>
+                    <select id="algBranch" name="branch">
+                        <option value="all">- Semua Depo -</option>
+                        @foreach ($branches as $b)
+                            <option value="{{ $b->id }}" @selected(! $branchContext->isAll() && $branchContext->branchId() === $b->id)>{{ $b->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            @endif
             <div class="dash-field">
                 <label for="algModule">Modul</label>
                 <select id="algModule" name="module">
@@ -47,7 +60,7 @@
             </div>
             <div class="dash-actions">
                 <button type="submit" class="adm-btn adm-btn-primary">Filter</button>
-                @if ($module || $action || $userId || $dateFrom || $dateTo)
+                @if ($module || $action || $userId || $dateFrom || $dateTo || ($isSuper && ! $branchContext->isAll()))
                     <a href="{{ route('admin.system.audit-log.index') }}" class="adm-btn adm-btn-ghost">Reset</a>
                 @endif
             </div>
@@ -68,6 +81,7 @@
                         <thead>
                             <tr>
                                 <th>Waktu</th>
+                                @if ($isSuper)<th>Depo</th>@endif
                                 <th>User</th>
                                 <th>Modul</th>
                                 <th>Aksi</th>
@@ -80,6 +94,9 @@
                             @foreach ($logs as $log)
                                 <tr>
                                     <td class="frm-dash" style="color: var(--adm-body); white-space: nowrap;">{{ $log->created_at->format('d/m/Y H:i:s') }}</td>
+                                    @if ($isSuper)
+                                        <td>{{ $log->branch->name ?? 'Global' }}</td>
+                                    @endif
                                     <td>{{ $log->user->name ?? '(sistem)' }}</td>
                                     <td>{{ $log->module ?? '—' }}</td>
                                     <td><span class="frm-code">{{ $log->action }}</span></td>

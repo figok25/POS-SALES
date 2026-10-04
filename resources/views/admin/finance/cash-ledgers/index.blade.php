@@ -1,16 +1,19 @@
 <x-admin-layout>
     @php
-        $isFiltered = filled($type);
+        $isSuper    = auth()->user()->isSuperAdmin();
+        $isFiltered = filled($type) || ($isSuper && ! $branchContext->isAll());
         $balance    = $summaryIncome - $summaryExpense;
+        // Super Admin: Tambah Catatan membawa Depo yang sedang difilter.
+        $createUrl  = route('admin.finance.cash-ledgers.create', ($isSuper && ! $branchContext->isAll()) ? ['branch' => $branchContext->branchId()] : []);
     @endphp
 
     {{-- Kepala halaman --}}
     <div class="frm-head">
         <div>
             <h1 class="frm-title">Income &amp; Expense</h1>
-            <p class="frm-sub">Catatan pemasukan dan pengeluaran kas.</p>
+            <p class="frm-sub">Catatan pemasukan dan pengeluaran kas{{ $isSuper ? '' : ' Depo '.(auth()->user()->branch->name ?? '-') }}.</p>
         </div>
-        <a href="{{ route('admin.finance.cash-ledgers.create') }}" class="adm-btn adm-btn-primary">
+        <a href="{{ $createUrl }}" class="adm-btn adm-btn-primary">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
             Tambah Catatan
         </a>
@@ -64,6 +67,16 @@
     <section class="panel">
         {{-- Filter --}}
         <form method="GET" class="frm-toolbar">
+            @if ($isSuper)
+                {{-- Hanya Super Admin yang boleh memilih Depo (BranchContext). --}}
+                <select name="branch" class="frm-input is-select is-filter" aria-label="Filter Depo" onchange="this.form.submit()">
+                    <option value="all">Semua Depo</option>
+                    @foreach ($branches as $b)
+                        <option value="{{ $b->id }}" @selected(! $branchContext->isAll() && $branchContext->branchId() === $b->id)>{{ $b->name }}</option>
+                    @endforeach
+                </select>
+            @endif
+
             <select name="type" class="frm-input is-select is-filter" aria-label="Filter tipe" onchange="this.form.submit()">
                 <option value="">Semua Tipe</option>
                 <option value="income" @selected($type === 'income')>Income</option>
@@ -85,6 +98,7 @@
                     <thead>
                         <tr>
                             <th>Kode</th>
+                            @if ($isSuper)<th>Depo</th>@endif
                             <th>Tanggal</th>
                             <th>Tipe</th>
                             <th>Kategori</th>
@@ -97,6 +111,9 @@
                         @foreach ($items as $entry)
                             <tr>
                                 <td><span class="frm-code">{{ $entry->code }}</span></td>
+                                @if ($isSuper)
+                                    <td data-label="Depo">{{ $entry->branch->name ?? '—' }}</td>
+                                @endif
                                 <td data-label="Tanggal" class="frm-nowrap">{{ $entry->date->format('d M Y') }}</td>
                                 <td class="frm-cell-status">
                                     @if ($entry->type === 'income')
@@ -140,11 +157,11 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
                 </div>
                 <p class="frm-empty-title">{{ $isFiltered ? 'Tidak ada hasil' : 'Belum ada catatan' }}</p>
-                <p class="frm-empty-text">{{ $isFiltered ? 'Tidak ada catatan untuk tipe ini.' : 'Mulai catat pemasukan dan pengeluaran kas.' }}</p>
+                <p class="frm-empty-text">{{ $isFiltered ? 'Tidak ada catatan untuk filter ini.' : 'Mulai catat pemasukan dan pengeluaran kas.' }}</p>
                 @if ($isFiltered)
                     <a href="{{ route('admin.finance.cash-ledgers.index') }}" class="adm-btn adm-btn-ghost adm-btn-sm">Reset Filter</a>
                 @else
-                    <a href="{{ route('admin.finance.cash-ledgers.create') }}" class="adm-btn adm-btn-primary adm-btn-sm">Tambah Catatan</a>
+                    <a href="{{ $createUrl }}" class="adm-btn adm-btn-primary adm-btn-sm">Tambah Catatan</a>
                 @endif
             </div>
         @endif

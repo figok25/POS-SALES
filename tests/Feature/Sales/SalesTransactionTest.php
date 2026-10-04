@@ -107,6 +107,51 @@ class SalesTransactionTest extends TestCase
         ]);
     }
 
+    public function test_transaction_rejected_for_unassigned_customer_of_another_branch(): void
+    {
+        $branchA = $this->makeBranch('CBG-A', 'Cabang A');
+        $branchB = $this->makeBranch('CBG-B', 'Cabang B');
+
+        [$userA, $salesA] = $this->makeSalesUser($branchA);
+        // Customer belum ditugaskan ke Sales mana pun, tapi milik Depo B.
+        $customerOfBranchB = $this->makeCustomer(null, $branchB);
+        $product = $this->makeProduct();
+
+        app(StockService::class)->increase($product->id, Stock::LOCATION_SALES, $salesA->id, 10, 'bkb_apply');
+
+        try {
+            app(SalesTransactionService::class)->create($salesA->id, $userA->id, [
+                'customer_id' => $customerOfBranchB->id,
+                'items' => [['product_id' => $product->id, 'quantity' => 1]],
+            ]);
+            $this->fail('Transaksi lintas-Depo seharusnya ditolak.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('customer_id', $e->errors());
+        }
+
+        // Tidak ada efek samping: stok utuh, tidak ada transaksi.
+        $this->assertEquals(10, app(StockService::class)->getQuantity($product->id, Stock::LOCATION_SALES, $salesA->id));
+        $this->assertDatabaseCount('sales_transactions', 0);
+    }
+
+    public function test_transaction_allowed_for_unassigned_customer_of_same_branch(): void
+    {
+        $branchA = $this->makeBranch('CBG-A', 'Cabang A');
+
+        [$userA, $salesA] = $this->makeSalesUser($branchA);
+        $customer = $this->makeCustomer(null, $branchA);
+        $product = $this->makeProduct(10000);
+
+        app(StockService::class)->increase($product->id, Stock::LOCATION_SALES, $salesA->id, 10, 'bkb_apply');
+
+        $trx = app(SalesTransactionService::class)->create($salesA->id, $userA->id, [
+            'customer_id' => $customer->id,
+            'items' => [['product_id' => $product->id, 'quantity' => 2]],
+        ]);
+
+        $this->assertEquals(20000, $trx->total);
+    }
+
     public function test_transaction_rejected_when_no_active_price(): void
     {
         [$user, $sales] = $this->makeSalesUser();

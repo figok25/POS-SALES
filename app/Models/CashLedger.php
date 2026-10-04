@@ -11,7 +11,7 @@ class CashLedger extends Model
 
     public const TYPE_EXPENSE = 'expense';
 
-    protected $fillable = ['code', 'type', 'category', 'amount', 'date', 'description', 'created_by'];
+    protected $fillable = ['branch_id', 'code', 'type', 'category', 'amount', 'date', 'description', 'created_by'];
 
     protected function casts(): array
     {
@@ -19,6 +19,15 @@ class CashLedger extends Model
             'amount' => 'decimal:2',
             'date' => 'date',
         ];
+    }
+
+    /**
+     * Multi Branch/Depo: kas dicatat per Depo. NULL hanya untuk catatan
+     * lama yang pembuatnya tidak punya Branch (terlihat Super Admin saja).
+     */
+    public function branch(): BelongsTo
+    {
+        return $this->belongsTo(Branch::class);
     }
 
     public function createdBy(): BelongsTo

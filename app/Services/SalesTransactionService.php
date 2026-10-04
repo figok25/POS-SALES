@@ -50,6 +50,20 @@ class SalesTransactionService
             ]);
         }
 
+        // Multi Branch/Depo: pengecekan di atas hanya menangkap Customer yang
+        // SUDAH ditugaskan ke Sales lain. Customer tanpa Sales dari Depo lain
+        // juga tidak boleh dipakai transaksi (stok & invoice-nya akan masuk
+        // Depo yang salah). Customer lama tanpa Depo (branch_id NULL) tetap
+        // diizinkan agar data lama tidak terblokir.
+        $salesBranchId = Sales::query()->whereKey($salesId)->value('branch_id');
+
+        if ($customer->branch_id !== null && $salesBranchId !== null
+            && (int) $customer->branch_id !== (int) $salesBranchId) {
+            throw ValidationException::withMessages([
+                'customer_id' => 'Customer ini terdaftar di Depo lain. Anda tidak dapat membuat transaksi untuknya.',
+            ]);
+        }
+
         if (empty($data['items'])) {
             throw ValidationException::withMessages([
                 'items' => 'Transaksi harus memiliki minimal 1 produk.',

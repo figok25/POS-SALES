@@ -11,6 +11,7 @@ class AuditLog extends Model
 
     protected $fillable = [
         'user_id',
+        'branch_id',
         'action',
         'module',
         'document_type',
@@ -33,5 +34,14 @@ class AuditLog extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Multi Branch/Depo: NULL = log Global (Super Admin/sistem), hanya
+     * terlihat oleh Super Admin.
+     */
+    public function branch(): BelongsTo
+    {
+        return $this->belongsTo(Branch::class);
     }
 }

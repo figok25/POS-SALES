@@ -24,13 +24,16 @@ class TrackingPageTest extends TestCase
         $this->actingAs($user)
             ->get(route('sales.tracking.show'))
             ->assertOk()
-            ->assertSee('Start Tracking', false);
+            // Tracking sekarang otomatis (tanpa tombol Start/Stop): halaman
+            // hanya menampilkan status & penjelasan.
+            ->assertSee('Tracking akan menyala otomatis', false)
+            ->assertDontSee('Start Tracking', false);
     }
 
     public function test_full_tracking_flow_start_location_stop(): void
     {
         [$user, $sales] = $this->makeSalesUser();
-        $this->makeSalesTask($sales, SalesTask::STATUS_WORKING);
+        $task = $this->makeSalesTask($sales, SalesTask::STATUS_WORKING);
 
         $start = $this->actingAs($user)
             ->postJson(route('api.sales.tracking.start'), [
@@ -63,10 +66,28 @@ class TrackingPageTest extends TestCase
             ])
             ->assertOk();
 
+        // Tracking otomatis: selama Task hari ini masih aktif (Working),
+        // status() membuat sesi baru lagi -- stop manual saja tidak cukup.
         $this->actingAs($user)
             ->getJson(route('api.sales.tracking.status'))
             ->assertOk()
-            ->assertJsonPath('data.tracking_active', false);
+            ->assertJsonPath('data.tracking_active', true);
+
+        // Tracking baru benar-benar berhenti setelah Task selesai (Return
+        // Stock -> Completed), lalu sesi aktif ditutup.
+        $task->update(['status' => SalesTask::STATUS_COMPLETED]);
+
+        $this->actingAs($user)
+            ->postJson(route('api.sales.tracking.stop'), [
+                'latitude' => -7.983, 'longitude' => 112.633,
+            ])
+            ->assertOk();
+
+        $this->actingAs($user)
+            ->getJson(route('api.sales.tracking.status'))
+            ->assertOk()
+            ->assertJsonPath('data.tracking_active', false)
+            ->assertJsonPath('status', 'STOPPED');
     }
 
     public function test_duplicate_location_event_id_is_idempotent(): void

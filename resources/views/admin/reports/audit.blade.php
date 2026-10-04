@@ -45,6 +45,7 @@
                         <thead>
                             <tr>
                                 <th>Waktu</th>
+                                @if (auth()->user()->isSuperAdmin())<th>Depo</th>@endif
                                 <th>User</th>
                                 <th>Modul</th>
                                 <th>Aksi</th>
@@ -55,6 +56,9 @@
                             @foreach ($logs as $log)
                                 <tr>
                                     <td data-label="Waktu" class="frm-nowrap">{{ $log->created_at?->format('d/m/Y H:i') }}</td>
+                                    @if (auth()->user()->isSuperAdmin())
+                                        <td data-label="Depo">{{ $log->branch->name ?? 'Global' }}</td>
+                                    @endif
                                     <td data-label="User">{{ $log->user->name ?? '(sistem)' }}</td>
                                     <td data-label="Modul">{{ $log->module ?? '—' }}</td>
                                     <td data-label="Aksi"><span class="frm-code">{{ $log->action }}</span></td>
