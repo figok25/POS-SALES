@@ -13,6 +13,7 @@ use App\Models\SalesVisitPlan;
 use App\Models\Stock;
 use App\Services\AuditLogger;
 use App\Services\StockService;
+use App\Support\BranchContext;
 use App\Support\DocumentCode;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -44,8 +45,9 @@ class SalesTaskController extends Controller
     {
         $status = $request->query('status');
 
-        $items = SalesTask::query()
-            ->with(['sales', 'branch', 'bkbDistribusi'])
+        $items = BranchContext::current()->applyTo(
+            SalesTask::query()->with(['sales', 'branch', 'bkbDistribusi'])
+        )
             ->when($status, fn ($q) => $q->where('status', $status))
             ->orderByDesc('id')
             ->paginate(15)
@@ -65,15 +67,20 @@ class SalesTaskController extends Controller
         $taskDate = $this->parseTaskDate($request->query('task_date'));
         $dayOfWeekIso = $taskDate->dayOfWeekIso;
 
+        $branchContext = BranchContext::current();
+
         $salesIdsWithRoute = SalesVisitPlan::where('day_of_week', $dayOfWeekIso)
             ->distinct()
             ->pluck('sales_id');
 
-        $assignableBkbs = BkbDistribusi::query()
-            ->where('status', BkbDistribusi::STATUS_APPLIED)
-            ->whereDoesntHave('salesTask')
-            ->whereIn('sales_id', $salesIdsWithRoute)
-            ->with(['sales', 'warehouse', 'items.product'])
+        $assignableBkbs = $branchContext->applyVia(
+            BkbDistribusi::query()
+                ->where('status', BkbDistribusi::STATUS_APPLIED)
+                ->whereDoesntHave('salesTask')
+                ->whereIn('sales_id', $salesIdsWithRoute)
+                ->with(['sales', 'warehouse', 'items.product']),
+            fn ($q, $branchId) => $q->whereHas('sales', fn ($qq) => $qq->where('branch_id', $branchId))
+        )
             ->orderByDesc('id')
             ->get();
 
@@ -96,7 +103,7 @@ class SalesTaskController extends Controller
             ->whereNotIn('sales_id', $salesIdsWithRoute)
             ->count();
 
-        $branches = Branch::where('is_active', true)->orderBy('name')->get();
+        $branches = $branchContext->applyTo(Branch::where('is_active', true), 'id')->orderBy('name')->get();
 
         $selectedBkbId = $request->query('bkb_distribusi_id');
 
@@ -212,12 +219,16 @@ class SalesTaskController extends Controller
 
     public function show(SalesTask $salesTask)
     {
+        if (! BranchContext::current()->allows($salesTask->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke Task ini.');
+        }
+
         $salesTask->load(['sales', 'branch', 'documents', 'taskStocks.product', 'bkbDistribusi', 'planCustomers.customer']);
 
         // Daftar Sales lain untuk fitur Edit Penugasan (Blueprint #13.8,
-        // #14.4) -- reassignment memindahkan Sales Stock lewat StockService,
-        // bukan membuat BKB/stock baru.
-        $salesList = Sales::where('is_active', true)->orderBy('name')->get();
+        // #14.4) -- dibatasi ke Branch yang sama dengan Task ini (reassign
+        // lintas-Branch bukan lewat fitur ini, lihat juga reassignSales()).
+        $salesList = Sales::where('is_active', true)->where('branch_id', $salesTask->branch_id)->orderBy('name')->get();
 
         return view('admin.operations.sales-tasks.show', compact('salesTask', 'salesList'));
     }
@@ -229,6 +240,10 @@ class SalesTaskController extends Controller
      */
     public function printStock(SalesTask $salesTask)
     {
+        if (! BranchContext::current()->allows($salesTask->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke Task ini.');
+        }
+
         $salesTask->load(['sales.branch.company', 'branch', 'taskStocks.product', 'bkbDistribusi']);
 
         $company = $salesTask->sales?->branch?->company ?? $salesTask->branch?->company;
@@ -238,6 +253,10 @@ class SalesTaskController extends Controller
 
     public function apply(SalesTask $salesTask)
     {
+        if (! BranchContext::current()->allows($salesTask->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke Task ini.');
+        }
+
         if (! $salesTask->isDraft()) {
             return back()->with('error', 'Hanya Task berstatus Draft yang dapat di-Apply.');
         }
@@ -256,6 +275,10 @@ class SalesTaskController extends Controller
 
     public function cancel(SalesTask $salesTask)
     {
+        if (! BranchContext::current()->allows($salesTask->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke Task ini.');
+        }
+
         if (! $salesTask->isDraft()) {
             return back()->with('error', 'Hanya Task berstatus Draft yang dapat dibatalkan.');
         }
@@ -278,6 +301,10 @@ class SalesTaskController extends Controller
      */
     public function approveVariance(Request $request, SalesTask $salesTask)
     {
+        if (! BranchContext::current()->allows($salesTask->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke Task ini.');
+        }
+
         if ($salesTask->status !== SalesTask::STATUS_STOCK_VARIANCE) {
             return back()->with('error', 'Task ini tidak sedang menunggu approval selisih stock.');
         }
@@ -316,6 +343,10 @@ class SalesTaskController extends Controller
      */
     public function reassignSales(Request $request, SalesTask $salesTask)
     {
+        if (! BranchContext::current()->allows($salesTask->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke Task ini.');
+        }
+
         $request->validate([
             'sales_id' => ['required', 'exists:sales,id', 'different:'.$salesTask->sales_id],
         ]);
@@ -325,6 +356,12 @@ class SalesTaskController extends Controller
         }
 
         $newSales = Sales::findOrFail($request->input('sales_id'));
+
+        // Anti-IDOR: Sales baru harus satu Branch dengan Task ini - reassign
+        // lintas-Branch bukan lewat fitur ini (lihat catatan class doc).
+        if ((int) $newSales->branch_id !== (int) $salesTask->branch_id) {
+            return back()->with('error', 'Sales pengganti harus berada di Branch yang sama.');
+        }
         $bkb = $salesTask->bkbDistribusi;
 
         DB::transaction(function () use ($salesTask, $bkb, $newSales) {

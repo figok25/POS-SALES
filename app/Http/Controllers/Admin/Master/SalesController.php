@@ -8,6 +8,7 @@ use App\Models\Branch;
 use App\Models\Sales;
 use App\Models\User;
 use App\Services\AuditLogger;
+use App\Support\BranchContext;
 use App\Support\ExcelTableExport;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\QueryException;
@@ -40,15 +41,18 @@ class SalesController extends Controller
     {
         $search = trim((string) $request->query('q', ''));
 
-        $items = Sales::query()
-            ->with(['branch', 'user'])
+        $items = BranchContext::current()->applyTo(
+            Sales::query()->with(['branch', 'user'])
+        )
             ->tap(fn (Builder $query) => $this->applySearch($query, $search))
             ->orderByDesc('id')
             ->paginate(15)
             ->withQueryString();
 
-        // Dipakai dropdown Branch di modal tambah/edit.
-        $branchs = Branch::orderBy('name')->get(['id', 'name']);
+        // Dipakai dropdown Branch di modal tambah/edit. Admin (bukan Super
+        // Admin) hanya boleh lihat/pilih Branch-nya sendiri di form -
+        // lihat juga pemaksaan branch_id di store()/update() di bawah.
+        $branchs = BranchContext::current()->applyTo(Branch::query(), 'id')->orderBy('name')->get(['id', 'name']);
 
         return view('admin.master.sales.index', compact('items', 'search', 'branchs'));
     }
@@ -63,8 +67,9 @@ class SalesController extends Controller
     {
         $search = trim((string) $request->query('q', ''));
 
-        $items = Sales::query()
-            ->with(['branch', 'user'])
+        $items = BranchContext::current()->applyTo(
+            Sales::query()->with(['branch', 'user'])
+        )
             ->tap(fn (Builder $query) => $this->applySearch($query, $search))
             ->orderByDesc('id')
             ->get();
@@ -91,6 +96,17 @@ class SalesController extends Controller
     public function store(SalesRequest $request)
     {
         [$data, $email, $password] = $this->payload($request);
+
+        // Anti-IDOR (Multi Branch/Depo): branch_id TIDAK PERNAH dipercaya
+        // mentah dari form untuk Admin biasa - dipaksa ke Branch
+        // miliknya sendiri. Hanya Super Admin yang boleh memilih Branch
+        // bebas (termasuk membuat Sales untuk Branch mana pun).
+        $branchContext = BranchContext::current();
+        if (! $branchContext->isAll()) {
+            $data['branch_id'] = $branchContext->branchId();
+        } elseif (empty($data['branch_id'])) {
+            throw ValidationException::withMessages(['branch_id' => 'Branch wajib dipilih.']);
+        }
 
         // Akun baru butuh email DAN password; email saja akan gagal di database.
         if ($email && ! $password) {
@@ -120,9 +136,28 @@ class SalesController extends Controller
 
     public function update(SalesRequest $request, Sales $item)
     {
+        $branchContext = BranchContext::current();
+
+        // Anti-IDOR (Multi Branch/Depo Scenario A/B): Admin Branch A tidak
+        // boleh mengubah Sales Branch B hanya karena tahu ID-nya lewat URL
+        // /admin/master/sales/{id} - route model binding sudah me-resolve
+        // $item SEBELUM middleware authorize custom mana pun sempat jalan,
+        // jadi dicek eksplisit di sini.
+        if (! $branchContext->allows($item->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke Sales ini.');
+        }
+
         $before = $item->toArray();
 
         [$data, $email, $password] = $this->payload($request);
+
+        // Admin biasa tidak boleh MEMINDAHKAN Sales ke Branch lain lewat
+        // payload - branch_id dipaksa tetap ke Branch Admin tsb (yang,
+        // berkat pengecekan allows() di atas, sudah pasti sama dengan
+        // $item->branch_id semula).
+        if (! $branchContext->isAll()) {
+            $data['branch_id'] = $branchContext->branchId();
+        }
 
         // Belum punya akun: email dan password harus diisi bersamaan.
         if (! $item->user && ($email xor $password)) {
@@ -164,6 +199,10 @@ class SalesController extends Controller
 
     public function destroy(Sales $item)
     {
+        if (! BranchContext::current()->allows($item->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke Sales ini.');
+        }
+
         $before = $item->toArray();
 
         try {

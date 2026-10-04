@@ -8,6 +8,7 @@ use App\Models\Customer;
 use App\Models\Sales;
 use App\Services\AuditLogger;
 use App\Services\CustomerAssignmentService;
+use App\Support\BranchContext;
 use App\Support\ExcelTableExport;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\QueryException;
@@ -38,15 +39,18 @@ class CustomerController extends Controller
     {
         $search = trim((string) $request->query('q', ''));
 
-        $items = Customer::query()
-            ->with('sales')
+        $items = BranchContext::current()->applyTo(
+            Customer::query()->with('sales')
+        )
             ->tap(fn (Builder $query) => $this->applySearch($query, $search))
             ->orderByDesc('id')
             ->paginate(15)
             ->withQueryString();
 
-        // Dipakai dropdown Sales di modal tambah/edit.
-        $saless = Sales::orderBy('name')->get(['id', 'name']);
+        // Dipakai dropdown Sales di modal tambah/edit - Admin hanya boleh
+        // menugaskan Customer ke Sales di Branch-nya sendiri (lihat juga
+        // CustomerRequest::withValidator untuk validasi server-side-nya).
+        $saless = BranchContext::current()->applyTo(Sales::query())->orderBy('name')->get(['id', 'name']);
 
         return view('admin.master.customers.index', compact('items', 'search', 'saless'));
     }
@@ -60,8 +64,9 @@ class CustomerController extends Controller
     {
         $search = trim((string) $request->query('q', ''));
 
-        $items = Customer::query()
-            ->with(['sales', 'branch'])
+        $items = BranchContext::current()->applyTo(
+            Customer::query()->with(['sales', 'branch'])
+        )
             ->tap(fn (Builder $query) => $this->applySearch($query, $search))
             ->orderByDesc('id')
             ->get();
@@ -93,6 +98,12 @@ class CustomerController extends Controller
      */
     public function show(Customer $item)
     {
+        // Anti-IDOR (Multi Branch/Depo): /admin/master/customers/{id}
+        // dengan ID Customer Branch lain yang diketahui/ditebak.
+        if (! BranchContext::current()->allows($item->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke Customer ini.');
+        }
+
         $item->load(['sales']);
 
         $transactions = $item->salesTransactions()->with('sales')->orderBy('id', 'desc')->limit(10)->get();
@@ -109,6 +120,17 @@ class CustomerController extends Controller
         $data = $this->payload($request);
         $salesId = $data['sales_id'] ?? null;
         unset($data['sales_id']);
+
+        // Anti-IDOR (Multi Branch/Depo): branch_id TIDAK PERNAH dipercaya
+        // mentah dari form untuk Admin biasa - dipaksa ke Branch miliknya
+        // sendiri. Super Admin bebas, tapi tetap wajib pilih satu Branch
+        // eksplisit (Customer tidak boleh branch_id NULL yang baru dibuat).
+        $branchContext = BranchContext::current();
+        if (! $branchContext->isAll()) {
+            $data['branch_id'] = $branchContext->branchId();
+        } elseif (empty($data['branch_id'])) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['branch_id' => 'Branch wajib dipilih.']);
+        }
 
         $item = DB::transaction(function () use ($data, $salesId) {
             $item = Customer::create($data);
@@ -132,11 +154,23 @@ class CustomerController extends Controller
 
     public function update(CustomerRequest $request, Customer $item)
     {
+        $branchContext = BranchContext::current();
+
+        if (! $branchContext->allows($item->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke Customer ini.');
+        }
+
         $before = $item->toArray();
 
         $data = $this->payload($request);
         $newSalesId = $data['sales_id'] ?? null;
         unset($data['sales_id']);
+
+        // Admin biasa tidak boleh MEMINDAHKAN Customer ke Branch lain lewat
+        // payload - branch_id dipaksa tetap ke Branch Admin tsb.
+        if (! $branchContext->isAll()) {
+            $data['branch_id'] = $branchContext->branchId();
+        }
 
         DB::transaction(function () use ($item, $data, $newSalesId) {
             $item->update($data);
@@ -163,6 +197,10 @@ class CustomerController extends Controller
 
     public function destroy(Customer $item)
     {
+        if (! BranchContext::current()->allows($item->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke Customer ini.');
+        }
+
         $before = $item->toArray();
 
         try {

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Customer;
+use App\Models\Sales;
 use App\Services\AuditLogger;
 use App\Models\CustomerTagging;
 use App\Models\SalesVisitPlan;
@@ -72,6 +73,13 @@ class CustomerTaggingService
             if (! $tagging->customer_id) {
                 $customer = Customer::create([
                     'code' => 'TEMP',
+                    // Multi Branch/Depo: Customer baru WAJIB mewarisi
+                    // branch_id dari Sales yang men-tagging-nya. Tanpa ini,
+                    // Customer hasil approve Tagging Toko (jalur UTAMA
+                    // penambahan toko baru) akan punya branch_id NULL dan
+                    // langsung tidak terlihat sama sekali begitu
+                    // BranchContext scoping aktif di sisi Admin.
+                    'branch_id' => Sales::find($tagging->sales_id)?->branch_id,
                     'name' => $tagging->name,
                     'address' => $tagging->address,
                     'phone' => $tagging->phone,

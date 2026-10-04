@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\Sales;
 use App\Services\CustomerAssignmentService;
+use App\Support\BranchContext;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -28,8 +29,9 @@ class CustomerAssignmentController extends Controller
         $salesFilter = $request->query('sales_id');
         $unassignedOnly = $request->boolean('unassigned');
 
-        $items = Customer::query()
-            ->with(['sales'])
+        $items = BranchContext::current()->applyTo(
+            Customer::query()->with(['sales'])
+        )
             ->when($search, fn ($q) => $q->where('name', 'like', "%{$search}%")->orWhere('code', 'like', "%{$search}%"))
             ->when($salesFilter, fn ($q) => $q->where('sales_id', $salesFilter))
             ->when($unassignedOnly, fn ($q) => $q->whereNull('sales_id'))
@@ -37,15 +39,21 @@ class CustomerAssignmentController extends Controller
             ->paginate(20)
             ->withQueryString();
 
-        $saless = Sales::where('is_active', true)->orderBy('name')->get();
+        $saless = BranchContext::current()->applyTo(Sales::where('is_active', true))->orderBy('name')->get();
 
         return view('admin.sales.customer-assignments.index', compact('items', 'saless', 'search', 'salesFilter', 'unassignedOnly'));
     }
 
     public function edit(Customer $customer)
     {
+        if (! BranchContext::current()->allows($customer->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke Customer ini.');
+        }
+
         $customer->load(['sales']);
-        $saless = Sales::where('is_active', true)->orderBy('name')->get();
+        // Hanya Sales SATU Branch dengan Customer ini - assignment
+        // lintas-Branch tidak masuk akal (Customer tetap di Branch-nya).
+        $saless = Sales::where('is_active', true)->where('branch_id', $customer->branch_id)->orderBy('name')->get();
         $history = $customer->assignments()->with(['sales', 'assignedBy'])->limit(20)->get();
 
         return view('admin.sales.customer-assignments.edit', compact('customer', 'saless', 'history'));
@@ -53,10 +61,23 @@ class CustomerAssignmentController extends Controller
 
     public function update(Request $request, Customer $customer)
     {
+        if (! BranchContext::current()->allows($customer->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke Customer ini.');
+        }
+
         $data = $request->validate([
             'sales_id' => ['nullable', Rule::exists('sales', 'id')],
             'reason' => ['nullable', 'string', 'max:255'],
         ]);
+
+        // Anti-IDOR + konsistensi bisnis: Sales baru wajib satu Branch
+        // dengan Customer (Customer tidak ikut berpindah Branch).
+        if ($data['sales_id'] ?? null) {
+            $newSales = Sales::find($data['sales_id']);
+            if (! $newSales || (int) $newSales->branch_id !== (int) $customer->branch_id) {
+                return back()->withInput()->withErrors(['sales_id' => 'Sales harus berada di Branch yang sama dengan Customer.']);
+            }
+        }
 
         if ($data['sales_id'] ?? null) {
             $this->service->assign($customer, (int) $data['sales_id'], auth()->id(), $data['reason'] ?? null);

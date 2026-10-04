@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin\Sales;
 
 use App\Http\Controllers\Controller;
 use App\Models\SalesTransaction;
+use App\Support\BranchContext;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -16,21 +17,28 @@ class SalesTransactionController extends Controller
     public function index(Request $request)
     {
         $salesId = $request->query('sales_id');
+        $branchContext = BranchContext::current();
 
-        $items = SalesTransaction::query()
-            ->with(['sales', 'customer'])
+        $items = $branchContext->applyVia(
+            SalesTransaction::query()->with(['sales', 'customer']),
+            fn ($q, $branchId) => $q->whereHas('sales', fn ($qq) => $qq->where('branch_id', $branchId))
+        )
             ->when($salesId, fn ($q) => $q->where('sales_id', $salesId))
             ->orderBy('id', 'desc')
             ->paginate(15)
             ->withQueryString();
 
-        $salesList = \App\Models\Sales::orderBy('name')->get();
+        $salesList = $branchContext->applyTo(\App\Models\Sales::query())->orderBy('name')->get();
 
         return view('admin.sales.transactions.index', compact('items', 'salesList', 'salesId'));
     }
 
     public function show(SalesTransaction $transaction)
     {
+        if (! BranchContext::current()->allows($transaction->sales->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke Transaksi ini.');
+        }
+
         $transaction->load(['sales', 'customer', 'items.product', 'invoice']);
 
         return view('admin.sales.transactions.show', compact('transaction'));
@@ -42,6 +50,10 @@ class SalesTransactionController extends Controller
      */
     public function print(Request $request, SalesTransaction $transaction)
     {
+        if (! BranchContext::current()->allows($transaction->sales->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke Transaksi ini.');
+        }
+
         $transaction->load(['sales.branch.company', 'customer', 'items.product', 'invoice']);
 
         $format = $request->query('format') === 'a4' ? 'a4' : 'struk';
@@ -58,8 +70,10 @@ class SalesTransactionController extends Controller
     {
         $salesId = $request->query('sales_id');
 
-        $items = SalesTransaction::query()
-            ->with(['sales', 'customer'])
+        $items = BranchContext::current()->applyVia(
+            SalesTransaction::query()->with(['sales', 'customer']),
+            fn ($q, $branchId) => $q->whereHas('sales', fn ($qq) => $qq->where('branch_id', $branchId))
+        )
             ->when($salesId, fn ($q) => $q->where('sales_id', $salesId))
             ->orderBy('id', 'desc')
             ->get();

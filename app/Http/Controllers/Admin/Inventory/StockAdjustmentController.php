@@ -12,6 +12,7 @@ use App\Models\StockAdjustment;
 use App\Models\Warehouse;
 use App\Services\AuditLogger;
 use App\Services\StockService;
+use App\Support\BranchContext;
 use Illuminate\Http\Request;
 
 /**
@@ -28,17 +29,23 @@ class StockAdjustmentController extends Controller
     {
         $status = $request->query('status');
 
-        $items = StockAdjustment::query()
-            ->with(['product'])
+        $branchContext = BranchContext::current();
+
+        $items = $branchContext->applyToLocation(
+            StockAdjustment::query()->with(['product'])
+        )
             ->when($status, fn ($q) => $q->where('status', $status))
             ->orderBy('id', 'desc')
             ->paginate(15)
             ->withQueryString();
 
-        // Dipakai dropdown Product/Warehouse/Sales di modal "Buat draft".
+        // Dipakai dropdown Product/Warehouse/Sales di modal "Buat draft" -
+        // Warehouse & Sales dibatasi ke Branch yang diizinkan supaya Admin
+        // tidak bisa membuat adjustment untuk lokasi Branch lain. Product
+        // tetap global (lihat audit: produk dipakai lintas Branch).
         $products = Product::orderBy('name')->get();
-        $warehouses = Warehouse::orderBy('name')->get();
-        $salesList = Sales::orderBy('name')->get();
+        $warehouses = $branchContext->applyTo(Warehouse::query())->orderBy('name')->get();
+        $salesList = $branchContext->applyTo(Sales::query())->orderBy('name')->get();
 
         return view('admin.inventory.adjustments.index', compact('items', 'status', 'products', 'warehouses', 'salesList'));
     }
@@ -52,7 +59,17 @@ class StockAdjustmentController extends Controller
      */
     public function store(StockAdjustmentRequest $request)
     {
-        $item = StockAdjustment::create($request->validated() + [
+        $data = $request->validated();
+
+        // Anti-IDOR (Multi Branch/Depo): Admin tidak boleh membuat
+        // adjustment untuk Warehouse/Sales milik Branch lain walau tahu
+        // ID-nya - divalidasi di sini karena location_type/location_id
+        // polimorfik-semu, tidak bisa divalidasi lewat Rule::exists biasa.
+        if (! BranchContext::current()->allowsLocation($data['location_type'], (int) $data['location_id'])) {
+            return back()->withInput()->withErrors(['location_id' => 'Lokasi yang dipilih berada di Branch lain.']);
+        }
+
+        $item = StockAdjustment::create($data + [
             'status' => StockAdjustment::STATUS_DRAFT,
             'created_by' => auth()->id(),
         ]);
@@ -65,6 +82,10 @@ class StockAdjustmentController extends Controller
 
     public function apply(StockAdjustment $item)
     {
+        if (! BranchContext::current()->allowsLocation($item->location_type, (int) $item->location_id)) {
+            abort(403, 'Anda tidak memiliki akses ke dokumen ini.');
+        }
+
         if (! $item->isDraft()) {
             return back()->with('error', 'Hanya dokumen berstatus Draft yang dapat di-Apply.');
         }
@@ -101,6 +122,10 @@ class StockAdjustmentController extends Controller
 
     public function destroy(StockAdjustment $item)
     {
+        if (! BranchContext::current()->allowsLocation($item->location_type, (int) $item->location_id)) {
+            abort(403, 'Anda tidak memiliki akses ke dokumen ini.');
+        }
+
         if (! $item->isDraft()) {
             return back()->with('error', 'Hanya dokumen berstatus Draft yang dapat dihapus.');
         }

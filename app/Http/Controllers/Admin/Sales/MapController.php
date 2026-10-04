@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin\Sales;
 use App\Http\Controllers\Controller;
 use App\Models\Sales;
 use App\Services\SalesRouteMapService;
+use App\Support\BranchContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 
@@ -47,7 +48,12 @@ class MapController extends Controller
                 $request->has('day') ? (int) $request->query('day') : null
             );
 
-        $activeSales = Sales::where('is_active', true)->orderBy('name')->get();
+        // Anti-IDOR (Multi Branch/Depo): $activeSales adalah sumber satu-
+        // satunya tempat sales_id dari query string (?sales_id=) di-resolve
+        // di bawah - dibatasi ke Branch yang diizinkan di sini supaya Admin
+        // tidak bisa melihat rute/lokasi Customer Sales Branch lain hanya
+        // dengan mengganti sales_id di URL.
+        $activeSales = BranchContext::current()->applyTo(Sales::where('is_active', true))->orderBy('name')->get();
 
         // Penyaringan Daftar Sales: hanya Sales yang benar-benar punya
         // Rute Kanvas hari ini yang tampil di dropdown.

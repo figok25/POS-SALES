@@ -10,6 +10,7 @@ use App\Models\Employee;
 use App\Models\SalesTransaction;
 use App\Models\Vehicle;
 use App\Services\AuditLogger;
+use App\Support\BranchContext;
 use App\Support\DocumentCode;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -25,16 +26,26 @@ class DeliveryOrderController extends Controller
     {
         $status = $request->query('status');
 
-        $items = DeliveryOrder::query()
-            ->with(['salesTransaction.customer', 'vehicle', 'driver', 'route'])
+        $branchContext = BranchContext::current();
+
+        $items = $branchContext->applyVia(
+            DeliveryOrder::query()->with(['salesTransaction.customer', 'vehicle', 'driver', 'route']),
+            fn ($q, $branchId) => $q->whereHas('salesTransaction.sales', fn ($qq) => $qq->where('branch_id', $branchId))
+        )
             ->when($status, fn ($q) => $q->where('status', $status))
             ->orderBy('id', 'desc')
             ->paginate(15)
             ->withQueryString();
 
+        // Vehicle & Driver (Employee) tetap global - tidak punya branch_id
+        // sama sekali di schema (lihat audit: master data tanpa relasi
+        // Branch yang jelas tidak dipaksa branch-scoped).
         $vehicles = Vehicle::where('is_active', true)->orderBy('name')->get();
         $drivers = Employee::drivers()->where('is_active', true)->orderBy('name')->get();
-        $draftCount = DeliveryOrder::where('status', DeliveryOrder::STATUS_DRAFT)->count();
+        $draftCount = $branchContext->applyVia(
+            DeliveryOrder::where('status', DeliveryOrder::STATUS_DRAFT),
+            fn ($q, $branchId) => $q->whereHas('salesTransaction.sales', fn ($qq) => $qq->where('branch_id', $branchId))
+        )->count();
 
         return view('admin.operations.delivery-orders.index', compact('items', 'status', 'vehicles', 'drivers', 'draftCount'));
     }
@@ -42,10 +53,13 @@ class DeliveryOrderController extends Controller
     public function create()
     {
         // Hanya transaksi yang belum punya Delivery Order yang bisa dipilih.
-        $transactions = SalesTransaction::query()
-            ->where('status', SalesTransaction::STATUS_COMPLETED)
-            ->whereDoesntHave('deliveryOrder')
-            ->with('customer')
+        $transactions = BranchContext::current()->applyVia(
+            SalesTransaction::query()
+                ->where('status', SalesTransaction::STATUS_COMPLETED)
+                ->whereDoesntHave('deliveryOrder')
+                ->with('customer'),
+            fn ($q, $branchId) => $q->whereHas('sales', fn ($qq) => $qq->where('branch_id', $branchId))
+        )
             ->orderBy('id', 'desc')
             ->limit(200)
             ->get();
@@ -61,7 +75,11 @@ class DeliveryOrderController extends Controller
     {
         $data = $request->validated();
 
-        $transaction = SalesTransaction::with('items')->findOrFail($data['sales_transaction_id']);
+        $transaction = SalesTransaction::with(['items', 'sales'])->findOrFail($data['sales_transaction_id']);
+
+        if (! BranchContext::current()->allows($transaction->sales->branch_id)) {
+            return back()->withInput()->withErrors(['sales_transaction_id' => 'Transaksi ini berada di Branch lain.']);
+        }
 
         if ($transaction->deliveryOrder()->exists()) {
             return back()->with('error', 'Transaksi ini sudah memiliki Delivery Order.')->withInput();
@@ -100,6 +118,11 @@ class DeliveryOrderController extends Controller
 
     public function show(DeliveryOrder $deliveryOrder)
     {
+        $deliveryOrder->loadMissing('salesTransaction.sales');
+        if (! BranchContext::current()->allows($deliveryOrder->salesTransaction->sales->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke Delivery Order ini.');
+        }
+
         $deliveryOrder->load(['items.product', 'salesTransaction.customer', 'vehicle', 'driver', 'route']);
 
         return view('admin.operations.delivery-orders.show', compact('deliveryOrder'));
@@ -107,6 +130,11 @@ class DeliveryOrderController extends Controller
 
     public function dispatch(DeliveryOrder $deliveryOrder)
     {
+        $deliveryOrder->loadMissing('salesTransaction.sales');
+        if (! BranchContext::current()->allows($deliveryOrder->salesTransaction->sales->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke Delivery Order ini.');
+        }
+
         if (! $deliveryOrder->isDraft()) {
             return back()->with('error', 'Hanya dokumen berstatus Draft yang dapat di-Dispatch.');
         }
@@ -148,16 +176,26 @@ class DeliveryOrderController extends Controller
             'scheduled_date' => ['nullable', 'date'],
         ]);
 
+        $branchContext = BranchContext::current();
+
         if ($selectAllDraft) {
-            $orders = DeliveryOrder::where('status', DeliveryOrder::STATUS_DRAFT)->get();
+            $orders = $branchContext->applyVia(
+                DeliveryOrder::where('status', DeliveryOrder::STATUS_DRAFT),
+                fn ($q, $branchId) => $q->whereHas('salesTransaction.sales', fn ($qq) => $qq->where('branch_id', $branchId))
+            )->get();
         } else {
             if (empty($data['delivery_order_ids'])) {
                 return back()->with('error', 'Pilih minimal 1 Draft DO dulu.');
             }
 
-            $orders = DeliveryOrder::whereIn('id', $data['delivery_order_ids'])
-                ->where('status', DeliveryOrder::STATUS_DRAFT)
-                ->get();
+            // Anti-IDOR: ID DO Branch lain yang disisipkan ke payload
+            // (mis. lewat devtools) diam-diam disaring di sini, bukan
+            // ditolak keras - konsisten dengan "Pilih Semua" yang memang
+            // hanya memproses apa yang valid & boleh diakses.
+            $orders = $branchContext->applyVia(
+                DeliveryOrder::whereIn('id', $data['delivery_order_ids'])->where('status', DeliveryOrder::STATUS_DRAFT),
+                fn ($q, $branchId) => $q->whereHas('salesTransaction.sales', fn ($qq) => $qq->where('branch_id', $branchId))
+            )->get();
         }
 
         if ($orders->isEmpty()) {
@@ -190,6 +228,11 @@ class DeliveryOrderController extends Controller
 
     public function deliver(DeliveryOrder $deliveryOrder)
     {
+        $deliveryOrder->loadMissing('salesTransaction.sales');
+        if (! BranchContext::current()->allows($deliveryOrder->salesTransaction->sales->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke Delivery Order ini.');
+        }
+
         if (! $deliveryOrder->isDispatched()) {
             return back()->with('error', 'Hanya dokumen berstatus Dispatched yang dapat ditandai Delivered.');
         }
@@ -208,6 +251,11 @@ class DeliveryOrderController extends Controller
 
     public function cancel(DeliveryOrder $deliveryOrder)
     {
+        $deliveryOrder->loadMissing('salesTransaction.sales');
+        if (! BranchContext::current()->allows($deliveryOrder->salesTransaction->sales->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke Delivery Order ini.');
+        }
+
         if (! $deliveryOrder->isDraft()) {
             return back()->with('error', 'Hanya dokumen berstatus Draft yang dapat dibatalkan.');
         }

@@ -20,13 +20,24 @@ class RoutingEngineTest extends TestCase
     use RefreshDatabase;
     use SetsUpSalesFixtures;
 
+    // PERBAIKAN: struktur fixture disamakan dengan response ASLI TomTom
+    // Orbis v3 - geometri ada PER LEG di `legs[].path.coordinates`, BUKAN
+    // `path` di level route (lihat catatan BUGFIX lengkap di
+    // TomTomRoutingAdapter::extractGeometry()). Fixture lama (path di
+    // root, tanpa legs) membuat extractGeometry() selalu mengembalikan
+    // array kosong karena memang tidak ada yang dibaca - bukan bug di
+    // adapter, tapi fixture test yang belum di-update mengikuti
+    // perbaikan adapter.
     protected function fakeTomTomSuccess(): void
     {
         Http::fake([
             'api.tomtom.com/*' => Http::response([
                 'routes' => [[
                     'summary' => ['lengthInMeters' => 4200.5, 'travelDurationInSeconds' => 780.2],
-                    'path' => ['type' => 'LineString', 'coordinates' => [[112.63, -7.98], [112.631, -7.981]]],
+                    'legs' => [[
+                        'summary' => ['lengthInMeters' => 4200.5, 'travelDurationInSeconds' => 780.2],
+                        'path' => ['type' => 'LineString', 'coordinates' => [[112.63, -7.98], [112.631, -7.981]]],
+                    ]],
                 ]],
             ], 200),
         ]);

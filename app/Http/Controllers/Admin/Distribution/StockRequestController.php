@@ -9,6 +9,7 @@ use App\Models\Sales;
 use App\Models\StockRequest;
 use App\Models\Warehouse;
 use App\Services\AuditLogger;
+use App\Support\BranchContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -23,8 +24,10 @@ class StockRequestController extends Controller
     {
         $status = $request->query('status');
 
-        $items = StockRequest::query()
-            ->with(['warehouse', 'sales'])
+        $items = BranchContext::current()->applyVia(
+            StockRequest::query()->with(['warehouse', 'sales']),
+            fn ($q, $branchId) => $q->whereHas('warehouse', fn ($qq) => $qq->where('branch_id', $branchId))
+        )
             ->when($status, fn ($q) => $q->where('status', $status))
             ->orderBy('id', 'desc')
             ->paginate(15)
@@ -35,8 +38,10 @@ class StockRequestController extends Controller
 
     public function create()
     {
-        $warehouses = Warehouse::orderBy('name')->get();
-        $salesList = Sales::orderBy('name')->get();
+        $branchContext = BranchContext::current();
+
+        $warehouses = $branchContext->applyTo(Warehouse::query())->orderBy('name')->get();
+        $salesList = $branchContext->applyTo(Sales::query())->orderBy('name')->get();
         $products = Product::orderBy('name')->get();
 
         return view('admin.distribution.stock-requests.create', compact('warehouses', 'salesList', 'products'));
@@ -45,6 +50,13 @@ class StockRequestController extends Controller
     public function store(StockRequestRequest $request)
     {
         $data = $request->validated();
+
+        // Anti-IDOR (Multi Branch/Depo): Admin tidak boleh membuat
+        // Permintaan Barang untuk Warehouse Branch lain walau tahu ID-nya.
+        $warehouse = Warehouse::find($data['warehouse_id']);
+        if (! $warehouse || ! BranchContext::current()->allows($warehouse->branch_id)) {
+            return back()->withInput()->withErrors(['warehouse_id' => 'Warehouse yang dipilih berada di Branch lain.']);
+        }
 
         $item = DB::transaction(function () use ($data) {
             $stockRequest = StockRequest::create([
@@ -76,6 +88,10 @@ class StockRequestController extends Controller
 
     public function show(StockRequest $stockRequest)
     {
+        if (! BranchContext::current()->allows($stockRequest->warehouse->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke dokumen ini.');
+        }
+
         $stockRequest->load(['items.product', 'warehouse', 'sales', 'creator']);
 
         return view('admin.distribution.stock-requests.show', compact('stockRequest'));
@@ -83,6 +99,10 @@ class StockRequestController extends Controller
 
     public function submit(StockRequest $stockRequest)
     {
+        if (! BranchContext::current()->allows($stockRequest->warehouse->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke dokumen ini.');
+        }
+
         if (! $stockRequest->isDraft()) {
             return back()->with('error', 'Hanya dokumen berstatus Draft yang dapat di-Submit.');
         }
@@ -101,6 +121,10 @@ class StockRequestController extends Controller
 
     public function cancel(StockRequest $stockRequest)
     {
+        if (! BranchContext::current()->allows($stockRequest->warehouse->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke dokumen ini.');
+        }
+
         if ($stockRequest->status === StockRequest::STATUS_CANCELLED) {
             return back()->with('error', 'Dokumen sudah dibatalkan sebelumnya.');
         }
@@ -119,6 +143,10 @@ class StockRequestController extends Controller
 
     public function destroy(StockRequest $stockRequest)
     {
+        if (! BranchContext::current()->allows($stockRequest->warehouse->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke dokumen ini.');
+        }
+
         if (! $stockRequest->isDraft()) {
             return back()->with('error', 'Hanya dokumen berstatus Draft yang dapat dihapus.');
         }

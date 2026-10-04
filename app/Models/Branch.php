@@ -57,4 +57,28 @@ class Branch extends Model
     {
         return $this->hasMany(SalesCurrentLocation::class);
     }
+
+    /**
+     * Multi Branch/Depo: User (Admin/Sales) yang terikat ke Branch ini.
+     * Super Admin tidak muncul di sini karena branch_id-nya selalu NULL.
+     */
+    public function users(): HasMany
+    {
+        return $this->hasMany(User::class);
+    }
+
+    public function warehouses(): HasMany
+    {
+        return $this->hasMany(Warehouse::class);
+    }
+
+    public function sales(): HasMany
+    {
+        return $this->hasMany(Sales::class);
+    }
+
+    public function customers(): HasMany
+    {
+        return $this->hasMany(Customer::class);
+    }
 }

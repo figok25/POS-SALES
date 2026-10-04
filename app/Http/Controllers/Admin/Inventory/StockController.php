@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin\Inventory;
 
 use App\Http\Controllers\Controller;
 use App\Models\Stock;
+use App\Support\BranchContext;
 use Illuminate\Http\Request;
 
 /**
@@ -17,8 +18,9 @@ class StockController extends Controller
         $search = $request->query('q');
         $locationType = $request->query('location_type');
 
-        $items = Stock::query()
-            ->with('product')
+        $items = BranchContext::current()->applyToLocation(
+            Stock::query()->with('product')
+        )
             ->when($search, fn ($q) => $q->whereHas('product', fn ($p) => $p
                 ->where('name', 'like', "%{$search}%")
                 ->orWhere('sku', 'like', "%{$search}%")))

@@ -11,6 +11,7 @@ use App\Models\Stock;
 use App\Models\Warehouse;
 use App\Services\AuditLogger;
 use App\Services\StockService;
+use App\Support\BranchContext;
 use App\Support\DocumentCode;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -34,8 +35,18 @@ class BranchTransferController extends Controller
     {
         $status = $request->query('status');
 
+        $branchContext = BranchContext::current();
+
         $items = BranchTransfer::query()
             ->with(['fromWarehouse', 'toWarehouse'])
+            ->when(! $branchContext->isAll(), fn ($q) => $q->where(function ($qq) use ($branchContext) {
+                // Admin Branch asal MAUPUN Branch tujuan sama-sama berhak
+                // melihat dokumen Branch Transfer-nya (lihat catatan
+                // BranchContext::allowsEither()).
+                $branchId = $branchContext->branchId();
+                $qq->whereHas('fromWarehouse', fn ($w) => $w->where('branch_id', $branchId))
+                    ->orWhereHas('toWarehouse', fn ($w) => $w->where('branch_id', $branchId));
+            }))
             ->when($status, fn ($q) => $q->where('status', $status))
             ->orderBy('id', 'desc')
             ->paginate(15)
@@ -46,6 +57,11 @@ class BranchTransferController extends Controller
 
     public function create()
     {
+        // Warehouse TUJUAN sengaja tidak dibatasi Branch (inti Branch
+        // Transfer memang mengirim ke Branch lain) - pembatasan "from"
+        // (hanya boleh Warehouse Branch sendiri) ditegakkan di
+        // store()/BranchTransferRequest, bukan di sini, karena view yang
+        // sama dipakai untuk memilih from & to dari satu daftar warehouse.
         $warehouses = Warehouse::with('branch')->orderBy('name')->get();
         $products = Product::orderBy('name')->get();
 
@@ -86,6 +102,10 @@ class BranchTransferController extends Controller
 
     public function show(BranchTransfer $transfer)
     {
+        if (! BranchContext::current()->allowsEither($transfer->fromWarehouse->branch_id, $transfer->toWarehouse->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke dokumen ini.');
+        }
+
         $transfer->load(['items.product', 'fromWarehouse', 'toWarehouse']);
 
         $availability = [];
@@ -103,6 +123,13 @@ class BranchTransferController extends Controller
      */
     public function send(BranchTransfer $transfer)
     {
+        // Hanya Admin Branch ASAL (pengirim) yang boleh men-Send - Branch
+        // tujuan belum berkepentingan apa pun sebelum barang benar-benar
+        // dikirim.
+        if (! BranchContext::current()->allows($transfer->fromWarehouse->branch_id)) {
+            abort(403, 'Hanya Branch asal (pengirim) yang dapat mengirim dokumen ini.');
+        }
+
         if (! $transfer->isDraft()) {
             return back()->with('error', 'Hanya dokumen berstatus Draft yang dapat dikirim (BKB Cabang Apply).');
         }
@@ -139,6 +166,11 @@ class BranchTransferController extends Controller
      */
     public function receiveForm(BranchTransfer $transfer)
     {
+        // Hanya Admin Branch TUJUAN (penerima) yang boleh menerima.
+        if (! BranchContext::current()->allows($transfer->toWarehouse->branch_id)) {
+            abort(403, 'Hanya Branch tujuan (penerima) yang dapat menerima dokumen ini.');
+        }
+
         if (! $transfer->isSent()) {
             return back()->with('error', 'Hanya dokumen berstatus Sent (sudah dikirim) yang dapat diterima.');
         }
@@ -155,6 +187,10 @@ class BranchTransferController extends Controller
      */
     public function receive(Request $request, BranchTransfer $transfer)
     {
+        if (! BranchContext::current()->allows($transfer->toWarehouse->branch_id)) {
+            abort(403, 'Hanya Branch tujuan (penerima) yang dapat menerima dokumen ini.');
+        }
+
         if (! $transfer->isSent()) {
             return back()->with('error', 'Hanya dokumen berstatus Sent (sudah dikirim) yang dapat diterima.');
         }
@@ -195,6 +231,11 @@ class BranchTransferController extends Controller
 
     public function cancel(BranchTransfer $transfer)
     {
+        // Draft hanya ada sebelum Send -> hanya Branch asal yang relevan.
+        if (! BranchContext::current()->allows($transfer->fromWarehouse->branch_id)) {
+            abort(403, 'Hanya Branch asal (pengirim) yang dapat membatalkan dokumen ini.');
+        }
+
         if (! $transfer->isDraft()) {
             return back()->with('error', 'Hanya dokumen berstatus Draft yang dapat dibatalkan.');
         }

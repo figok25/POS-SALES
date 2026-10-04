@@ -24,7 +24,10 @@ Route::get('/', function () {
 Route::get('/dashboard', function () {
     $user = auth()->user();
 
-    if ($user->hasRole('admin')) {
+    // Multi Branch/Depo: Super Admin memakai panel Admin yang sama
+    // (hanya scope datanya yang beda - lihat BranchContext), bukan panel
+    // terpisah.
+    if ($user->hasRole('admin') || $user->hasRole('super_admin')) {
         return redirect()->route('admin.dashboard');
     }
 
@@ -46,7 +49,7 @@ Route::middleware('auth')->group(function () {
 | Admin Routes (Blueprint #47 Admin Navigation)
 |--------------------------------------------------------------------------
 */
-Route::middleware(['auth', 'verified', 'role:admin'])
+Route::middleware(['auth', 'verified', 'role:admin|super_admin', 'branch_context'])
     ->prefix('admin')
     ->name('admin.')
     ->group(function () {
@@ -89,7 +92,7 @@ Route::middleware(['auth', 'verified', 'role:admin'])
 | Admin API Routes - Live Sales Field Operations (Blueprint #38, Fase 2)
 |--------------------------------------------------------------------------
 */
-Route::middleware(['auth', 'verified', 'role:admin'])
+Route::middleware(['auth', 'verified', 'role:admin|super_admin', 'branch_context'])
     ->prefix('api/admin')
     ->name('api.admin.')
     ->group(base_path('routes/api_admin.php'));

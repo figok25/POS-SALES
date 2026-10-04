@@ -61,10 +61,33 @@
 
     <div class="dash-head">
         <h1 class="dash-greet">Selamat datang, {{ auth()->user()->name }}</h1>
-        <p class="dash-sub">Ringkasan operasional dan penjualan{{ $salesName ? ' untuk '.$salesName : '' }}.</p>
+        <p class="dash-sub">
+            Ringkasan operasional dan penjualan{{ $salesName ? ' untuk '.$salesName : '' }}.
+            @unless (auth()->user()->isSuperAdmin())
+                {{-- Multi Branch/Depo (Langkah 12): Admin/Sales read-only,
+                     tidak ada selector - Branch selalu dari akun login. --}}
+                <span class="dash-branch-badge">Depo: {{ auth()->user()->branch->name ?? '-' }}</span>
+            @endunless
+        </p>
     </div>
 
     <form method="GET" class="dash-filter">
+        @if (auth()->user()->isSuperAdmin())
+            {{-- Multi Branch/Depo (Langkah 12): HANYA Super Admin yang
+                 melihat & boleh memilih Branch context. Query string
+                 `branch` dibaca ResolveBranchContext - untuk Admin/Sales
+                 nilai ini selalu diabaikan di server, jadi field ini pun
+                 sengaja tidak dirender untuk mereka. --}}
+            <div class="dash-field">
+                <label for="branch">Depo / Branch Aktif</label>
+                <select id="branch" name="branch">
+                    <option value="all" @selected($branchContext->isAll())>Semua Depo</option>
+                    @foreach ($branches as $b)
+                        <option value="{{ $b->id }}" @selected(! $branchContext->isAll() && $branchContext->branchId() === $b->id)>{{ $b->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+        @endif
         <div class="dash-field is-date">
             <label for="date_from">Dari Tanggal</label>
             <input id="date_from" type="date" name="date_from" value="{{ $dateFrom }}">

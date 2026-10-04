@@ -7,6 +7,7 @@ use App\Http\Requests\Admin\Master\WarehouseRequest;
 use App\Models\Branch;
 use App\Models\Warehouse;
 use App\Services\AuditLogger;
+use App\Support\BranchContext;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 
@@ -23,8 +24,9 @@ class WarehouseController extends Controller
     {
         $search = trim((string) $request->query('q', ''));
 
-        $items = Warehouse::query()
-            ->with('branch')
+        $items = BranchContext::current()->applyTo(
+            Warehouse::query()->with('branch')
+        )
             ->when($search !== '', fn ($query) => $query->where(function ($q) use ($search) {
                 $q->where('code', 'like', "%{$search}%")
                     ->orWhere('name', 'like', "%{$search}%");
@@ -33,15 +35,25 @@ class WarehouseController extends Controller
             ->paginate(15)
             ->withQueryString();
 
-        // Dipakai dropdown Branch di modal tambah/edit.
-        $branchs = Branch::orderBy('name')->get(['id', 'name']);
+        // Dipakai dropdown Branch di modal tambah/edit - Admin hanya boleh
+        // membuat Warehouse untuk Branch-nya sendiri.
+        $branchs = BranchContext::current()->applyTo(Branch::query(), 'id')->orderBy('name')->get(['id', 'name']);
 
         return view('admin.master.warehouses.index', compact('items', 'search', 'branchs'));
     }
 
     public function store(WarehouseRequest $request)
     {
-        $item = Warehouse::create($this->payload($request));
+        $data = $this->payload($request);
+
+        // Anti-IDOR (Multi Branch/Depo): branch_id TIDAK PERNAH dipercaya
+        // mentah dari form untuk Admin biasa.
+        $branchContext = BranchContext::current();
+        if (! $branchContext->isAll()) {
+            $data['branch_id'] = $branchContext->branchId();
+        }
+
+        $item = Warehouse::create($data);
 
         AuditLogger::log('create', 'Master Data', Warehouse::class, $item->id, null, $item->toArray());
 
@@ -50,8 +62,20 @@ class WarehouseController extends Controller
 
     public function update(WarehouseRequest $request, Warehouse $item)
     {
+        $branchContext = BranchContext::current();
+
+        if (! $branchContext->allows($item->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke Warehouse ini.');
+        }
+
         $before = $item->toArray();
-        $item->update($this->payload($request));
+        $data = $this->payload($request);
+
+        if (! $branchContext->isAll()) {
+            $data['branch_id'] = $branchContext->branchId();
+        }
+
+        $item->update($data);
 
         AuditLogger::log('update', 'Master Data', Warehouse::class, $item->id, $before, $item->toArray());
 
@@ -60,6 +84,10 @@ class WarehouseController extends Controller
 
     public function destroy(Warehouse $item)
     {
+        if (! BranchContext::current()->allows($item->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke Warehouse ini.');
+        }
+
         $before = $item->toArray();
 
         try {

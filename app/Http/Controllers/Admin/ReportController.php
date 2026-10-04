@@ -9,6 +9,7 @@ use App\Models\DeliveryOrder;
 use App\Models\Invoice;
 use App\Models\SalesTransaction;
 use App\Models\Stock;
+use App\Support\BranchContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
@@ -39,11 +40,14 @@ class ReportController extends Controller
         $from = $request->query('from', now()->startOfMonth()->toDateString());
         $to = $request->query('to', now()->toDateString());
 
-        $perSales = SalesTransaction::query()
-            ->select('sales_id', DB::raw('COUNT(*) as total_transaksi'), DB::raw('SUM(total) as total_penjualan'))
-            ->where('status', SalesTransaction::STATUS_COMPLETED)
-            ->whereBetween(DB::raw('DATE(created_at)'), [$from, $to])
-            ->with('sales')
+        $perSales = BranchContext::current()->applyVia(
+            SalesTransaction::query()
+                ->select('sales_id', DB::raw('COUNT(*) as total_transaksi'), DB::raw('SUM(total) as total_penjualan'))
+                ->where('status', SalesTransaction::STATUS_COMPLETED)
+                ->whereBetween(DB::raw('DATE(created_at)'), [$from, $to])
+                ->with('sales'),
+            fn ($q, $branchId) => $q->whereHas('sales', fn ($qq) => $qq->where('branch_id', $branchId))
+        )
             ->groupBy('sales_id')
             ->orderByDesc('total_penjualan')
             ->get();
@@ -68,12 +72,17 @@ class ReportController extends Controller
 
     public function delivery(Request $request)
     {
-        $counts = DeliveryOrder::query()
-            ->select('status', DB::raw('COUNT(*) as total'))
+        $branchContext = BranchContext::current();
+        $scopeDo = fn ($q) => $branchContext->applyVia(
+            $q, fn ($qq, $branchId) => $qq->whereHas('salesTransaction.sales', fn ($qqq) => $qqq->where('branch_id', $branchId))
+        );
+
+        $counts = $scopeDo(DeliveryOrder::query()
+            ->select('status', DB::raw('COUNT(*) as total')))
             ->groupBy('status')
             ->pluck('total', 'status');
 
-        $recent = DeliveryOrder::with(['salesTransaction.customer', 'vehicle', 'driver', 'route'])
+        $recent = $scopeDo(DeliveryOrder::with(['salesTransaction.customer', 'vehicle', 'driver', 'route']))
             ->orderByDesc('id')
             ->limit(30)
             ->get();
@@ -96,13 +105,16 @@ class ReportController extends Controller
 
     public function stock(Request $request)
     {
-        $stocks = Stock::with('product')
-            ->where('quantity', '>', 0)
+        $branchContext = BranchContext::current();
+
+        $stocks = $branchContext->applyToLocation(
+            Stock::with('product')->where('quantity', '>', 0)
+        )
             ->orderByDesc('quantity')
             ->limit(50)
             ->get();
 
-        $totalPerLocation = Stock::query()
+        $totalPerLocation = $branchContext->applyToLocation(Stock::query())
             ->select('location_type', DB::raw('SUM(quantity) as total_qty'))
             ->groupBy('location_type')
             ->pluck('total_qty', 'location_type');
@@ -123,8 +135,10 @@ class ReportController extends Controller
 
     public function outstanding(Request $request)
     {
-        $invoices = Invoice::with(['customer', 'sales'])
-            ->whereIn('status', [Invoice::STATUS_UNPAID, Invoice::STATUS_PARTIAL])
+        $invoices = BranchContext::current()->applyVia(
+            Invoice::with(['customer', 'sales'])->whereIn('status', [Invoice::STATUS_UNPAID, Invoice::STATUS_PARTIAL]),
+            fn ($q, $branchId) => $q->whereHas('sales', fn ($qq) => $qq->where('branch_id', $branchId))
+        )
             ->orderBy('date')
             ->get();
 
@@ -146,6 +160,16 @@ class ReportController extends Controller
         return view('admin.reports.outstanding', compact('invoices', 'totalOutstanding'));
     }
 
+    /**
+     * CATATAN Multi Branch/Depo: laporan ini SENGAJA BELUM di-scope Branch.
+     * AuditLog bersifat generik untuk SEMUA jenis dokumen (document_type +
+     * document_id polimorfik) tanpa branch_id/sales_id langsung - scoping
+     * yang benar butuh resolve Branch per document_type satu-satu (BKB,
+     * BTB, Customer, Sales, dst - masing-masing beda jalur relasi), yang
+     * merupakan keputusan desain tersendiri di luar scope perbaikan ini.
+     * Untuk saat ini: Audit Log tetap terlihat lintas-Branch oleh Admin
+     * mana pun yang punya permission 'audit-log.view'.
+     */
     public function audit(Request $request)
     {
         $module = $request->query('module');

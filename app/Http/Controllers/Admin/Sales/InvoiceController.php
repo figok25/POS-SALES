@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin\Sales;
 
 use App\Http\Controllers\Controller;
 use App\Models\Invoice;
+use App\Support\BranchContext;
 use Illuminate\Http\Request;
 
 /**
@@ -16,8 +17,10 @@ class InvoiceController extends Controller
     {
         $status = $request->query('status');
 
-        $items = Invoice::query()
-            ->with(['customer', 'sales'])
+        $items = BranchContext::current()->applyVia(
+            Invoice::query()->with(['customer', 'sales']),
+            fn ($q, $branchId) => $q->whereHas('sales', fn ($qq) => $qq->where('branch_id', $branchId))
+        )
             ->when($status, fn ($q) => $q->where('status', $status))
             ->orderBy('id', 'desc')
             ->paginate(15)
@@ -28,6 +31,10 @@ class InvoiceController extends Controller
 
     public function show(Invoice $invoice)
     {
+        if (! BranchContext::current()->allows($invoice->sales->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke Invoice ini.');
+        }
+
         $invoice->load(['customer', 'sales', 'items.product', 'salesTransaction', 'payments.receivedBy']);
 
         return view('admin.sales.invoices.show', compact('invoice'));
@@ -41,6 +48,10 @@ class InvoiceController extends Controller
      */
     public function print(Request $request, Invoice $invoice)
     {
+        if (! BranchContext::current()->allows($invoice->sales->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke Invoice ini.');
+        }
+
         $invoice->load(['customer', 'sales.branch.company', 'items.product']);
 
         $format = $request->query('format') === 'a4' ? 'a4' : 'struk';

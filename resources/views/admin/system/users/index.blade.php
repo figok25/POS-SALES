@@ -90,6 +90,7 @@
                                 <th>Nama</th>
                                 <th>Email</th>
                                 <th>Role</th>
+                                <th>Depo</th>
                                 <th>Terhubung ke Sales</th>
                                 <th class="is-end">Aksi</th>
                             </tr>
@@ -102,11 +103,12 @@
                                     <td>{{ $item->email }}</td>
                                     <td>
                                         @if ($role)
-                                            <span class="frm-status {{ $role === 'admin' ? 'is-on' : 'is-off' }}">{{ ucfirst($role) }}</span>
+                                            <span class="frm-status {{ $role === 'super_admin' ? 'is-on' : ($role === 'admin' ? 'is-on' : 'is-off') }}">{{ $role === 'super_admin' ? 'Super Admin' : ucfirst($role) }}</span>
                                         @else
                                             <span class="frm-dash">Belum ada role</span>
                                         @endif
                                     </td>
+                                    <td>{{ $item->branch->name ?? ($role === 'super_admin' ? 'Semua Depo' : '—') }}</td>
                                     <td>{{ $linkedSalesByUserId[$item->id] ?? '—' }}</td>
                                     <td class="is-end">
                                         <div class="frm-actions">
@@ -117,6 +119,7 @@
                                                 data-name="{{ $item->name }}"
                                                 data-email="{{ $item->email }}"
                                                 data-role="{{ $role }}"
+                                                data-branch-id="{{ $item->branch_id }}"
                                                 data-linked-sales="{{ $linkedSalesByUserId[$item->id] ?? '' }}">
                                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
                                             </button>
@@ -183,11 +186,24 @@
                     <div class="frm-field is-full">
                         <label class="frm-label" for="usrRole">Role <span class="frm-req">*</span></label>
                         <select id="usrRole" name="role" required class="frm-input is-select @error('role') is-invalid @enderror">
+                            <option value="super_admin" @selected(old('role') === 'super_admin')>Super Admin</option>
                             <option value="admin" @selected(old('role') === 'admin')>Admin</option>
                             <option value="sales" @selected(old('role') === 'sales')>Sales</option>
                         </select>
                         @error('role') <p class="frm-error">{{ $message }}</p> @enderror
                         <p class="frm-hint">Untuk akun Sales yang terhubung ke data Sales tertentu (dipakai tracking &amp; rute), buat lewat Master Data &gt; Sales -- form itu sekalian membuat akun ini. Buat di sini hanya untuk akun umum (mis. Admin tambahan).</p>
+                    </div>
+
+                    <div class="frm-field is-full" id="usrBranchField">
+                        <label class="frm-label" for="usrBranch">Depo / Branch <span class="frm-req">*</span></label>
+                        <select id="usrBranch" name="branch_id" class="frm-input is-select @error('branch_id') is-invalid @enderror">
+                            <option value="">- Pilih Depo -</option>
+                            @foreach ($branches as $b)
+                                <option value="{{ $b->id }}" @selected((string) old('branch_id') === (string) $b->id)>{{ $b->name }}</option>
+                            @endforeach
+                        </select>
+                        @error('branch_id') <p class="frm-error">{{ $message }}</p> @enderror
+                        <p class="frm-hint">Admin/Sales wajib terikat satu Depo. Super Admin bersifat global, field ini otomatis dikosongkan &amp; dikunci untuk role tsb.</p>
                     </div>
 
                     <div class="frm-field">
@@ -240,6 +256,8 @@
             var delForm = document.getElementById('deleteForm');
             var linkedHint = document.getElementById('userLinkedHint');
             var roleSelect = document.getElementById('usrRole');
+            var branchField = document.getElementById('usrBranchField');
+            var branchSelect = document.getElementById('usrBranch');
             var pwLabel = document.getElementById('usrPasswordLabel');
             var pwReq = document.getElementById('usrPasswordReq');
             var pwInput = document.getElementById('usrPassword');
@@ -251,6 +269,18 @@
                     el.removeAttribute('aria-invalid');
                 });
             }
+
+            // Super Admin global -> field Depo disembunyikan & dikosongkan
+            // (submit kosong, cocok dengan rule 'prohibited' di UserRequest).
+            // Admin/Sales -> field Depo wajib tampil & diisi.
+            function syncBranchField() {
+                var isSuperAdmin = roleSelect.value === 'super_admin';
+                branchField.style.display = isSuperAdmin ? 'none' : '';
+                branchSelect.required = !isSuperAdmin;
+                branchSelect.disabled = isSuperAdmin;
+                if (isSuperAdmin) branchSelect.value = '';
+            }
+            roleSelect.addEventListener('change', syncBranchField);
 
             function setLinked(salesName) {
                 var hiddenRole = form.querySelector('input[name="role"][type="hidden"]');
@@ -287,6 +317,8 @@
                 form.elements['name'].value = data.name || '';
                 form.elements['email'].value = data.email || '';
                 roleSelect.value = data.role || 'admin';
+                branchSelect.value = data.branchId || '';
+                syncBranchField();
                 setLinked(data.linkedSales || '');
             }
 
@@ -299,6 +331,7 @@
                 document.getElementById('userModalTitle').textContent = edit ? 'Edit User' : 'Tambah User';
                 document.getElementById('userModalDesc').textContent = edit ? 'Perbarui data user.' : 'Buat akun login baru.';
                 setPasswordMode(edit);
+                syncBranchField();
             }
 
             function openModal() {

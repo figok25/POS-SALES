@@ -18,10 +18,12 @@
                 <h1 class="frm-title">Company</h1>
                 <p class="frm-sub">Kelola data master company.</p>
             </div>
-            <button type="button" class="adm-btn adm-btn-primary" data-modal-create>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-                Tambah company
-            </button>
+            @if (auth()->user()->isSuperAdmin())
+                <button type="button" class="adm-btn adm-btn-primary" data-modal-create>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                    Tambah company
+                </button>
+            @endif
         </div>
 
         @if (session('status'))
@@ -67,8 +69,10 @@
                         <a href="{{ route('admin.master.companies.index') }}" class="adm-btn adm-btn-ghost adm-btn-sm">Reset pencarian</a>
                     @else
                         <p class="frm-empty-title">Belum ada company</p>
-                        <p class="frm-empty-text">Tambahkan company pertama untuk memulai.</p>
-                        <button type="button" class="adm-btn adm-btn-primary adm-btn-sm" data-modal-create>Tambah company</button>
+                        @if (auth()->user()->isSuperAdmin())
+                            <p class="frm-empty-text">Tambahkan company pertama untuk memulai.</p>
+                            <button type="button" class="adm-btn adm-btn-primary adm-btn-sm" data-modal-create>Tambah company</button>
+                        @endif
                     @endif
                 </div>
             @else
@@ -117,27 +121,31 @@
                                         @endif
                                     </td>
                                     <td class="is-end">
-                                        <div class="frm-actions">
-                                            <button type="button" class="frm-icon-btn" title="Edit" aria-label="Edit {{ $item->name }}"
-                                                data-modal-edit
-                                                data-url="{{ route('admin.master.companies.update', $item) }}"
-                                                data-id="{{ $item->getRouteKey() }}"
-                                                data-code="{{ $item->code }}"
-                                                data-name="{{ $item->name }}"
-                                                data-address="{{ $item->address }}"
-                                                data-phone="{{ $item->phone }}"
-                                                data-email="{{ $item->email }}"
-                                                data-npwp="{{ $item->npwp }}"
-                                                data-active="{{ $item->is_active ? 1 : 0 }}">
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
-                                            </button>
-                                            <button type="button" class="frm-icon-btn is-danger" title="Hapus" aria-label="Hapus {{ $item->name }}"
-                                                data-modal-delete
-                                                data-url="{{ route('admin.master.companies.destroy', $item) }}"
-                                                data-name="{{ $item->name }}">
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
-                                            </button>
-                                        </div>
+                                        @if (auth()->user()->isSuperAdmin())
+                                            <div class="frm-actions">
+                                                <button type="button" class="frm-icon-btn" title="Edit" aria-label="Edit {{ $item->name }}"
+                                                    data-modal-edit
+                                                    data-url="{{ route('admin.master.companies.update', $item) }}"
+                                                    data-id="{{ $item->getRouteKey() }}"
+                                                    data-code="{{ $item->code }}"
+                                                    data-name="{{ $item->name }}"
+                                                    data-address="{{ $item->address }}"
+                                                    data-phone="{{ $item->phone }}"
+                                                    data-email="{{ $item->email }}"
+                                                    data-npwp="{{ $item->npwp }}"
+                                                    data-active="{{ $item->is_active ? 1 : 0 }}">
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                                                </button>
+                                                <button type="button" class="frm-icon-btn is-danger" title="Hapus" aria-label="Hapus {{ $item->name }}"
+                                                    data-modal-delete
+                                                    data-url="{{ route('admin.master.companies.destroy', $item) }}"
+                                                    data-name="{{ $item->name }}">
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+                                                </button>
+                                            </div>
+                                        @else
+                                            <span class="frm-dash">—</span>
+                                        @endif
                                     </td>
                                 </tr>
                             @endforeach

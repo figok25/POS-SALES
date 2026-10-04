@@ -13,6 +13,7 @@ use App\Models\Stock;
 use App\Models\Warehouse;
 use App\Services\AuditLogger;
 use App\Services\StockService;
+use App\Support\BranchContext;
 use App\Support\DocumentCode;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -31,8 +32,10 @@ class BtbDistribusiController extends Controller
     {
         $status = $request->query('status');
 
-        $items = BtbDistribusi::query()
-            ->with(['sales', 'warehouse'])
+        $items = BranchContext::current()->applyVia(
+            BtbDistribusi::query()->with(['sales', 'warehouse']),
+            fn ($q, $branchId) => $q->whereHas('sales', fn ($qq) => $qq->where('branch_id', $branchId))
+        )
             ->when($status, fn ($q) => $q->where('status', $status))
             ->orderBy('id', 'desc')
             ->paginate(15)
@@ -43,8 +46,10 @@ class BtbDistribusiController extends Controller
 
     public function create(Request $request)
     {
-        $warehouses = Warehouse::orderBy('name')->get();
-        $salesList = Sales::orderBy('name')->get();
+        $branchContext = BranchContext::current();
+
+        $warehouses = $branchContext->applyTo(Warehouse::query())->orderBy('name')->get();
+        $salesList = $branchContext->applyTo(Sales::query())->orderBy('name')->get();
         $products = Product::orderBy('name')->get();
 
         $bkbDistribusi = null;
@@ -90,6 +95,10 @@ class BtbDistribusiController extends Controller
 
     public function show(BtbDistribusi $btb)
     {
+        if (! BranchContext::current()->allows($btb->sales->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke dokumen ini.');
+        }
+
         $btb->load(['items.product', 'sales', 'warehouse', 'bkbDistribusi']);
 
         $availability = [];
@@ -104,6 +113,10 @@ class BtbDistribusiController extends Controller
 
     public function apply(BtbDistribusi $btb)
     {
+        if (! BranchContext::current()->allows($btb->sales->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke dokumen ini.');
+        }
+
         if (! $btb->isDraft()) {
             return back()->with('error', 'Hanya dokumen berstatus Draft yang dapat di-Apply.');
         }
@@ -152,6 +165,10 @@ class BtbDistribusiController extends Controller
      */
     public function discrepancy(Request $request, BtbDistribusi $btb)
     {
+        if (! BranchContext::current()->allows($btb->sales->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke dokumen ini.');
+        }
+
         if (! $btb->isWaitingCheck()) {
             return back()->with('error', 'Hanya dokumen yang masih menunggu Check yang dapat ditandai Discrepancy.');
         }
@@ -178,6 +195,10 @@ class BtbDistribusiController extends Controller
 
     public function cancel(BtbDistribusi $btb)
     {
+        if (! BranchContext::current()->allows($btb->sales->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke dokumen ini.');
+        }
+
         if (! $btb->isDraft()) {
             return back()->with('error', 'Hanya dokumen berstatus Draft yang dapat dibatalkan.');
         }

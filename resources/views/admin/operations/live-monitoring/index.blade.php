@@ -4,12 +4,16 @@
             <h1 class="text-xl font-semibold">Live Monitoring Sales</h1>
             <div class="flex items-center gap-2">
                 <span id="last-refresh" class="text-xs text-gray-400"></span>
-                <select id="branch-filter" class="border rounded px-3 py-2 text-sm">
-                    <option value="">Semua Branch</option>
-                    @foreach ($branches as $b)
-                        <option value="{{ $b->id }}">{{ $b->name }}</option>
-                    @endforeach
-                </select>
+                @if (auth()->user()->isSuperAdmin())
+                    <select id="branch-filter" class="border rounded px-3 py-2 text-sm">
+                        <option value="all">Semua Branch</option>
+                        @foreach ($branches as $b)
+                            <option value="{{ $b->id }}">{{ $b->name }}</option>
+                        @endforeach
+                    </select>
+                @else
+                    <span class="text-xs text-gray-500 border rounded px-3 py-2">Depo: {{ auth()->user()->branch->name ?? '-' }}</span>
+                @endif
             </div>
         </div>
 
@@ -184,8 +188,9 @@
         }
 
         async function poll() {
-            const branchId = document.getElementById('branch-filter').value;
-            const url = branchId ? `${liveSalesUrl}?branch_id=${branchId}` : liveSalesUrl;
+            const branchFilterEl = document.getElementById('branch-filter');
+            const branch = branchFilterEl ? branchFilterEl.value : null;
+            const url = branch ? `${liveSalesUrl}?branch=${branch}` : liveSalesUrl;
 
             try {
                 const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
@@ -210,7 +215,8 @@
                 pollTimer = setInterval(poll, refreshSeconds * 1000);
             });
 
-            document.getElementById('branch-filter').addEventListener('change', poll);
+            const branchFilterEl = document.getElementById('branch-filter');
+            if (branchFilterEl) branchFilterEl.addEventListener('change', poll);
         });
 
         window.addEventListener('beforeunload', () => {

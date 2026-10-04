@@ -7,6 +7,7 @@ use App\Models\CustomerTagging;
 use App\Models\Sales;
 use App\Services\AuditLogger;
 use App\Services\CustomerTaggingService;
+use App\Support\BranchContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -26,8 +27,10 @@ class CustomerTaggingController extends Controller
         $dateFrom = $this->validDateOrNull($request->query('date_from'));
         $dateTo = $this->validDateOrNull($request->query('date_to'));
 
-        $items = CustomerTagging::query()
-            ->with(['sales', 'customer'])
+        $items = BranchContext::current()->applyVia(
+            CustomerTagging::query()->with(['sales', 'customer']),
+            fn ($q, $branchId) => $q->whereHas('sales', fn ($qq) => $qq->where('branch_id', $branchId))
+        )
             ->when($status, fn ($q) => $q->where('status', $status))
             ->when($salesId, fn ($q) => $q->where('sales_id', $salesId))
             ->when($dateFrom, fn ($q) => $q->whereDate('tagged_at', '>=', $dateFrom))
@@ -36,7 +39,7 @@ class CustomerTaggingController extends Controller
             ->paginate(15)
             ->withQueryString();
 
-        $salesList = Sales::orderBy('name')->get();
+        $salesList = BranchContext::current()->applyTo(Sales::query())->orderBy('name')->get();
 
         return view('admin.sales.customer-taggings.index', compact(
             'items', 'status', 'salesList', 'salesId', 'dateFrom', 'dateTo'
@@ -59,6 +62,11 @@ class CustomerTaggingController extends Controller
 
     public function show(CustomerTagging $tagging)
     {
+        $tagging->loadMissing('sales');
+        if (! BranchContext::current()->allows($tagging->sales->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke Tagging ini.');
+        }
+
         $tagging->load(['sales', 'customer', 'reviewer']);
 
         $duplicates = $this->service->findPossibleDuplicates($tagging->name, $tagging->phone)
@@ -69,6 +77,11 @@ class CustomerTaggingController extends Controller
 
     public function approve(Request $request, CustomerTagging $tagging)
     {
+        $tagging->loadMissing('sales');
+        if (! BranchContext::current()->allows($tagging->sales->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke Tagging ini.');
+        }
+
         if (! $tagging->isPending()) {
             return back()->with('error', 'Hanya tagging berstatus Pending yang dapat diproses.');
         }
@@ -84,6 +97,11 @@ class CustomerTaggingController extends Controller
 
     public function reject(Request $request, CustomerTagging $tagging)
     {
+        $tagging->loadMissing('sales');
+        if (! BranchContext::current()->allows($tagging->sales->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke Tagging ini.');
+        }
+
         if (! $tagging->isPending()) {
             return back()->with('error', 'Hanya tagging berstatus Pending yang dapat diproses.');
         }
@@ -117,11 +135,16 @@ class CustomerTaggingController extends Controller
         $approvedCount = 0;
         $skippedCount = 0;
 
-        DB::transaction(function () use ($data, &$approvedCount, &$skippedCount) {
-            $taggings = CustomerTagging::whereIn('id', $data['tagging_ids'])->lockForUpdate()->get();
+        $branchContext = BranchContext::current();
+
+        DB::transaction(function () use ($data, &$approvedCount, &$skippedCount, $branchContext) {
+            $taggings = CustomerTagging::with('sales')->whereIn('id', $data['tagging_ids'])->lockForUpdate()->get();
 
             foreach ($taggings as $tagging) {
-                if (! $tagging->isPending()) {
+                // Anti-IDOR: ID tagging Branch lain yang disisipkan ke
+                // payload diam-diam dilewati, konsisten dengan pola bulk
+                // action lain di proyek ini (mis. bulk dispatch DO).
+                if (! $branchContext->allows($tagging->sales->branch_id ?? null) || ! $tagging->isPending()) {
                     $skippedCount++;
 
                     continue;

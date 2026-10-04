@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin\System;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\System\UserRequest;
+use App\Models\Branch;
 use App\Models\Sales;
 use App\Models\User;
 use App\Services\AuditLogger;
@@ -43,7 +44,13 @@ class UserController extends Controller
 
         $linkedSalesByUserId = Sales::whereIn('user_id', $items->pluck('id'))->pluck('name', 'user_id');
 
-        return view('admin.system.users.index', compact('items', 'search', 'linkedSalesByUserId'));
+        // Multi Branch/Depo: dipakai modal create/edit untuk memilih Branch
+        // user admin/sales (lihat resources/views/admin/system/users/index.blade.php
+        // - TODO tampilan: tambahkan field select branch_id yang di-disable/
+        // dikosongkan otomatis lewat JS saat role = super_admin dipilih).
+        $branches = Branch::where('is_active', true)->orderBy('name')->get();
+
+        return view('admin.system.users.index', compact('items', 'search', 'linkedSalesByUserId', 'branches'));
     }
 
     public function store(UserRequest $request)
@@ -54,11 +61,15 @@ class UserController extends Controller
             'name' => $data['name'],
             'email' => $data['email'],
             'password' => $data['password'],
+            // branch_id sudah dipastikan konsisten dengan role di
+            // UserRequest (wajib untuk admin/sales, prohibited untuk
+            // super_admin) - aman langsung dipakai.
+            'branch_id' => $data['branch_id'] ?? null,
         ]);
         $item->syncRoles([$data['role']]);
 
         AuditLogger::log('create', 'System', User::class, $item->id, null, [
-            'name' => $item->name, 'email' => $item->email, 'role' => $data['role'],
+            'name' => $item->name, 'email' => $item->email, 'role' => $data['role'], 'branch_id' => $item->branch_id,
         ]);
 
         return redirect()->route('admin.system.users.index')->with('status', 'User berhasil ditambahkan.');
@@ -73,17 +84,18 @@ class UserController extends Controller
             return back()->withInput()->with('error', "User ini terhubung ke akun Sales \"{$linkedSales->name}\". Ubah rolenya lewat Master Data > Sales, bukan di sini, supaya tidak memutus akses login Sales tsb.");
         }
 
-        $before = ['name' => $item->name, 'email' => $item->email, 'role' => $item->roles->pluck('name')->first()];
+        $before = ['name' => $item->name, 'email' => $item->email, 'role' => $item->roles->pluck('name')->first(), 'branch_id' => $item->branch_id];
 
         $item->update([
             'name' => $data['name'],
             'email' => $data['email'],
+            'branch_id' => $data['branch_id'] ?? null,
             ...(! empty($data['password']) ? ['password' => $data['password']] : []),
         ]);
         $item->syncRoles([$data['role']]);
 
         AuditLogger::log('update', 'System', User::class, $item->id, $before, [
-            'name' => $item->name, 'email' => $item->email, 'role' => $data['role'],
+            'name' => $item->name, 'email' => $item->email, 'role' => $data['role'], 'branch_id' => $item->branch_id,
         ]);
 
         return redirect()->route('admin.system.users.index')->with('status', 'User berhasil diperbarui.');

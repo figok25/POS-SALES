@@ -106,6 +106,28 @@
         ]],
     ];
 
+    // Multi Branch/Depo (PERBAIKAN): Users/Roles/Permissions/Settings di
+    // route-nya sendiri sudah dikunci 'role:super_admin' (routes/admin_system.php)
+    // - menu ini menyembunyikan link-nya juga untuk Admin biasa supaya tidak
+    // menampilkan tombol yang ujung-ujungnya 403. Audit Log SENGAJA
+    // dikecualikan (tetap tampil) karena permission 'audit-log.view' memang
+    // diberikan ke role admin juga (lihat RolePermissionSeeder).
+    if (! auth()->user()->isSuperAdmin()) {
+        $superAdminOnlyLabels = ['Users', 'Roles', 'Permissions', 'Settings'];
+        foreach ($menu as $gi => $group) {
+            if ($group['title'] !== 'System') {
+                continue;
+            }
+            $menu[$gi]['items'] = array_values(array_filter(
+                $group['items'],
+                fn ($item) => ! in_array($item[0], $superAdminOnlyLabels, true)
+            ));
+        }
+        // Grup "System" yang jadi kosong (tidak ada Audit Log) dibuang
+        // seluruhnya daripada menampilkan judul grup tanpa isi.
+        $menu = array_values(array_filter($menu, fn ($group) => $group['title'] !== 'System' || ! empty($group['items'])));
+    }
+
     // Beberapa menu muncul di 2 grup (Customer, Invoice, Vehicle, Sales) --
     // tandai aktif hanya pada kemunculan PERTAMA supaya tidak dobel.
     $activeTaken = false;

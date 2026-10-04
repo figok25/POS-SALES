@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Branch;
 use App\Models\Sales;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
@@ -19,15 +20,30 @@ class DatabaseSeeder extends Seeder
         $this->call(RolePermissionSeeder::class);
         $this->call(MasterDataSeeder::class);
 
+        // Multi Branch/Depo: MasterDataSeeder sudah membuat Branch ini
+        // ('Cabang Pusat') - dipakai ulang di sini (bukan dibuat baru)
+        // supaya Admin & Sales demo konsisten satu Branch yang sama.
+        $branch = Branch::where('code', 'CBG-PST')->firstOrFail();
+
+        $superAdmin = User::factory()->create([
+            'name' => 'Super Admin',
+            'email' => 'superadmin@possales.test',
+            // branch_id SENGAJA tidak diisi (NULL) - Super Admin bersifat
+            // global, lihat User::isSuperAdmin() & BranchContext.
+        ]);
+        $superAdmin->assignRole('super_admin');
+
         $admin = User::factory()->create([
             'name' => 'Admin',
             'email' => 'admin@possales.test',
+            'branch_id' => $branch->id,
         ]);
         $admin->assignRole('admin');
 
         $sales = User::factory()->create([
             'name' => 'Sales Demo',
             'email' => 'sales@possales.test',
+            'branch_id' => $branch->id,
         ]);
         $sales->assignRole('sales');
 

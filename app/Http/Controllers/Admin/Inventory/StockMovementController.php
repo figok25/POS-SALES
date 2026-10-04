@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin\Inventory;
 
 use App\Http\Controllers\Controller;
 use App\Models\StockMovement;
+use App\Support\BranchContext;
 use Illuminate\Http\Request;
 
 /**
@@ -17,8 +18,9 @@ class StockMovementController extends Controller
         $productId = $request->query('product_id');
         $movementType = $request->query('movement_type');
 
-        $items = StockMovement::query()
-            ->with(['product', 'user'])
+        $items = BranchContext::current()->applyToLocation(
+            StockMovement::query()->with(['product', 'user'])
+        )
             ->when($productId, fn ($q) => $q->where('product_id', $productId))
             ->when($movementType, fn ($q) => $q->where('movement_type', $movementType))
             ->orderBy('created_at', 'desc')

@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admin\Operations;
 
 use App\Models\BkbDistribusi;
+use App\Support\BranchContext;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 
@@ -68,6 +69,24 @@ class SalesTaskRequest extends FormRequest
 
             if ($bkb->salesTask !== null) {
                 $validator->errors()->add('bkb_distribusi_id', 'BKB Distribusi ini sudah memiliki Sales Task. Satu BKB hanya boleh ditugaskan sekali.');
+
+                return;
+            }
+
+            // Anti-IDOR (Multi Branch/Depo): Admin tidak boleh membuat Task
+            // dari BKB Branch lain, dan branch_id Task dipaksa konsisten
+            // dengan Branch Sales pemilik BKB (bukan dipilih bebas).
+            $bkb->loadMissing('sales');
+            $bkbBranchId = $bkb->sales->branch_id ?? null;
+
+            if (! BranchContext::current()->allows($bkbBranchId)) {
+                $validator->errors()->add('bkb_distribusi_id', 'BKB Distribusi ini berada di Branch lain.');
+
+                return;
+            }
+
+            if ((int) $this->input('branch_id') !== (int) $bkbBranchId) {
+                $validator->errors()->add('branch_id', 'Branch harus sama dengan Branch Sales pemilik BKB.');
             }
         });
     }

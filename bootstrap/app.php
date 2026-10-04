@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsureActiveSalesTask;
+use App\Http\Middleware\ResolveBranchContext;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -23,6 +24,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'permission' => PermissionMiddleware::class,
             'role_or_permission' => RoleOrPermissionMiddleware::class,
             'active_sales_task' => EnsureActiveSalesTask::class,
+            'branch_context' => ResolveBranchContext::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

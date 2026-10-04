@@ -13,6 +13,7 @@ use App\Models\StockRequest;
 use App\Models\Warehouse;
 use App\Services\AuditLogger;
 use App\Services\StockService;
+use App\Support\BranchContext;
 use App\Support\DocumentCode;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -32,8 +33,10 @@ class BkbDistribusiController extends Controller
     {
         $status = $request->query('status');
 
-        $items = BkbDistribusi::query()
-            ->with(['warehouse', 'sales'])
+        $items = BranchContext::current()->applyVia(
+            BkbDistribusi::query()->with(['warehouse', 'sales']),
+            fn ($q, $branchId) => $q->whereHas('warehouse', fn ($qq) => $qq->where('branch_id', $branchId))
+        )
             ->when($status, fn ($q) => $q->where('status', $status))
             ->orderBy('id', 'desc')
             ->paginate(15)
@@ -44,8 +47,10 @@ class BkbDistribusiController extends Controller
 
     public function create(Request $request)
     {
-        $warehouses = Warehouse::orderBy('name')->get();
-        $salesList = Sales::orderBy('name')->get();
+        $branchContext = BranchContext::current();
+
+        $warehouses = $branchContext->applyTo(Warehouse::query())->orderBy('name')->get();
+        $salesList = $branchContext->applyTo(Sales::query())->orderBy('name')->get();
         $products = Product::orderBy('name')->get();
 
         // Prefill dari Permintaan Barang yang sudah Submitted (Blueprint #12
@@ -93,6 +98,10 @@ class BkbDistribusiController extends Controller
 
     public function show(BkbDistribusi $bkb)
     {
+        if (! BranchContext::current()->allows($bkb->warehouse->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke dokumen ini.');
+        }
+
         $bkb->load(['items.product', 'warehouse', 'sales', 'stockRequest', 'salesTask']);
 
         // Info stok warehouse saat ini per item, untuk membantu Check
@@ -109,6 +118,10 @@ class BkbDistribusiController extends Controller
 
     public function apply(BkbDistribusi $bkb)
     {
+        if (! BranchContext::current()->allows($bkb->warehouse->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke dokumen ini.');
+        }
+
         if (! $bkb->isDraft()) {
             return back()->with('error', 'Hanya dokumen berstatus Draft yang dapat di-Apply.');
         }
@@ -143,6 +156,10 @@ class BkbDistribusiController extends Controller
 
     public function cancel(BkbDistribusi $bkb)
     {
+        if (! BranchContext::current()->allows($bkb->warehouse->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke dokumen ini.');
+        }
+
         if (! $bkb->isDraft()) {
             return back()->with('error', 'Hanya dokumen berstatus Draft yang dapat dibatalkan.');
         }

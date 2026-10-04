@@ -7,6 +7,7 @@ use App\Models\Branch;
 use App\Models\Sales;
 use App\Models\SalesCurrentLocation;
 use App\Models\SalesLocationHistory;
+use App\Support\BranchContext;
 use Illuminate\Http\Request;
 
 /**
@@ -19,6 +20,15 @@ use Illuminate\Http\Request;
  *
  * MVP polling (Blueprint #31): Admin/JS map poll endpoint ini secara
  * berkala, bukan WebSocket.
+ *
+ * Multi Branch/Depo (PERBAIKAN KEAMANAN): sebelumnya `?branch_id=` pada
+ * liveSales() dipercaya mentah-mentah dari query string TANPA validasi
+ * otorisasi - Admin Branch mana pun bisa melihat Sales Branch lain hanya
+ * dengan mengubah URL. Sekarang branch_id SELALU diturunkan dari
+ * BranchContext (yang untuk Admin memaksa branch_id miliknya sendiri,
+ * mengabaikan ?branch_id= sepenuhnya); dan locations() memvalidasi bahwa
+ * Sales yang diminta memang berada pada Branch yang diizinkan sebelum
+ * mengembalikan histori lokasinya (anti-IDOR).
  */
 class LiveSalesController extends Controller
 {
@@ -30,6 +40,11 @@ class LiveSalesController extends Controller
      */
     public function index(Request $request)
     {
+        // Dropdown filter Branch pada halaman HANYA relevan/boleh dipakai
+        // Super Admin - lihat BranchContext::resolveForUser(). Tetap
+        // dikirim ke view supaya Blade bisa merender selector kalau
+        // auth()->user()->isSuperAdmin(), dan menyembunyikannya (tampilkan
+        // Branch sendiri sebagai teks read-only) untuk Admin biasa.
         $branches = Branch::where('is_active', true)->orderBy('name')->get();
         $mapStyleUrl = config('services.maps.style_url');
         $refreshSeconds = config('services.maps.admin_live_refresh_seconds', 15);
@@ -39,18 +54,26 @@ class LiveSalesController extends Controller
 
     public function liveSales(Request $request)
     {
-        $branchId = $request->query('branch_id');
+        $branchContext = BranchContext::current();
 
-        $locations = SalesCurrentLocation::with(['sales', 'branch'])
-            ->when($branchId, fn ($q) => $q->where('branch_id', $branchId))
-            ->orderByDesc('last_seen_at')
-            ->get();
+        $locations = $branchContext->applyTo(
+            SalesCurrentLocation::with(['sales', 'branch'])
+        )->orderByDesc('last_seen_at')->get();
 
         return response()->json(['success' => true, 'data' => $locations]);
     }
 
     public function locations(Request $request, Sales $sales)
     {
+        // Anti-IDOR (Multi Branch/Depo Scenario E): Admin Branch A tidak
+        // boleh membaca histori lokasi Sales Branch B hanya karena tahu
+        // ID-nya. 403, bukan diam-diam mengembalikan array kosong, supaya
+        // kesalahan akses jelas kelihatan (bukan disalahartikan sebagai
+        // "Sales ini memang tidak punya histori").
+        if (! BranchContext::current()->allows($sales->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke data tracking Sales ini.');
+        }
+
         $validated = $request->validate([
             'tracking_session_id' => ['nullable', 'integer'],
             'from' => ['nullable', 'date'],

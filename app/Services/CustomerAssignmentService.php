@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Customer;
+use App\Models\Sales;
 use App\Services\AuditLogger;
 use App\Models\CustomerAssignment;
 use Illuminate\Support\Facades\DB;
@@ -47,8 +48,17 @@ class CustomerAssignmentService
                 'reason' => $reason,
             ]);
 
-            $before = ['sales_id' => $customer->sales_id];
-            $customer->update(['sales_id' => $newSalesId]);
+            // Multi Branch/Depo: Customer.branch_id SELALU disinkronkan ke
+            // Branch Sales yang baru ditugaskan - jaring pengaman supaya
+            // tidak ada Customer yang branch_id-nya diam-diam melenceng
+            // dari Sales yang sebenarnya menanganinya (CustomerController
+            // sudah menolak assignment lintas-Branch sejak awal lewat
+            // CustomerRequest, jadi sinkronisasi ini konsisten, bukan aturan
+            // baru - ini hanya memastikan SEMUA pemanggil service ini,
+            // termasuk dari Tagging Toko & seeder, ikut aman).
+            $before = ['sales_id' => $customer->sales_id, 'branch_id' => $customer->branch_id];
+            $newBranchId = Sales::find($newSalesId)?->branch_id ?? $customer->branch_id;
+            $customer->update(['sales_id' => $newSalesId, 'branch_id' => $newBranchId]);
 
             AuditLogger::log(
                 action: $current ? 'reassign' : 'assign',

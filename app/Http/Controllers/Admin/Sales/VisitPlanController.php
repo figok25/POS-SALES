@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin\Sales;
 use App\Http\Controllers\Controller;
 use App\Models\Sales;
 use App\Models\SalesVisitPlan;
+use App\Support\BranchContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -23,7 +24,9 @@ class VisitPlanController extends Controller
     {
         $search = $request->query('q');
 
-        $saless = Sales::where('is_active', true)
+        $saless = BranchContext::current()->applyTo(
+            Sales::where('is_active', true)
+        )
             ->when($search, fn ($q) => $q->where('name', 'like', "%{$search}%"))
             ->withCount('customers')
             ->orderBy('name')
@@ -35,6 +38,10 @@ class VisitPlanController extends Controller
 
     public function edit(Sales $sales)
     {
+        if (! BranchContext::current()->allows($sales->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke Sales ini.');
+        }
+
         $customers = $sales->customers()->where('is_active', true)->orderBy('name')->get();
 
         $plans = SalesVisitPlan::where('sales_id', $sales->id)
@@ -52,6 +59,10 @@ class VisitPlanController extends Controller
 
     public function update(Request $request, Sales $sales)
     {
+        if (! BranchContext::current()->allows($sales->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke Sales ini.');
+        }
+
         // Format input: plan[day_of_week][] = customer_id, urutan array = sequence.
         $data = $request->validate([
             'plan' => ['nullable', 'array'],

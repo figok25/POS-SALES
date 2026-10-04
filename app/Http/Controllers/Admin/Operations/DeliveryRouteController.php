@@ -9,6 +9,7 @@ use App\Models\DeliveryRoute;
 use App\Models\RouteCustomer;
 use App\Models\Sales;
 use App\Services\AuditLogger;
+use App\Support\BranchContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -30,9 +31,10 @@ class DeliveryRouteController extends Controller
     {
         $search = $request->query('q');
 
-        $items = DeliveryRoute::query()
-            ->with('sales')
-            ->withCount('routeCustomers')
+        $items = BranchContext::current()->applyVia(
+            DeliveryRoute::query()->with('sales')->withCount('routeCustomers'),
+            fn ($q, $branchId) => $q->whereHas('sales', fn ($qq) => $qq->where('branch_id', $branchId))
+        )
             ->when($search, fn ($q) => $q->where('code', 'like', "%{$search}%")->orWhere('name', 'like', "%{$search}%"))
             ->orderBy('id', 'desc')
             ->paginate(15)
@@ -43,7 +45,7 @@ class DeliveryRouteController extends Controller
 
     public function create()
     {
-        $salesList = Sales::where('is_active', true)->orderBy('name')->get();
+        $salesList = BranchContext::current()->applyTo(Sales::where('is_active', true))->orderBy('name')->get();
         $routeTypes = DeliveryRoute::ROUTE_TYPES;
 
         return view('admin.operations.routes.create', compact('salesList', 'routeTypes'));
@@ -51,7 +53,16 @@ class DeliveryRouteController extends Controller
 
     public function store(DeliveryRouteRequest $request)
     {
-        $item = DeliveryRoute::create($request->validated());
+        $data = $request->validated();
+
+        // Anti-IDOR (Multi Branch/Depo): Route hanya boleh dibuat untuk
+        // Sales di Branch yang diizinkan.
+        $sales = Sales::find($data['sales_id'] ?? null);
+        if ($sales && ! BranchContext::current()->allows($sales->branch_id)) {
+            return back()->withInput()->withErrors(['sales_id' => 'Sales yang dipilih berada di Branch lain.']);
+        }
+
+        $item = DeliveryRoute::create($data);
 
         AuditLogger::log('create', 'Operations', DeliveryRoute::class, $item->id, null, $item->toArray());
 
@@ -60,9 +71,13 @@ class DeliveryRouteController extends Controller
 
     public function edit(Request $request, DeliveryRoute $item)
     {
+        if (! BranchContext::current()->allows($item->sales?->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke Route ini.');
+        }
+
         $item->load('sales');
 
-        $salesList = Sales::where('is_active', true)->orderBy('name')->get();
+        $salesList = BranchContext::current()->applyTo(Sales::where('is_active', true))->orderBy('name')->get();
         $routeTypes = DeliveryRoute::ROUTE_TYPES;
 
         $routeCustomers = RouteCustomer::query()
@@ -90,8 +105,18 @@ class DeliveryRouteController extends Controller
 
     public function update(DeliveryRouteRequest $request, DeliveryRoute $item)
     {
+        if (! BranchContext::current()->allows($item->sales?->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke Route ini.');
+        }
+
+        $data = $request->validated();
+        $newSales = Sales::find($data['sales_id'] ?? null);
+        if ($newSales && ! BranchContext::current()->allows($newSales->branch_id)) {
+            return back()->withInput()->withErrors(['sales_id' => 'Sales yang dipilih berada di Branch lain.']);
+        }
+
         $before = $item->toArray();
-        $item->update($request->validated());
+        $item->update($data);
 
         AuditLogger::log('update', 'Operations', DeliveryRoute::class, $item->id, $before, $item->toArray());
 
@@ -100,6 +125,10 @@ class DeliveryRouteController extends Controller
 
     public function destroy(DeliveryRoute $item)
     {
+        if (! BranchContext::current()->allows($item->sales?->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke Route ini.');
+        }
+
         $before = $item->toArray();
         $item->delete();
 
@@ -113,6 +142,10 @@ class DeliveryRouteController extends Controller
      */
     public function storeCustomer(Request $request, DeliveryRoute $item)
     {
+        if (! BranchContext::current()->allows($item->sales?->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke Route ini.');
+        }
+
         $data = $request->validate($this->customerScheduleRules() + [
             'customer_id' => ['required', 'integer', 'exists:customers,id'],
         ]);
@@ -137,6 +170,10 @@ class DeliveryRouteController extends Controller
      */
     public function updateCustomer(Request $request, DeliveryRoute $item, RouteCustomer $routeCustomer)
     {
+        if (! BranchContext::current()->allows($item->sales?->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke Route ini.');
+        }
+
         abort_unless($routeCustomer->route_id === $item->id, 404);
 
         $data = $request->validate($this->customerScheduleRules());
@@ -154,6 +191,10 @@ class DeliveryRouteController extends Controller
      */
     public function destroyCustomer(DeliveryRoute $item, RouteCustomer $routeCustomer)
     {
+        if (! BranchContext::current()->allows($item->sales?->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke Route ini.');
+        }
+
         abort_unless($routeCustomer->route_id === $item->id, 404);
 
         $before = $routeCustomer->toArray();
@@ -171,6 +212,10 @@ class DeliveryRouteController extends Controller
      */
     public function exportCustomers(DeliveryRoute $item): StreamedResponse
     {
+        if (! BranchContext::current()->allows($item->sales?->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke Route ini.');
+        }
+
         $routeCustomers = RouteCustomer::with('customer')
             ->where('route_id', $item->id)
             ->whereHas('customer')
@@ -223,6 +268,10 @@ class DeliveryRouteController extends Controller
      */
     public function importCustomers(Request $request, DeliveryRoute $item)
     {
+        if (! BranchContext::current()->allows($item->sales?->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke Route ini.');
+        }
+
         $request->validate([
             'file' => ['required', 'file', 'mimes:csv,txt', 'max:5120'],
         ]);
