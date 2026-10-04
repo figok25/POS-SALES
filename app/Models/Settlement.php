@@ -49,6 +49,16 @@ class Settlement extends Model
         return $this->hasMany(Payment::class);
     }
 
+    /**
+     * BTB Distribusi (retur barang) yang diklaim Settlement ini. Barang
+     * yang kembali HANYA dipindahkan oleh BTB; Settlement menampilkan
+     * statusnya (lihat SettlementService::goodsSummary()).
+     */
+    public function btbs(): HasMany
+    {
+        return $this->hasMany(BtbDistribusi::class);
+    }
+
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');

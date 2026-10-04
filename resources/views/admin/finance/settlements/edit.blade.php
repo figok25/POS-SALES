@@ -1,12 +1,15 @@
 <x-admin-layout>
-    @php $qty = fn ($v) => rtrim(rtrim(number_format($v, 2, '.', ''), '0'), '.'); @endphp
+    @php
+        $qty = fn ($v) => rtrim(rtrim(number_format($v, 2, '.', ''), '0'), '.') ?: '0';
+        $btbStatusLabel = ['draft' => 'Menunggu Apply', 'applied' => 'Applied', 'discrepancy' => 'Discrepancy'];
+    @endphp
 
     <div class="frm-page">
         {{-- Kepala halaman --}}
         <div class="frm-head">
             <div>
                 <h1 class="frm-title">Settlement {{ $settlement->code }}</h1>
-                <p class="frm-sub">Koreksi qty retur dan jumlah setoran sebelum di-Apply.</p>
+                <p class="frm-sub">Cek status barang dan setoran uang, lalu Apply.</p>
             </div>
             <a href="{{ route('admin.finance.settlements.index') }}" class="adm-btn adm-btn-ghost adm-btn-sm">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
@@ -45,49 +48,79 @@
                 </dl>
             </section>
 
+            {{-- Barang: turunan BTB, read-only. Stok hanya dipindahkan oleh BTB. --}}
+            <section class="panel">
+                <div class="panel-head">
+                    <h2 class="panel-title">Barang Kembali (dari BTB Distribusi)</h2>
+                    <span class="frm-count">{{ $goods['rows']->count() }} produk</span>
+                </div>
+
+                @if ($goods['has_pending'])
+                    <div class="frm-alert is-error is-block" role="alert">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+                        <span class="frm-alert-text">
+                            Settlement belum bisa di-Apply: masih ada BTB yang belum di-Apply
+                            ({{ $goods['pending_btbs']->pluck('code')->implode(', ') }}). Check dan Apply BTB-nya dulu agar barang kembali ke Warehouse.
+                        </span>
+                    </div>
+                @endif
+
+                @if ($goods['rows']->count())
+                    <div class="frm-table-wrap">
+                        <table class="frm-table">
+                            <thead>
+                                <tr>
+                                    <th>Produk</th>
+                                    <th class="is-num">Sudah Kembali</th>
+                                    <th class="is-num">Menunggu BTB</th>
+                                    <th class="is-num">Belum Diretur (Selisih)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($goods['rows'] as $row)
+                                    <tr>
+                                        <td><span class="frm-name">{{ $row['product']->name ?? '-' }}</span></td>
+                                        <td data-label="Sudah Kembali" class="is-num"><span class="frm-num">{{ $qty($row['returned']) }}</span></td>
+                                        <td data-label="Menunggu BTB" class="is-num"><span class="frm-num">{{ $qty($row['pending']) }}</span></td>
+                                        <td data-label="Selisih" class="is-num">
+                                            <span @class(['frm-num', 'is-strong', 'is-neg' => $row['unreturned'] > 0])>{{ $qty($row['unreturned']) }}</span>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @else
+                    <p class="panel-empty">Tidak ada barang yang perlu dipertanggungjawabkan (stok Sales kosong dan tidak ada BTB).</p>
+                @endif
+
+                @if ($goods['btbs']->count())
+                    <div class="frm-panel-body">
+                        <p class="frm-hint" style="margin-bottom:.5rem">BTB terkait:</p>
+                        <ul class="frm-hint" style="margin:0;padding-left:1.1rem">
+                            @foreach ($goods['btbs'] as $btb)
+                                <li>
+                                    <a href="{{ route('admin.distribution.btb.show', $btb) }}">{{ $btb->code }}</a>
+                                    &mdash; {{ $btbStatusLabel[$btb->status] ?? $btb->status }}
+                                </li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+
+                @if (! $goods['has_pending'] && $goods['total_unreturned'] > 0)
+                    <div class="frm-panel-body">
+                        <p class="frm-hint" style="margin:0">
+                            Ada {{ $qty($goods['total_unreturned']) }} unit yang masih tercatat di Sales tanpa BTB. Ini akan tercatat sebagai selisih barang saat Settlement di-Apply.
+                        </p>
+                    </div>
+                @endif
+            </section>
+
+            {{-- Setoran uang --}}
             <form method="POST" action="{{ route('admin.finance.settlements.apply', $settlement) }}" class="frm-stack">
                 @csrf
 
-                {{-- Retur barang --}}
-                <section class="panel">
-                    <div class="panel-head">
-                        <h2 class="panel-title">Retur Barang (Sales Stock &rarr; Warehouse)</h2>
-                        <span class="frm-count">{{ $settlement->items->count() }} produk</span>
-                    </div>
-
-                    @if ($settlement->items->count())
-                        <div class="frm-table-wrap">
-                            <table class="frm-table">
-                                <thead>
-                                    <tr>
-                                        <th>Produk</th>
-                                        <th class="is-num">Qty di Sistem</th>
-                                        <th class="is-num">Qty Diretur</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach ($settlement->items as $item)
-                                        <tr>
-                                            <td><span class="frm-name">{{ $item->product->name ?? '-' }}</span></td>
-                                            <td data-label="Qty di Sistem" class="is-num"><span class="frm-num">{{ $qty($item->system_qty) }}</span></td>
-                                            <td data-label="Qty Diretur" class="is-num">
-                                                <input type="number" name="returned_qty[{{ $item->product_id }}]" step="0.01" min="0"
-                                                       max="{{ $item->system_qty }}" inputmode="decimal"
-                                                       value="{{ old("returned_qty.{$item->product_id}", $item->system_qty) }}"
-                                                       aria-label="Qty diretur {{ $item->product->name ?? '' }}"
-                                                       class="frm-input is-qty">
-                                            </td>
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-                    @else
-                        <p class="panel-empty">Tidak ada Sales Stock tersisa untuk Sales ini.</p>
-                    @endif
-                </section>
-
-                {{-- Setoran uang --}}
                 <section class="panel">
                     <div class="panel-head">
                         <h2 class="panel-title">Setoran Uang</h2>
@@ -115,7 +148,7 @@
 
                     <div class="frm-panel-foot is-split">
                         <button type="button" class="adm-btn adm-btn-ghost is-danger adm-btn-sm" id="cancel-draft-btn">Batalkan Draft</button>
-                        <button type="submit" class="adm-btn adm-btn-primary adm-btn-sm">Apply Settlement</button>
+                        <button type="submit" class="adm-btn adm-btn-primary adm-btn-sm" @disabled($goods['has_pending'])>Apply Settlement</button>
                     </div>
                 </section>
             </form>
@@ -132,7 +165,7 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
                 </div>
                 <h2 id="cancel-draft-title" class="frm-modal-title">Batalkan Draft ini?</h2>
-                <p class="frm-confirm-text">Draft <strong>{{ $settlement->code }}</strong> akan dibatalkan. Payment yang sudah direservasi akan dilepas kembali.</p>
+                <p class="frm-confirm-text">Draft <strong>{{ $settlement->code }}</strong> akan dibatalkan. Payment dan BTB yang sudah diklaim akan dilepas kembali; draft baru dibuat otomatis saat ada Return Stock atau BTB di-Apply berikutnya.</p>
             </div>
             <div class="frm-modal-foot">
                 <button type="button" class="adm-btn adm-btn-ghost adm-btn-sm" data-close>Kembali</button>

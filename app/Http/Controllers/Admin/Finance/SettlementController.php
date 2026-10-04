@@ -3,9 +3,8 @@
 namespace App\Http\Controllers\Admin\Finance;
 
 use App\Http\Controllers\Controller;
-use App\Models\Sales;
+use App\Models\BtbDistribusi;
 use App\Models\Settlement;
-use App\Models\Warehouse;
 use App\Services\SettlementService;
 use App\Support\BranchContext;
 use Illuminate\Http\Request;
@@ -13,6 +12,12 @@ use Illuminate\Validation\ValidationException;
 
 /**
  * Phase 7 - Admin: Settlement (Blueprint #16).
+ *
+ * Draft Settlement TIDAK dibuat manual: dibuat otomatis oleh
+ * SettlementService::ensureDraft() saat Sales submit Return Stock,
+ * menyelesaikan Task (stok habis), atau Admin meng-Apply BTB. Admin tinggal
+ * Cek lalu Apply. Barang kembali HANYA dipindahkan oleh BTB Distribusi --
+ * Settlement hanya menampilkan statusnya dan menyelesaikan uang.
  */
 class SettlementController extends Controller
 {
@@ -23,7 +28,9 @@ class SettlementController extends Controller
         $status = $request->query('status');
 
         $items = BranchContext::current()->applyVia(
-            Settlement::query()->with(['sales', 'warehouse']),
+            Settlement::query()
+                ->with(['sales', 'warehouse'])
+                ->withCount(['btbs as pending_btbs_count' => fn ($q) => $q->where('status', BtbDistribusi::STATUS_DRAFT)]),
             fn ($q, $branchId) => $q->whereHas('sales', fn ($qq) => $qq->where('branch_id', $branchId))
         )
             ->when($status, fn ($q) => $q->where('status', $status))
@@ -34,45 +41,14 @@ class SettlementController extends Controller
         return view('admin.finance.settlements.index', compact('items', 'status'));
     }
 
+    /**
+     * Draft tidak lagi dibuat manual. URL lama dialihkan ke daftar supaya
+     * tautan/bookmark lama tidak error.
+     */
     public function create()
     {
-        $branchContext = BranchContext::current();
-
-        $saless = $branchContext->applyTo(Sales::where('is_active', true))->orderBy('name')->get();
-        $warehouses = $branchContext->applyTo(Warehouse::where('is_active', true))->orderBy('name')->get();
-
-        return view('admin.finance.settlements.create', compact('saless', 'warehouses'));
-    }
-
-    public function store(Request $request)
-    {
-        $data = $request->validate([
-            'sales_id' => ['required', 'exists:sales,id'],
-            'warehouse_id' => ['required', 'exists:warehouses,id'],
-        ]);
-
-        // Anti-IDOR + konsistensi bisnis (Multi Branch/Depo): sama seperti
-        // BKB/BTB - Sales & Warehouse WAJIB satu Branch yang sama, dan
-        // keduanya harus berada di Branch yang diizinkan Admin ini.
-        $branchContext = BranchContext::current();
-        $sales = Sales::find($data['sales_id']);
-        $warehouse = Warehouse::find($data['warehouse_id']);
-
-        if (! $sales || ! $branchContext->allows($sales->branch_id)) {
-            return back()->withInput()->withErrors(['sales_id' => 'Sales yang dipilih berada di Branch lain.']);
-        }
-        if (! $warehouse || (int) $warehouse->branch_id !== (int) $sales->branch_id) {
-            return back()->withInput()->withErrors(['warehouse_id' => 'Warehouse harus berada di Branch yang sama dengan Sales.']);
-        }
-
-        try {
-            $settlement = $this->service->createDraft($data['sales_id'], $data['warehouse_id'], auth()->id());
-        } catch (ValidationException $e) {
-            return back()->withErrors($e->errors())->withInput();
-        }
-
-        return redirect()->route('admin.finance.settlements.edit', $settlement)
-            ->with('status', 'Draft Settlement berhasil dibuat. Silakan isi qty retur & jumlah setoran sebelum Apply.');
+        return redirect()->route('admin.finance.settlements.index')
+            ->with('status', 'Draft Settlement dibuat otomatis saat Sales melakukan Return Stock atau BTB di-Apply. Tinggal Cek lalu Apply.');
     }
 
     public function edit(Settlement $settlement)
@@ -81,9 +57,17 @@ class SettlementController extends Controller
             abort(403, 'Anda tidak memiliki akses ke Settlement ini.');
         }
 
-        $settlement->load(['items.product', 'payments.invoice.customer', 'sales', 'warehouse']);
+        // Settlement yang sudah di-Apply tidak bisa diubah lagi.
+        if (! $settlement->isDraft()) {
+            return redirect()->route('admin.finance.settlements.index')
+                ->with('status', 'Settlement ini sudah di-Apply.');
+        }
 
-        return view('admin.finance.settlements.edit', compact('settlement'));
+        $settlement->load(['payments.invoice.customer', 'sales', 'warehouse']);
+
+        $goods = $this->service->goodsSummary($settlement);
+
+        return view('admin.finance.settlements.edit', compact('settlement', 'goods'));
     }
 
     public function apply(Request $request, Settlement $settlement)
@@ -93,8 +77,6 @@ class SettlementController extends Controller
         }
 
         $data = $request->validate([
-            'returned_qty' => ['required', 'array'],
-            'returned_qty.*' => ['numeric', 'min:0'],
             'cash_deposited' => ['required', 'numeric', 'min:0'],
             'notes' => ['nullable', 'string', 'max:255'],
         ]);
@@ -102,7 +84,6 @@ class SettlementController extends Controller
         try {
             $this->service->apply(
                 $settlement,
-                $data['returned_qty'],
                 (float) $data['cash_deposited'],
                 auth()->id(),
                 $data['notes'] ?? null,

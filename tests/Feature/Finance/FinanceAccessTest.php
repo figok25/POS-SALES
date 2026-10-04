@@ -2,10 +2,12 @@
 
 namespace Tests\Feature\Finance;
 
+use App\Models\BtbDistribusi;
 use App\Models\Invoice;
 use App\Models\Settlement;
 use App\Models\Stock;
 use App\Services\SalesTransactionService;
+use App\Services\SettlementService;
 use App\Services\StockService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\SetsUpSalesFixtures;
@@ -107,9 +109,34 @@ class FinanceAccessTest extends TestCase
             ->assertForbidden();
     }
 
+    /**
+     * BTB retur milik Sales ini (sisa seluruh Sales Stock), berstatus Draft.
+     */
+    protected function makeDraftBtbForAllStock($sales, $warehouse): BtbDistribusi
+    {
+        static $n = 0;
+        $n++;
+
+        $stock = Stock::where('location_type', Stock::LOCATION_SALES)
+            ->where('location_id', $sales->id)
+            ->where('quantity', '>', 0)
+            ->firstOrFail();
+
+        $btb = BtbDistribusi::create([
+            'code' => "BTB-FA-{$n}",
+            'sales_id' => $sales->id,
+            'warehouse_id' => $warehouse->id,
+            'status' => BtbDistribusi::STATUS_DRAFT,
+            'source' => BtbDistribusi::SOURCE_MANUAL,
+        ]);
+        $btb->items()->create(['product_id' => $stock->product_id, 'quantity' => $stock->quantity]);
+
+        return $btb;
+    }
+
     public function test_full_settlement_flow_via_http(): void
     {
-        [$user, $sales, $invoice] = $this->makeInvoiceViaHttpFixtures();
+        [$user, $sales, $invoice] = $this->makeInvoiceViaHttpFixtures(); // sisa Sales Stock 8
         $admin = $this->makeAdminUser();
         $warehouse = $this->makeWarehouse();
 
@@ -118,30 +145,74 @@ class FinanceAccessTest extends TestCase
             'amount' => 20000, 'method' => 'cash',
         ]);
 
-        // Admin buat draft settlement.
+        // Tidak ada pembuatan draft manual: URL lama hanya mengalihkan ke daftar.
+        $this->assertDatabaseCount('settlements', 0);
         $this->actingAs($admin)
-            ->post(route('admin.finance.settlements.store'), [
-                'sales_id' => $sales->id,
-                'warehouse_id' => $warehouse->id,
-            ])
+            ->get(route('admin.finance.settlements.create'))
+            ->assertRedirect(route('admin.finance.settlements.index'));
+
+        // Admin meng-Apply BTB -> Settlement Draft terbentuk otomatis & mengklaim BTB-nya.
+        $btb = $this->makeDraftBtbForAllStock($sales, $warehouse);
+        $productId = $btb->items->first()->product_id;
+
+        $this->actingAs($admin)
+            ->post(route('admin.distribution.btb.apply', $btb))
             ->assertRedirect();
 
         $settlement = Settlement::where('sales_id', $sales->id)->firstOrFail();
+        $this->assertSame($settlement->id, $btb->fresh()->settlement_id);
+        $this->assertEquals(20000, $settlement->cash_expected);
+
+        $this->actingAs($admin)
+            ->get(route('admin.finance.settlements.index'))
+            ->assertOk()
+            ->assertSee($settlement->code)
+            ->assertSee('Cek &amp; Apply', false);
 
         $this->actingAs($admin)
             ->get(route('admin.finance.settlements.edit', $settlement))
             ->assertOk()
-            ->assertSee($settlement->code);
-
-        $productId = $settlement->items->first()->product_id;
+            ->assertSee($settlement->code)
+            ->assertSee($btb->code);
 
         $this->actingAs($admin)
             ->post(route('admin.finance.settlements.apply', $settlement), [
-                'returned_qty' => [$productId => $settlement->items->first()->system_qty],
                 'cash_deposited' => 20000,
             ])
             ->assertRedirect(route('admin.finance.settlements.index'));
 
         $this->assertEquals('applied', $settlement->fresh()->status);
+
+        // Barang dipindahkan SEKALI, oleh BTB (8), bukan oleh Settlement.
+        $stockService = app(StockService::class);
+        $this->assertEquals(0, $stockService->getQuantity($productId, Stock::LOCATION_SALES, $sales->id));
+        $this->assertEquals(8, $stockService->getQuantity($productId, Stock::LOCATION_WAREHOUSE, $warehouse->id));
+        $this->assertEquals(0, $settlement->fresh('items')->items->first()->variance_qty);
+    }
+
+    public function test_settlement_apply_is_blocked_via_http_while_btb_pending(): void
+    {
+        [$user, $sales, $invoice] = $this->makeInvoiceViaHttpFixtures();
+        $admin = $this->makeAdminUser();
+        $warehouse = $this->makeWarehouse();
+
+        $this->actingAs($user)->post(route('sales.payments.store', $invoice), [
+            'amount' => 20000, 'method' => 'cash',
+        ]);
+
+        $btb = $this->makeDraftBtbForAllStock($sales, $warehouse);
+        $settlement = app(SettlementService::class)->ensureDraft($sales->id, $warehouse->id, $admin->id);
+
+        $this->actingAs($admin)
+            ->get(route('admin.finance.settlements.edit', $settlement))
+            ->assertOk()
+            ->assertSee('belum bisa di-Apply');
+
+        $this->actingAs($admin)
+            ->post(route('admin.finance.settlements.apply', $settlement), ['cash_deposited' => 20000])
+            ->assertSessionHasErrors('status');
+
+        $this->assertEquals('draft', $settlement->fresh()->status);
+        $this->assertEquals('draft', $btb->fresh()->status);
     }
 }

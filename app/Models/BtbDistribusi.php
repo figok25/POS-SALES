@@ -33,7 +33,7 @@ class BtbDistribusi extends Model
     public const SOURCE_RETURN_STOCK = 'return_stock';
 
     protected $fillable = [
-        'code', 'bkb_distribusi_id', 'sales_id', 'warehouse_id', 'status', 'source', 'notes',
+        'code', 'bkb_distribusi_id', 'sales_id', 'warehouse_id', 'settlement_id', 'status', 'source', 'notes',
         'created_by', 'applied_by', 'applied_at', 'cancelled_by', 'cancelled_at',
         'checked_by', 'checked_at',
     ];
@@ -60,6 +60,15 @@ class BtbDistribusi extends Model
     public function warehouse(): BelongsTo
     {
         return $this->belongsTo(Warehouse::class);
+    }
+
+    /**
+     * Settlement yang "mengklaim" BTB ini (barang kembali dipertanggung-
+     * jawabkan di sana). NULL = belum masuk Settlement mana pun.
+     */
+    public function settlement(): BelongsTo
+    {
+        return $this->belongsTo(Settlement::class);
     }
 
     public function items(): HasMany

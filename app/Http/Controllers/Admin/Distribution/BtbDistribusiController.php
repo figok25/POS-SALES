@@ -12,6 +12,7 @@ use App\Models\Sales;
 use App\Models\Stock;
 use App\Models\Warehouse;
 use App\Services\AuditLogger;
+use App\Services\SettlementService;
 use App\Services\StockService;
 use App\Support\BranchContext;
 use App\Support\DocumentCode;
@@ -147,6 +148,17 @@ class BtbDistribusiController extends Controller
             ]);
 
             AuditLogger::log('apply', 'Distribution', BtbDistribusi::class, $btb->id, $before, $btb->toArray());
+
+            // Settlement Draft otomatis: BTB manual (atau BTB yang Draft
+            // Settlement-nya sudah dibatalkan) ikut diklaim ke Settlement
+            // Sales ini. BTB Return Stock sudah diklaim sejak submit, jadi
+            // untuk itu tidak ada yang berubah. Kegagalan hanya dilaporkan:
+            // BTB sudah ter-Apply dan stok sudah berpindah.
+            try {
+                app(SettlementService::class)->ensureDraft($btb->sales_id, (int) $btb->warehouse_id, auth()->id(), $btb);
+            } catch (\Throwable $e) {
+                report($e);
+            }
 
             return redirect()->route('admin.distribution.btb.show', $btb)
                 ->with('status', 'BTB Distribusi berhasil di-Apply (Approve). Sales Stock berkurang, Warehouse Stock bertambah.');

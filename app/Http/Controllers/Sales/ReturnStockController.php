@@ -10,6 +10,7 @@ use App\Models\Product;
 use App\Models\SalesTask;
 use App\Models\Stock;
 use App\Services\AuditLogger;
+use App\Services\SettlementService;
 use App\Services\StockService;
 use App\Services\TrackingSessionService;
 use App\Support\DocumentCode;
@@ -134,6 +135,10 @@ class ReturnStockController extends Controller
 
         AuditLogger::log('return_stock_submit', 'Sales', BtbDistribusi::class, $btb->id, null, $btb->load('items')->toArray());
 
+        // Settlement Draft otomatis: BTB ini langsung masuk Settlement Sales
+        // supaya Admin tinggal Check BTB -> Apply BTB -> Apply Settlement.
+        $this->ensureSettlementDraft($sales->id, (int) $btb->warehouse_id, $btb);
+
         return redirect()->route('sales.return-stock.index')
             ->with('status', "Return Stock berhasil disubmit sebagai {$btb->code}. Task Anda ditandai selesai dan Tracking otomatis dihentikan, menunggu pemeriksaan Admin.");
     }
@@ -178,8 +183,26 @@ class ReturnStockController extends Controller
 
         AuditLogger::log('return_stock_complete_empty', 'Sales', SalesTask::class, $task->id, null, ['reason' => 'sales_stock_zero']);
 
+        // Tidak ada barang untuk diretur, tapi uang cash hari ini tetap perlu
+        // disetor: siapkan Settlement Draft otomatis (kalau ada yang di-settle).
+        $this->ensureSettlementDraft($sales->id, (int) $task->bkbDistribusi->warehouse_id);
+
         return redirect()->route('sales.return-stock.index')
             ->with('status', 'Task Anda ditandai selesai dan Tracking otomatis dihentikan. Sales Stock Anda memang sudah habis, tidak ada yang perlu diretur.');
+    }
+
+    /**
+     * Membuat/melengkapi Settlement Draft otomatis. Kegagalan di sini TIDAK
+     * boleh menggagalkan Return Stock Sales (dokumen retur sudah tersimpan),
+     * jadi hanya dilaporkan ke log. Dipanggil SETELAH transaksi retur commit.
+     */
+    private function ensureSettlementDraft(int $salesId, int $warehouseId, ?BtbDistribusi $btb = null): void
+    {
+        try {
+            app(SettlementService::class)->ensureDraft($salesId, $warehouseId, auth()->id(), $btb);
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 
     /**

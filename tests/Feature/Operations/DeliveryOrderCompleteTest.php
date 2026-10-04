@@ -5,6 +5,7 @@ namespace Tests\Feature\Operations;
 use App\Models\Branch;
 use App\Models\DeliveryOrder;
 use App\Models\SalesTransaction;
+use App\Models\Vehicle;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\SetsUpSalesFixtures;
 use Tests\TestCase;
@@ -144,5 +145,70 @@ class DeliveryOrderCompleteTest extends TestCase
             ->assertOk()
             ->assertSee('name="route_id"', false)
             ->assertSee('data-row-action', false);
+    }
+
+    private function assignVehicle(DeliveryOrder $do): void
+    {
+        static $n = 0;
+        $n++;
+
+        $vehicle = Vehicle::create(['code' => "VHC-T-{$n}", 'name' => "Truk Test {$n}", 'plate_number' => "B {$n} TST"]);
+        $do->update(['vehicle_id' => $vehicle->id]);
+    }
+
+    public function test_index_shows_one_action_per_row_following_direct_or_separate_rule(): void
+    {
+        $admin = $this->makeAdminUser();
+
+        $direct = $this->makeDo(DeliveryOrder::STATUS_DRAFT);       // tanpa kendaraan/driver -> Selesai
+        $separate = $this->makeDo(DeliveryOrder::STATUS_DRAFT);     // ada kendaraan -> Kirim
+        $this->assignVehicle($separate);
+        $enRoute = $this->makeDo(DeliveryOrder::STATUS_DISPATCHED); // -> Terkirim
+        $done = $this->makeDo(DeliveryOrder::STATUS_DELIVERED);     // tanpa tombol
+
+        $this->actingAs($admin)
+            ->get(route('admin.operations.delivery-orders.index'))
+            ->assertOk()
+            ->assertSee(route('admin.operations.delivery-orders.complete', $direct), false)
+            ->assertSee(route('admin.operations.delivery-orders.dispatch', $separate), false)
+            ->assertSee(route('admin.operations.delivery-orders.deliver', $enRoute), false)
+            // DO serah-langsung tidak ditawari Kirim; DO diantar tidak ditawari Selesai.
+            ->assertDontSee(route('admin.operations.delivery-orders.dispatch', $direct), false)
+            ->assertDontSee(route('admin.operations.delivery-orders.complete', $separate), false)
+            // DO yang sudah Terkirim tidak punya tombol aksi sama sekali.
+            ->assertDontSee(route('admin.operations.delivery-orders.complete', $done), false)
+            ->assertDontSee(route('admin.operations.delivery-orders.deliver', $done), false)
+            // Tombol "Selesaikan Sekaligus" yang lama sudah tidak ada.
+            ->assertDontSee('Selesaikan Sekaligus');
+    }
+
+    public function test_show_has_a_single_primary_action_per_status(): void
+    {
+        $admin = $this->makeAdminUser();
+
+        $direct = $this->makeDo(DeliveryOrder::STATUS_DRAFT);
+        $this->actingAs($admin)->get(route('admin.operations.delivery-orders.show', $direct))->assertOk()
+            ->assertSee(route('admin.operations.delivery-orders.complete', $direct), false)
+            ->assertDontSee(route('admin.operations.delivery-orders.dispatch', $direct), false)
+            ->assertSee(route('admin.operations.delivery-orders.cancel', $direct), false);
+
+        $separate = $this->makeDo(DeliveryOrder::STATUS_DRAFT);
+        $this->assignVehicle($separate);
+        $this->actingAs($admin)->get(route('admin.operations.delivery-orders.show', $separate))->assertOk()
+            ->assertSee(route('admin.operations.delivery-orders.dispatch', $separate), false)
+            ->assertDontSee(route('admin.operations.delivery-orders.complete', $separate), false);
+
+        $enRoute = $this->makeDo(DeliveryOrder::STATUS_DISPATCHED);
+        $this->actingAs($admin)->get(route('admin.operations.delivery-orders.show', $enRoute))->assertOk()
+            ->assertSee(route('admin.operations.delivery-orders.deliver', $enRoute), false)
+            ->assertDontSee(route('admin.operations.delivery-orders.complete', $enRoute), false)
+            // Batalkan hanya untuk DO yang belum dikirim.
+            ->assertDontSee(route('admin.operations.delivery-orders.cancel', $enRoute), false);
+
+        $done = $this->makeDo(DeliveryOrder::STATUS_DELIVERED);
+        $this->actingAs($admin)->get(route('admin.operations.delivery-orders.show', $done))->assertOk()
+            ->assertDontSee(route('admin.operations.delivery-orders.complete', $done), false)
+            ->assertDontSee(route('admin.operations.delivery-orders.deliver', $done), false)
+            ->assertDontSee(route('admin.operations.delivery-orders.cancel', $done), false);
     }
 }

@@ -70,4 +70,44 @@ class DeliveryOrder extends Model
     {
         return $this->status === self::STATUS_DISPATCHED;
     }
+
+    /**
+     * Aturan penyederhanaan tombol: barang pada dasarnya diserahkan langsung
+     * oleh Sales ke toko saat transaksi. DO TANPA kendaraan & driver berarti
+     * serah langsung -> cukup satu langkah "Selesai". DO yang sudah diisi
+     * kendaraan/driver berarti diantar terpisah -> dua langkah (Kirim, lalu
+     * Terkirim setelah barang sampai).
+     */
+    public function isSeparateDelivery(): bool
+    {
+        return $this->vehicle_id !== null || $this->driver_id !== null;
+    }
+
+    /**
+     * Label status untuk tampilan (kolom `status` di database tetap
+     * draft/dispatched/delivered/cancelled).
+     */
+    public function statusLabel(): string
+    {
+        return match ($this->status) {
+            self::STATUS_DRAFT => 'Menunggu',
+            self::STATUS_DISPATCHED => 'Dalam Pengiriman',
+            self::STATUS_DELIVERED => 'Terkirim',
+            self::STATUS_CANCELLED => 'Batal',
+            default => ucfirst((string) $this->status),
+        };
+    }
+
+    /**
+     * Kelas warna badge (.frm-status) sesuai status.
+     */
+    public function statusTone(): string
+    {
+        return match ($this->status) {
+            self::STATUS_DRAFT => 'is-off',
+            self::STATUS_DISPATCHED => 'is-warn',
+            self::STATUS_DELIVERED => 'is-on',
+            default => 'is-danger',
+        };
+    }
 }

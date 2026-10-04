@@ -25,10 +25,12 @@ Route::middleware('permission:finance.manage')->group(function () {
     Route::get('invoices/{invoice}/payments/create', [PaymentController::class, 'create'])->name('payments.create');
     Route::post('invoices/{invoice}/payments', [PaymentController::class, 'store'])->name('payments.store');
 
-    // Settlement - Draft dibuat manual oleh Admin per Sales, lalu
-    // di-Apply setelah qty retur & uang setoran dikonfirmasi.
+    // Settlement - Draft dibuat OTOMATIS (Return Stock / selesai Task /
+    // Apply BTB), Admin tinggal Cek lalu Apply. Barang kembali hanya lewat
+    // BTB Distribusi; Settlement menyelesaikan uang.
+    // URL lama 'Buat Draft' dialihkan ke daftar (nama route dipertahankan
+    // supaya tautan/bookmark lama tidak error).
     Route::get('settlements/create', [SettlementController::class, 'create'])->name('settlements.create');
-    Route::post('settlements', [SettlementController::class, 'store'])->name('settlements.store');
     Route::get('settlements/{settlement}/edit', [SettlementController::class, 'edit'])->name('settlements.edit');
     Route::post('settlements/{settlement}/apply', [SettlementController::class, 'apply'])->name('settlements.apply');
     Route::delete('settlements/{settlement}', [SettlementController::class, 'destroy'])->name('settlements.destroy');

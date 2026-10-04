@@ -48,7 +48,14 @@ class DeliveryOrderController extends Controller
             fn ($q, $branchId) => $q->whereHas('salesTransaction.sales', fn ($qq) => $qq->where('branch_id', $branchId))
         )->count();
 
-        return view('admin.operations.delivery-orders.index', compact('items', 'status', 'vehicles', 'drivers', 'routes', 'draftCount'));
+        // DO yang belum Terkirim (Menunggu + Dalam Pengiriman) -- dipakai opsi
+        // "Pilih SEMUA" di panel aksi massal.
+        $openCount = $branchContext->applyVia(
+            DeliveryOrder::whereIn('status', [DeliveryOrder::STATUS_DRAFT, DeliveryOrder::STATUS_DISPATCHED]),
+            fn ($q, $branchId) => $q->whereHas('salesTransaction.sales', fn ($qq) => $qq->where('branch_id', $branchId))
+        )->count();
+
+        return view('admin.operations.delivery-orders.index', compact('items', 'status', 'vehicles', 'drivers', 'routes', 'draftCount', 'openCount'));
     }
 
     public function create()

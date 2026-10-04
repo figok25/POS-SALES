@@ -5,12 +5,8 @@
     <div class="frm-head">
         <div>
             <h1 class="frm-title">Settlement</h1>
-            <p class="frm-sub">Setoran uang dan retur barang Sales ke Warehouse.</p>
+            <p class="frm-sub">Setoran uang Sales. Draft dibuat otomatis saat Sales Return Stock atau BTB di-Apply; tinggal Cek lalu Apply. Barang kembali lewat BTB Distribusi.</p>
         </div>
-        <a href="{{ route('admin.finance.settlements.create') }}" class="adm-btn adm-btn-primary">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
-            Buat Draft
-        </a>
     </div>
 
     {{-- Notifikasi --}}
@@ -82,13 +78,16 @@
                                         <span class="frm-status is-on">Applied</span>
                                     @else
                                         <span class="frm-status is-warn">Draft</span>
+                                        @if ($settlement->pending_btbs_count > 0)
+                                            <span class="frm-meta">Menunggu {{ $settlement->pending_btbs_count }} BTB</span>
+                                        @endif
                                     @endif
                                 </td>
                                 <td class="is-end">
                                     @if ($settlement->status === 'draft')
                                         <a href="{{ route('admin.finance.settlements.edit', $settlement) }}" class="adm-btn adm-btn-ghost adm-btn-sm">
                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-                                            Lanjutkan
+                                            Cek &amp; Apply
                                         </a>
                                     @endif
                                 </td>
@@ -107,11 +106,9 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="m9 15 2 2 4-4"/></svg>
                 </div>
                 <p class="frm-empty-title">{{ $isFiltered ? 'Tidak ada hasil' : 'Belum ada settlement' }}</p>
-                <p class="frm-empty-text">{{ $isFiltered ? 'Tidak ada settlement dengan status ini.' : 'Buat draft untuk mulai menyetor uang dan retur barang Sales.' }}</p>
+                <p class="frm-empty-text">{{ $isFiltered ? 'Tidak ada settlement dengan status ini.' : 'Draft akan muncul otomatis saat Sales melakukan Return Stock atau BTB di-Apply.' }}</p>
                 @if ($isFiltered)
                     <a href="{{ route('admin.finance.settlements.index') }}" class="adm-btn adm-btn-ghost adm-btn-sm">Reset Filter</a>
-                @else
-                    <a href="{{ route('admin.finance.settlements.create') }}" class="adm-btn adm-btn-primary adm-btn-sm">Buat Draft</a>
                 @endif
             </div>
         @endif
