@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Admin\Master;
 
+use App\Models\Price;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -30,6 +31,7 @@ class SalesRequest extends FormRequest
             'branch_id' => ['nullable', 'exists:branches,id'],
             'code' => ['required', 'string', 'max:255', Rule::unique('sales', 'code')->ignore($salesItem)],
             'name' => ['required', 'string', 'max:255'],
+            'type' => ['required', Rule::in(array_keys(Price::types()))],
             'phone' => ['nullable', 'string', 'max:255'],
             'is_active' => ['boolean'],
 
@@ -42,6 +44,8 @@ class SalesRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'type.required' => 'Jenis sales wajib dipilih.',
+            'type.in' => 'Jenis sales tidak valid.',
             'email.unique' => 'Email ini sudah dipakai akun lain.',
             'password.required' => 'Password wajib diisi untuk membuat akun login baru.',
             'password.min' => 'Password minimal 4 karakter.',

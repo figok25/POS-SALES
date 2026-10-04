@@ -90,6 +90,7 @@
                             <tr>
                                 <th>Kode</th>
                                 <th>Nama</th>
+                                <th>Jenis</th>
                                 <th>Branch</th>
                                 <th>Telepon</th>
                                 <th>Email Login</th>
@@ -102,6 +103,7 @@
                                 <tr>
                                     <td><span class="frm-code">{{ $item->code }}</span></td>
                                     <td><div class="frm-name">{{ $item->name }}</div></td>
+                                    <td><span class="frm-status {{ $item->priceType() === 'wholesale' ? 'is-warn' : 'is-on' }}">{{ $item->typeLabel() }}</span></td>
                                     <td>
                                         @if ($item->branch)
                                             {{ $item->branch->name }}
@@ -139,6 +141,7 @@
                                                 data-branch-id="{{ $item->branch_id }}"
                                                 data-code="{{ $item->code }}"
                                                 data-name="{{ $item->name }}"
+                                                data-type="{{ $item->priceType() }}"
                                                 data-phone="{{ $item->phone }}"
                                                 data-email="{{ $item->user->email ?? '' }}"
                                                 data-has-user="{{ $item->user ? 1 : 0 }}"
@@ -212,6 +215,18 @@
                         <input id="slsName" type="text" name="name" value="{{ old('name') }}" required
                             class="frm-input @error('name') is-invalid @enderror" @error('name') aria-invalid="true" @enderror>
                         @error('name') <p class="frm-error">{{ $message }}</p> @enderror
+                    </div>
+
+                    <div class="frm-field">
+                        <label class="frm-label" for="slsType">Jenis Sales <span class="frm-req">*</span></label>
+                        <select id="slsType" name="type" required
+                            class="frm-input is-select @error('type') is-invalid @enderror" @error('type') aria-invalid="true" @enderror>
+                            @foreach (\App\Models\Price::types() as $val => $label)
+                                <option value="{{ $val }}" @selected(old('type', 'retail') === $val)>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                        @error('type') <p class="frm-error">{{ $message }}</p> @enderror
+                        <p class="frm-hint">Menentukan harga yang dipakai saat transaksi.</p>
                     </div>
 
                     <div class="frm-field">
@@ -291,6 +306,7 @@
                 { el: 'branch_id', key: 'branchId' },
                 { el: 'code', key: 'code' },
                 { el: 'name', key: 'name' },
+                { el: 'type', key: 'type', fallback: 'retail' },
                 { el: 'phone', key: 'phone' },
                 { el: 'email', key: 'email' }
             ];
@@ -308,7 +324,7 @@
             }
 
             function fill(data) {
-                fields.forEach(function (f) { form.elements[f.el].value = data[f.key] || ''; });
+                fields.forEach(function (f) { form.elements[f.el].value = data[f.key] || f.fallback || ''; });
                 form.elements['is_active'].checked = data.active === undefined ? true : data.active === '1';
                 pwInput.value = ''; // password tidak pernah diisi ulang
             }

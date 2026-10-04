@@ -22,9 +22,12 @@ class PriceController extends Controller
     public function index(Request $request)
     {
         $search = trim((string) $request->query('q', ''));
+        $type = (string) $request->query('type', '');
+        $type = array_key_exists($type, Price::types()) ? $type : '';
 
         $items = Price::query()
             ->with('product')
+            ->when($type !== '', fn ($query) => $query->where('price_type', $type))
             ->when($search !== '', fn ($query) => $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
                     ->orWhereHas('product', fn ($p) => $p
@@ -38,7 +41,7 @@ class PriceController extends Controller
         // Dipakai dropdown Product di modal tambah/edit.
         $products = Product::orderBy('name')->get(['id', 'name', 'sku']);
 
-        return view('admin.master.prices.index', compact('items', 'search', 'products'));
+        return view('admin.master.prices.index', compact('items', 'search', 'products', 'type'));
     }
 
     public function store(PriceRequest $request)

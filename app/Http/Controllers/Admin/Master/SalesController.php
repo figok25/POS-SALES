@@ -77,6 +77,7 @@ class SalesController extends Controller
         $rows = $items->map(fn ($s) => [
             $s->code,
             $s->name,
+            $s->typeLabel(),
             $s->phone,
             $s->branch->name ?? '-',
             $s->user->email ?? '(belum ada akun login)',
@@ -86,9 +87,9 @@ class SalesController extends Controller
         return ExcelTableExport::download(
             title: 'Laporan Data Sales',
             subtitle: ($search !== '' ? "Filter pencarian: \"{$search}\" | " : '').'Diunduh: '.now()->format('d M Y H:i').' | Total: '.$items->count().' sales',
-            columns: ['Kode', 'Nama', 'Telepon', 'Branch', 'Email Login', 'Status'],
+            columns: ['Kode', 'Nama', 'Jenis', 'Telepon', 'Branch', 'Email Login', 'Status'],
             rows: $rows,
-            textColumns: [0, 2], // Kode, Telepon - jaga angka 0 di depan
+            textColumns: [0, 3], // Kode, Telepon - jaga angka 0 di depan
             filenameBase: 'laporan-sales',
         );
     }

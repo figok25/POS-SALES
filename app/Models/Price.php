@@ -10,7 +10,27 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class Price extends Model
 {
-    protected $fillable = ['product_id', 'name', 'amount', 'is_active'];
+    public const TYPE_RETAIL = 'retail';
+    public const TYPE_WHOLESALE = 'wholesale';
+
+    protected $fillable = ['product_id', 'name', 'price_type', 'amount', 'is_active'];
+
+    /**
+     * Daftar kategori harga: [nilai => label]. Dipakai juga oleh jenis
+     * Sales (Sales::type), karena kategori harga = jenis Sales.
+     */
+    public static function types(): array
+    {
+        return [
+            self::TYPE_RETAIL => 'Retail',
+            self::TYPE_WHOLESALE => 'WS / Grosir',
+        ];
+    }
+
+    public static function typeLabel(?string $type): string
+    {
+        return static::types()[$type] ?? '-';
+    }
 
     protected function casts(): array
     {

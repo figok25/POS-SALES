@@ -54,13 +54,17 @@ class MasterDataSeeder extends Seeder
         // Fase 6 - Harga aktif diperlukan agar Sales Transaction Service
         // bisa memvalidasi harga (Blueprint #22 - Validate Price).
         Price::firstOrCreate(
-            ['product_id' => $product->id, 'name' => 'Harga Umum'],
+            ['product_id' => $product->id, 'price_type' => Price::TYPE_RETAIL, 'name' => 'Harga Retail'],
             ['amount' => 15000, 'is_active' => true]
+        );
+        Price::firstOrCreate(
+            ['product_id' => $product->id, 'price_type' => Price::TYPE_WHOLESALE, 'name' => 'Harga WS / Grosir'],
+            ['amount' => 13000, 'is_active' => true]
         );
 
         $sales = Sales::firstOrCreate(
             ['code' => 'SLS-0001'],
-            ['branch_id' => $branch->id, 'name' => 'Sales Demo']
+            ['branch_id' => $branch->id, 'name' => 'Sales Demo', 'type' => Price::TYPE_RETAIL]
         );
 
         // Fase 6 - Customer contoh yang sudah ditugaskan ke Sales Demo,

@@ -8,6 +8,7 @@ use App\Models\Customer;
 use App\Models\DeliveryOrder;
 use App\Models\Price;
 use App\Models\Product;
+use App\Models\Sales;
 use App\Models\SalesTransaction;
 use App\Models\Stock;
 use App\Support\DocumentCode;
@@ -55,6 +56,11 @@ class SalesTransactionService
             ]);
         }
 
+        // Kategori harga mengikuti jenis Sales (Retail / WS-Grosir).
+        $sales = Sales::findOrFail($salesId);
+        $priceType = $sales->priceType();
+        $priceTypeLabel = Price::typeLabel($priceType);
+
         // Validasi Product & Price per baris (Blueprint #22 - Validate
         // Product, Validate Price) dilakukan sebelum masuk DB transaction
         // supaya pesan error jelas per baris.
@@ -68,11 +74,15 @@ class SalesTransactionService
                 ]);
             }
 
-            $price = Price::where('product_id', $product->id)->where('is_active', true)->first();
+            $price = Price::where('product_id', $product->id)
+                ->where('price_type', $priceType)
+                ->where('is_active', true)
+                ->latest('id')
+                ->first();
 
             if (! $price) {
                 throw ValidationException::withMessages([
-                    'items' => "Harga aktif untuk produk {$product->name} belum diatur. Hubungi Admin.",
+                    'items' => "Harga {$priceTypeLabel} aktif untuk produk {$product->name} belum diatur. Hubungi Admin.",
                 ]);
             }
 
@@ -93,7 +103,7 @@ class SalesTransactionService
         }
 
         try {
-            return DB::transaction(function () use ($salesId, $createdByUserId, $customer, $lines, $data) {
+            return DB::transaction(function () use ($salesId, $createdByUserId, $customer, $lines, $data, $priceType) {
                 $subtotal = round(array_sum(array_column($lines, 'subtotal')), 2);
 
                 $trx = SalesTransaction::create([
@@ -105,6 +115,7 @@ class SalesTransactionService
                     'tax' => 0,
                     'total' => $subtotal,
                     'status' => SalesTransaction::STATUS_COMPLETED,
+                    'price_type' => $priceType,
                     'notes' => $data['notes'] ?? null,
                     'created_by' => $createdByUserId,
                 ]);

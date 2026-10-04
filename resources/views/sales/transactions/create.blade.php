@@ -27,6 +27,11 @@
         @endif
         <form method="POST" action="{{ route('sales.transactions.store') }}" x-data="salesTransactionForm()" class="bg-white rounded-lg shadow p-4 space-y-3">
             @csrf
+            <div class="flex items-center justify-between text-xs bg-indigo-50 text-indigo-700 rounded px-3 py-2">
+                <span>Kategori harga</span>
+                <span class="font-semibold">{{ $sales->typeLabel() }}</span>
+            </div>
+
             <div>
                 <label class="block text-sm text-gray-600 mb-1">Customer</label>
                 <x-searchable-select
@@ -56,7 +61,8 @@
                         </div>
                         <div class="flex gap-2 mt-2 items-center">
                             <input type="number" step="0.01" min="0.01" :name="'items[' + index + '][quantity]'" x-model.number="row.quantity" placeholder="Qty" required class="w-24 border rounded px-2 py-1.5 text-sm">
-                            <span class="text-xs text-gray-500" x-text="'Harga: Rp ' + formatRupiah(priceOf(row.product_id))"></span>
+                            <span class="text-xs" :class="row.product_id && !priceOf(row.product_id) ? 'text-red-600' : 'text-gray-500'"
+                                  x-text="row.product_id && !priceOf(row.product_id) ? 'Harga {{ $sales->typeLabel() }} belum diatur' : 'Harga: Rp ' + formatRupiah(priceOf(row.product_id))"></span>
                             <span class="text-xs text-gray-700 ml-auto font-medium" x-text="'Subtotal: Rp ' + formatRupiah(priceOf(row.product_id) * (row.quantity || 0))"></span>
                         </div>
                     </div>

@@ -38,6 +38,7 @@
                 </div>
                 <dl class="frm-detail">
                     <div><dt>Tanggal</dt><dd>{{ $transaction->created_at->format('d M Y H:i') }}</dd></div>
+                    <div><dt>Kategori Harga</dt><dd>{{ $transaction->priceTypeLabel() }}</dd></div>
                     <div><dt>Sales</dt><dd>{{ $transaction->sales->name ?? '-' }}</dd></div>
                     <div><dt>Customer</dt><dd>{{ $transaction->customer->name ?? '-' }}</dd></div>
                     @if ($transaction->invoice)

@@ -5,7 +5,8 @@
         ? route('admin.master.prices.update', $editId)
         : route('admin.master.prices.store');
 
-    $hasSearch = filled($search);
+    $hasSearch = filled($search) || filled($type);
+    $priceTypes = \App\Models\Price::types();
     $total = method_exists($items, 'total') ? $items->total() : $items->count();
 @endphp
 
@@ -49,6 +50,12 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
                     <input type="search" name="q" value="{{ $search }}" placeholder="Cari product atau nama harga..." autocomplete="off" aria-label="Cari price">
                 </div>
+                <select name="type" class="frm-input is-select" aria-label="Filter kategori harga" onchange="this.form.submit()" style="max-width:11rem">
+                    <option value="">Semua kategori</option>
+                    @foreach ($priceTypes as $val => $label)
+                        <option value="{{ $val }}" @selected($type === $val)>{{ $label }}</option>
+                    @endforeach
+                </select>
                 <div class="frm-toolbar-actions">
                     <button type="submit" class="adm-btn adm-btn-ghost adm-btn-sm">Cari</button>
                     @if ($hasSearch)
@@ -57,7 +64,7 @@
                 </div>
                 <span class="frm-count">
                     @if ($hasSearch)
-                        {{ $total }} hasil untuk “{{ $search }}”
+                        {{ $total }} hasil
                     @else
                         {{ $total }} price
                     @endif
@@ -88,6 +95,7 @@
                             <tr>
                                 <th>Product</th>
                                 <th>Nama Harga</th>
+                                <th>Kategori</th>
                                 <th>Jumlah</th>
                                 <th>Status</th>
                                 <th class="is-end">Aksi</th>
@@ -104,6 +112,9 @@
                                         @endif
                                     </td>
                                     <td>{{ $item->name }}</td>
+                                    <td>
+                                        <span class="frm-status {{ $item->price_type === 'wholesale' ? 'is-warn' : 'is-on' }}">{{ \App\Models\Price::typeLabel($item->price_type) }}</span>
+                                    </td>
                                     <td><span class="frm-name">Rp {{ number_format($item->amount, 0, ',', '.') }}</span></td>
                                     <td class="frm-cell-status">
                                         @if ($item->is_active)
@@ -121,6 +132,7 @@
                                                     data-id="{{ $item->getRouteKey() }}"
                                                     data-product-id="{{ $item->product_id }}"
                                                     data-name="{{ $item->name }}"
+                                                    data-price-type="{{ $item->price_type }}"
                                                     data-amount="{{ $item->amount }}"
                                                     data-active="{{ $item->is_active ? 1 : 0 }}">
                                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
@@ -179,6 +191,18 @@
                             @endforeach
                         </select>
                         @error('product_id') <p class="frm-error">{{ $message }}</p> @enderror
+                    </div>
+
+                    <div class="frm-field is-full">
+                        <label class="frm-label" for="prcType">Kategori Harga <span class="frm-req">*</span></label>
+                        <select id="prcType" name="price_type" required
+                            class="frm-input is-select @error('price_type') is-invalid @enderror" @error('price_type') aria-invalid="true" @enderror>
+                            @foreach ($priceTypes as $val => $label)
+                                <option value="{{ $val }}" @selected(old('price_type', 'retail') === $val)>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                        @error('price_type') <p class="frm-error">{{ $message }}</p> @enderror
+                        <p class="frm-hint">Retail dipakai Sales jenis Retail, WS / Grosir dipakai Sales jenis WS. Satu produk punya satu harga aktif per kategori.</p>
                     </div>
 
                     <div class="frm-field">
@@ -244,6 +268,7 @@
             var fields = [
                 { el: 'product_id', key: 'productId' },
                 { el: 'name', key: 'name' },
+                { el: 'price_type', key: 'priceType', fallback: 'retail' },
                 { el: 'amount', key: 'amount' }
             ];
 
@@ -256,7 +281,7 @@
             }
 
             function fill(data) {
-                fields.forEach(function (f) { form.elements[f.el].value = data[f.key] || ''; });
+                fields.forEach(function (f) { form.elements[f.el].value = data[f.key] || f.fallback || ''; });
                 form.elements['is_active'].checked = data.active === undefined ? true : data.active === '1';
             }
 

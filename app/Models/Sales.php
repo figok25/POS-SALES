@@ -17,7 +17,21 @@ class Sales extends Model
 {
     protected $table = 'sales';
 
-    protected $fillable = ['branch_id', 'user_id', 'code', 'name', 'phone', 'is_active'];
+    protected $fillable = ['branch_id', 'user_id', 'code', 'name', 'type', 'phone', 'is_active'];
+
+    /**
+     * Jenis Sales menentukan kategori harga yang dipakai saat transaksi:
+     * 'retail' -> harga Retail, 'wholesale' -> harga WS/Grosir.
+     */
+    public function priceType(): string
+    {
+        return $this->type === Price::TYPE_WHOLESALE ? Price::TYPE_WHOLESALE : Price::TYPE_RETAIL;
+    }
+
+    public function typeLabel(): string
+    {
+        return Price::typeLabel($this->priceType());
+    }
 
     protected function casts(): array
     {

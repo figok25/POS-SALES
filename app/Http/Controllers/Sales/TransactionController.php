@@ -65,9 +65,15 @@ class TransactionController extends Controller
             ->get()
             ->filter(fn ($stock) => $stock->product !== null);
 
-        $prices = Price::where('is_active', true)->pluck('amount', 'product_id');
+        // Harga mengikuti jenis Sales (Retail / WS-Grosir). Kalau ada lebih
+        // dari satu harga aktif untuk produk yang sama, yang terbaru dipakai
+        // (sama dengan SalesTransactionService).
+        $prices = Price::where('is_active', true)
+            ->where('price_type', $sales->priceType())
+            ->orderBy('id')
+            ->pluck('amount', 'product_id');
 
-        return view('sales.transactions.create', compact('customers', 'usingFallback', 'myStock', 'prices'));
+        return view('sales.transactions.create', compact('customers', 'usingFallback', 'myStock', 'prices', 'sales'));
     }
 
     public function store(SalesTransactionRequest $request)

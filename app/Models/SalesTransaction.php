@@ -18,7 +18,7 @@ class SalesTransaction extends Model
     protected $fillable = [
         'code', 'sales_id', 'customer_id',
         'subtotal', 'discount', 'tax', 'total',
-        'status', 'notes', 'created_by',
+        'status', 'price_type', 'notes', 'created_by',
     ];
 
     protected function casts(): array
@@ -29,6 +29,11 @@ class SalesTransaction extends Model
             'tax' => 'decimal:2',
             'total' => 'decimal:2',
         ];
+    }
+
+    public function priceTypeLabel(): string
+    {
+        return Price::typeLabel($this->price_type);
     }
 
     public function sales(): BelongsTo
