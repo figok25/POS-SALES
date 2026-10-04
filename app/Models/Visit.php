@@ -20,6 +20,19 @@ class Visit extends Model
     public const STATUS_ONGOING = 'ongoing';
     public const STATUS_COMPLETED = 'completed';
 
+    /**
+     * Klasifikasi cakupan kunjungan (per Sales + Toko + Hari):
+     *  - Call Meet (CM): toko dikunjungi (check-in), TIDAK ada transaksi.
+     *  - Effective Call (EC): toko dikunjungi DAN ada transaksi selesai.
+     */
+    public const COVERAGE_CALL_MEET = 'cm';
+    public const COVERAGE_EC = 'ec';
+
+    public static function coverageLabel(string $coverage): string
+    {
+        return $coverage === self::COVERAGE_EC ? 'EC (Kunjungan + Transaksi)' : 'Call Meet (Kunjungan)';
+    }
+
     protected $fillable = [
         'sales_id',
         'customer_id',

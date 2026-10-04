@@ -12,6 +12,7 @@ use App\Models\Sales;
 use App\Models\SalesTransaction;
 use App\Models\Settlement;
 use App\Models\SettlementItem;
+use App\Models\Visit;
 use App\Support\BranchContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -107,7 +108,35 @@ class DashboardController extends Controller
             fn ($q, $branchId) => $q->whereHas('sales', fn ($qq) => $qq->where('branch_id', $branchId))
         );
 
+        // Cakupan kunjungan (Call Meet vs EC). Satuan = "call" = kombinasi
+        // Sales + Toko + Hari, jadi toko yang sama dikunjungi di 2 hari
+        // berbeda terhitung 2 call (toko unik ditampilkan terpisah).
+        //   Toko Dikunjungi = Call Meet + EC
+        //   Call Meet       = dikunjungi, tanpa transaksi selesai di hari itu
+        //   EC              = dikunjungi + ada transaksi selesai di hari itu
+        $visitCalls = $branchContext->applyVia(
+            Visit::whereBetween('check_in_at', [$dateFrom, $dateTo])
+                ->when($salesId, fn ($q) => $q->where('sales_id', $salesId)),
+            fn ($q, $branchId) => $q->whereHas('sales', fn ($qq) => $qq->where('branch_id', $branchId))
+        )->select('sales_id', 'customer_id')->selectRaw('DATE(check_in_at) as call_day')->distinct()->get();
+
+        $transactionCalls = $branchContext->applyVia(
+            SalesTransaction::where('status', SalesTransaction::STATUS_COMPLETED)
+                ->whereBetween('created_at', [$dateFrom, $dateTo])
+                ->when($salesId, fn ($q) => $q->where('sales_id', $salesId)),
+            fn ($q, $branchId) => $q->whereHas('sales', fn ($qq) => $qq->where('branch_id', $branchId))
+        )->select('sales_id', 'customer_id')->selectRaw('DATE(created_at) as call_day')->distinct()->get();
+
+        $callKey = fn ($row) => $row->sales_id.'|'.$row->customer_id.'|'.$row->call_day;
+        $visitKeys = $visitCalls->map($callKey)->unique()->values();
+        $transactionKeys = $transactionCalls->map($callKey)->unique()->values();
+        $ecCount = $visitKeys->intersect($transactionKeys)->count();
+
         $kpi = [
+            'visit_total' => $visitKeys->count(),
+            'visit_stores' => $visitCalls->pluck('customer_id')->unique()->count(),
+            'call_meet' => $visitKeys->count() - $ecCount,
+            'effective_call' => $ecCount,
             'total_products' => Product::count(),
             'total_customers' => $branchContext->applyTo(
                 Customer::when($salesId, fn ($q) => $q->where('sales_id', $salesId))

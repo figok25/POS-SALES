@@ -11,6 +11,7 @@ use App\Models\SalesTask;
 use App\Models\Stock;
 use App\Services\AuditLogger;
 use App\Services\StockService;
+use App\Services\TrackingSessionService;
 use App\Support\DocumentCode;
 use Illuminate\Support\Facades\DB;
 
@@ -32,7 +33,7 @@ class ReturnStockController extends Controller
 {
     use ResolvesCurrentSales;
 
-    public function __construct(protected StockService $stockService)
+    public function __construct(protected StockService $stockService, protected TrackingSessionService $trackingService)
     {
     }
 
@@ -125,13 +126,16 @@ class ReturnStockController extends Controller
                 $task->update(['status' => SalesTask::STATUS_COMPLETED, 'completed_at' => now()]);
             }
 
+            // Return Stock = pekerjaan selesai -> Tracking otomatis mati.
+            $this->trackingService->stopForSales($sales->id);
+
             return $btb;
         });
 
         AuditLogger::log('return_stock_submit', 'Sales', BtbDistribusi::class, $btb->id, null, $btb->load('items')->toArray());
 
         return redirect()->route('sales.return-stock.index')
-            ->with('status', "Return Stock berhasil disubmit sebagai {$btb->code}. Task Anda ditandai selesai, menunggu pemeriksaan Admin.");
+            ->with('status', "Return Stock berhasil disubmit sebagai {$btb->code}. Task Anda ditandai selesai dan Tracking otomatis dihentikan, menunggu pemeriksaan Admin.");
     }
 
     /**
@@ -169,10 +173,13 @@ class ReturnStockController extends Controller
             $task->update(['status' => SalesTask::STATUS_COMPLETED, 'completed_at' => now()]);
         }
 
+        // Task selesai -> Tracking otomatis mati (sama seperti Return Stock).
+        $this->trackingService->stopForSales($sales->id);
+
         AuditLogger::log('return_stock_complete_empty', 'Sales', SalesTask::class, $task->id, null, ['reason' => 'sales_stock_zero']);
 
         return redirect()->route('sales.return-stock.index')
-            ->with('status', 'Task Anda ditandai selesai. Sales Stock Anda memang sudah habis, tidak ada yang perlu diretur.');
+            ->with('status', 'Task Anda ditandai selesai dan Tracking otomatis dihentikan. Sales Stock Anda memang sudah habis, tidak ada yang perlu diretur.');
     }
 
     /**

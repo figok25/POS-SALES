@@ -13,6 +13,7 @@ use App\Models\SalesVisitPlan;
 use App\Models\Stock;
 use App\Services\AuditLogger;
 use App\Services\StockService;
+use App\Services\TrackingSessionService;
 use App\Support\BranchContext;
 use App\Support\DocumentCode;
 use Illuminate\Http\Request;
@@ -37,7 +38,7 @@ use Illuminate\Support\Facades\DB;
  */
 class SalesTaskController extends Controller
 {
-    public function __construct(protected StockService $stockService)
+    public function __construct(protected StockService $stockService, protected TrackingSessionService $trackingService)
     {
     }
 
@@ -262,15 +263,24 @@ class SalesTaskController extends Controller
         }
 
         $before = $salesTask->toArray();
-        $salesTask->update([
-            'status' => SalesTask::STATUS_DOCUMENT_AVAILABLE,
-            'applied_by' => auth()->id(),
-            'applied_at' => now(),
-        ]);
+
+        // Apply/Release sekaligus menyalakan Tracking Sales secara otomatis
+        // (Sales tidak perlu menekan Start Tracking). Tracking berhenti
+        // otomatis saat Sales melakukan Return Stock.
+        $session = DB::transaction(function () use ($salesTask) {
+            $salesTask->update([
+                'status' => SalesTask::STATUS_DOCUMENT_AVAILABLE,
+                'applied_by' => auth()->id(),
+                'applied_at' => now(),
+            ]);
+
+            return $this->trackingService->startForTask($salesTask);
+        });
 
         AuditLogger::log('apply', 'Operations', SalesTask::class, $salesTask->id, $before, $salesTask->toArray());
+        AuditLogger::log('tracking_auto_start', 'Operations', SalesTask::class, $salesTask->id, null, ['tracking_session_id' => $session->id]);
 
-        return back()->with('status', 'Task berhasil di-Apply/Release. Dokumen & stock kini dapat diakses Sales.');
+        return back()->with('status', 'Task berhasil di-Apply/Release. Dokumen & stock kini dapat diakses Sales, dan Tracking Sales otomatis aktif.');
     }
 
     public function cancel(SalesTask $salesTask)
@@ -364,7 +374,9 @@ class SalesTaskController extends Controller
         }
         $bkb = $salesTask->bkbDistribusi;
 
-        DB::transaction(function () use ($salesTask, $bkb, $newSales) {
+        $oldSalesId = (int) $salesTask->sales_id;
+
+        DB::transaction(function () use ($salesTask, $bkb, $newSales, $oldSalesId) {
             foreach ($bkb->items as $line) {
                 $this->stockService->transfer(
                     $line->product_id,
@@ -382,6 +394,13 @@ class SalesTaskController extends Controller
 
             $bkb->update(['sales_id' => $newSales->id]);
             $salesTask->update(['sales_id' => $newSales->id]);
+
+            // Task yang sudah di-Apply sudah punya sesi tracking aktif atas
+            // nama Sales lama: matikan, lalu nyalakan untuk Sales pengganti.
+            if ($salesTask->status === SalesTask::STATUS_DOCUMENT_AVAILABLE) {
+                $this->trackingService->stopForSales($oldSalesId);
+                $this->trackingService->startForTask($salesTask->fresh());
+            }
 
             AuditLogger::log(
                 'reassign_sales',

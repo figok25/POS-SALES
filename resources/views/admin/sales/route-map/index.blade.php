@@ -56,7 +56,9 @@
         @else
             @php
                 $total        = $customers->count();
-                $visitedCount = $customers->filter(fn ($c) => $visitedCustomerIds->contains($c->id))->count();
+                $ecCount      = $customers->filter(fn ($c) => ($visitStatus[$c->id] ?? null) === \App\Models\Visit::COVERAGE_EC)->count();
+                $cmCount      = $customers->filter(fn ($c) => ($visitStatus[$c->id] ?? null) === \App\Models\Visit::COVERAGE_CALL_MEET)->count();
+                $visitedCount = $ecCount + $cmCount;
                 $pendingCount = $total - $visitedCount;
                 $percent      = $total > 0 ? round($visitedCount / $total * 100) : 0;
                 $orderById    = $customers->pluck('id')->values()->flip();
@@ -93,7 +95,8 @@
 
                     @if ($customers->isNotEmpty())
                         <div class="frm-legend">
-                            <span><i class="frm-dot is-visited"></i> Sudah dikunjungi ({{ $visitedCount }})</span>
+                            <span><i class="frm-dot is-visited"></i> Call Meet &ndash; kunjungan ({{ $cmCount }})</span>
+                            <span><i class="frm-dot is-ec"></i> EC &ndash; kunjungan + transaksi ({{ $ecCount }})</span>
                             <span><i class="frm-dot"></i> Belum dikunjungi ({{ $pendingCount }})</span>
                             <span class="frm-legend-total">{{ $percent }}% selesai</span>
                         </div>
@@ -125,12 +128,18 @@
                 @else
                     <ul class="row-list">
                         @foreach ($customers as $index => $customer)
-                            @php $isVisited = $visitedCustomerIds->contains($customer->id); @endphp
+                            @php
+                                $coverage  = $visitStatus[$customer->id] ?? null;
+                                $isVisited = $coverage !== null;
+                                $isEc      = $coverage === \App\Models\Visit::COVERAGE_EC;
+                            @endphp
                             <li class="row-item is-stop">
                                 <div class="frm-stop">
-                                    <span @class(['frm-stop-no', 'is-visited' => $isVisited])>
-                                        @if ($isVisited)
-                                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-label="Sudah dikunjungi"><path d="M20 6 9 17l-5-5"/></svg>
+                                    <span @class(['frm-stop-no', 'is-visited' => $isVisited && ! $isEc, 'is-ec' => $isEc])>
+                                        @if ($isEc)
+                                            <span aria-label="EC (kunjungan + transaksi)">★</span>
+                                        @elseif ($isVisited)
+                                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-label="Call Meet (kunjungan)"><path d="M20 6 9 17l-5-5"/></svg>
                                         @else
                                             {{ $index + 1 }}
                                         @endif
@@ -141,7 +150,7 @@
                                     </div>
                                 </div>
                                 <div class="row-side">
-                                    <span @class(['frm-status', 'is-on' => $isVisited, 'is-off' => ! $isVisited])>{{ $isVisited ? 'Sudah Dikunjungi' : 'Belum Dikunjungi' }}</span>
+                                    <span @class(['frm-status', 'is-on' => $isVisited && ! $isEc, 'is-warn' => $isEc, 'is-off' => ! $isVisited])>{{ $isEc ? 'EC' : ($isVisited ? 'Call Meet' : 'Belum Dikunjungi') }}</span>
                                     <span @class(['frm-loc', 'is-set' => $customer->hasLocation()])>
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
                                         {{ $customer->hasLocation() ? 'Ada Lokasi' : 'Belum Ada Lokasi' }}
@@ -163,7 +172,7 @@
                 'order'   => ($orderById[$c->id] ?? 0) + 1,
                 'lat'     => (float) $c->latitude,
                 'lng'     => (float) $c->longitude,
-                'visited' => $visitedCustomerIds->contains($c->id),
+                'coverage' => $visitStatus[$c->id] ?? null, // null | 'cm' | 'ec'
             ])->values();
         @endphp
         @push('styles')
@@ -186,11 +195,12 @@
                 const bounds = new maplibregl.LngLatBounds();
 
                 customerMarkers.forEach((c) => {
-                    // Penanda: hijau + centang = sudah dikunjungi, abu-abu bernomor = belum.
+                    // Penanda: abu-abu bernomor = belum dikunjungi, hijau + centang =
+                    // Call Meet (kunjungan), oranye + bintang = EC (kunjungan + transaksi).
                     // Nomor mengikuti urutan di Daftar Toko. Gaya ada di .frm-marker (form.css).
                     const el = document.createElement('div');
-                    el.className = 'frm-marker' + (c.visited ? ' is-visited' : '');
-                    el.textContent = c.visited ? '✓' : c.order;
+                    el.className = 'frm-marker' + (c.coverage === 'ec' ? ' is-ec' : (c.coverage === 'cm' ? ' is-visited' : ''));
+                    el.textContent = c.coverage === 'ec' ? '★' : (c.coverage === 'cm' ? '✓' : c.order);
 
                     // Popup dibuat lewat DOM + textContent (bukan HTML string) agar nama toko aman.
                     const content = document.createElement('div');
@@ -198,8 +208,9 @@
                     title.className = 'frm-popup-title';
                     title.textContent = c.order + '. ' + c.name;
                     const sub = document.createElement('div');
-                    sub.className = 'frm-popup-sub' + (c.visited ? ' is-visited' : '');
-                    sub.textContent = c.visited ? '✓ Sudah dikunjungi' : 'Belum dikunjungi';
+                    sub.className = 'frm-popup-sub' + (c.coverage === 'ec' ? ' is-ec' : (c.coverage === 'cm' ? ' is-visited' : ''));
+                    sub.textContent = c.coverage === 'ec' ? '★ EC (kunjungan + transaksi)'
+                        : (c.coverage === 'cm' ? '✓ Call Meet (kunjungan)' : 'Belum dikunjungi');
                     content.append(title, sub);
 
                     new maplibregl.Marker({ element: el })

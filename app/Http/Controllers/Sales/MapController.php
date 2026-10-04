@@ -46,7 +46,8 @@ class MapController extends Controller
         $weekDays = $this->routeMapService->weekDayOptions($selectedDay);
 
         $selectedDate = collect($weekDays)->firstWhere('isSelected', true)['date'];
-        $visitedCustomerIds = $this->routeMapService->visitedCustomerIds($sales->id, $selectedDate);
+        $visitStatus = $this->routeMapService->visitStatusByCustomer($sales->id, $selectedDate);
+        $visitedCustomerIds = $visitStatus->keys();
 
         return view('sales.map.index', [
             'customers' => $customers,
@@ -56,6 +57,7 @@ class MapController extends Controller
             'selectedDay' => $selectedDay,
             'usingFallback' => $usingFallback,
             'visitedCustomerIds' => $visitedCustomerIds,
+            'visitStatus' => $visitStatus,
         ]);
     }
 

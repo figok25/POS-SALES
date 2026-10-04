@@ -93,6 +93,9 @@
 
 @stack('scripts')
 
+{{-- Tracking otomatis: start saat Admin Apply/Release, stop saat Return Stock --}}
+@include('sales._tracking-autostart')
+
 {{--
     PERBAIKAN AUDIT #2/#7 (P0): kirim Sanctum token ke Android SETIAP kali
     WebView memuat halaman Sales, supaya Retrofit native (background

@@ -18,11 +18,21 @@
             'alert'     => '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
             'clipboard' => '<path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>',
             'send'      => '<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>',
+            'pin'       => '<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>',
+            'star'      => '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
             'file'      => '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>',
         ];
 
         // Kartu "Aktivitas Periode" -- mengikuti filter tanggal & sales.
+        $ecPercent = $kpi['visit_total'] > 0 ? round($kpi['effective_call'] / $kpi['visit_total'] * 100) : 0;
+
         $periodCards = [
+            ['label' => 'Toko Dikunjungi', 'value' => number_format($kpi['visit_total']), 'tone' => 'teal', 'icon' => 'pin', 'href' => null,
+                'hint' => number_format($kpi['visit_stores']).' toko unik'],
+            ['label' => 'Call Meet (Kunjungan)', 'value' => number_format($kpi['call_meet']), 'tone' => 'blue', 'icon' => 'pin', 'href' => null,
+                'hint' => 'Dikunjungi, belum transaksi'],
+            ['label' => 'EC (Kunjungan + Transaksi)', 'value' => number_format($kpi['effective_call']), 'tone' => 'green', 'icon' => 'star', 'href' => null,
+                'hint' => $ecPercent.'% dari kunjungan'],
             ['label' => 'Transaksi', 'value' => number_format($kpi['sales_count']), 'tone' => 'blue', 'icon' => 'cart', 'href' => null],
             ['label' => 'Penjualan', 'value' => $fmtRp($kpi['sales_total']), 'tone' => 'green', 'icon' => 'trend', 'href' => null],
             ['label' => 'Delivered', 'value' => number_format($kpi['do_delivered']), 'tone' => 'teal', 'icon' => 'truck',

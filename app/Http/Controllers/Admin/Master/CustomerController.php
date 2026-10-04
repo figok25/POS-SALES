@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin\Master;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\Master\CustomerRequest;
+use App\Models\Branch;
 use App\Models\Customer;
 use App\Models\Sales;
 use App\Services\AuditLogger;
@@ -15,6 +16,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Phase 2 - Master Data: Customer (Blueprint #32, #42 Definition of Done).
@@ -50,9 +52,13 @@ class CustomerController extends Controller
         // Dipakai dropdown Sales di modal tambah/edit - Admin hanya boleh
         // menugaskan Customer ke Sales di Branch-nya sendiri (lihat juga
         // CustomerRequest::withValidator untuk validasi server-side-nya).
-        $saless = BranchContext::current()->applyTo(Sales::query())->orderBy('name')->get(['id', 'name']);
+        $saless = BranchContext::current()->applyTo(Sales::query())->orderBy('name')->get(['id', 'name', 'branch_id']);
 
-        return view('admin.master.customers.index', compact('items', 'search', 'saless'));
+        // Dropdown Branch di modal: hanya dirender untuk Super Admin dalam
+        // mode "Semua Depo". Admin biasa selalu terkunci ke Branch akunnya.
+        $branchs = BranchContext::current()->applyTo(Branch::where('is_active', true), 'id')->orderBy('name')->get(['id', 'name']);
+
+        return view('admin.master.customers.index', compact('items', 'search', 'saless', 'branchs'));
     }
 
     /**
@@ -121,16 +127,7 @@ class CustomerController extends Controller
         $salesId = $data['sales_id'] ?? null;
         unset($data['sales_id']);
 
-        // Anti-IDOR (Multi Branch/Depo): branch_id TIDAK PERNAH dipercaya
-        // mentah dari form untuk Admin biasa - dipaksa ke Branch miliknya
-        // sendiri. Super Admin bebas, tapi tetap wajib pilih satu Branch
-        // eksplisit (Customer tidak boleh branch_id NULL yang baru dibuat).
-        $branchContext = BranchContext::current();
-        if (! $branchContext->isAll()) {
-            $data['branch_id'] = $branchContext->branchId();
-        } elseif (empty($data['branch_id'])) {
-            throw \Illuminate\Validation\ValidationException::withMessages(['branch_id' => 'Branch wajib dipilih.']);
-        }
+        $data['branch_id'] = $this->resolveBranchIdForStore($data['branch_id'] ?? null, $salesId ? (int) $salesId : null);
 
         $item = DB::transaction(function () use ($data, $salesId) {
             $item = Customer::create($data);
@@ -167,9 +164,15 @@ class CustomerController extends Controller
         unset($data['sales_id']);
 
         // Admin biasa tidak boleh MEMINDAHKAN Customer ke Branch lain lewat
-        // payload - branch_id dipaksa tetap ke Branch Admin tsb.
+        // payload - branch_id dipaksa tetap ke Branch Admin tsb. Super Admin
+        // boleh mengubah Branch lewat dropdown; kalau dikosongkan, Branch
+        // lama dipertahankan (JANGAN ditimpa NULL).
         if (! $branchContext->isAll()) {
             $data['branch_id'] = $branchContext->branchId();
+        } elseif (empty($data['branch_id'])) {
+            unset($data['branch_id']);
+        } elseif ($newSalesId) {
+            $this->assertSalesMatchesBranch((int) $newSalesId, (int) $data['branch_id']);
         }
 
         DB::transaction(function () use ($item, $data, $newSalesId) {
@@ -214,6 +217,62 @@ class CustomerController extends Controller
         AuditLogger::log('delete', 'Master Data', Customer::class, $item->id, $before, null);
 
         return redirect()->route('admin.master.customers.index')->with('status', 'Customer berhasil dihapus.');
+    }
+
+    /**
+     * Tentukan branch_id untuk Customer BARU (Anti-IDOR Multi Branch/Depo:
+     * nilai dari form tidak pernah dipercaya untuk Admin biasa).
+     *
+     *  - Admin/Sales : selalu Branch akunnya. Kalau akun belum punya Branch,
+     *    tolak dengan pesan jelas -- sebelumnya Customer tersimpan dengan
+     *    branch_id NULL sehingga langsung hilang dari daftar (daftar
+     *    difilter per Branch) dan terlihat seperti "tidak tersimpan".
+     *  - Super Admin : Branch dari dropdown; kalau kosong, otomatis
+     *    mengikuti Branch Sales yang dipilih.
+     */
+    private function resolveBranchIdForStore(mixed $formBranchId, ?int $salesId): int
+    {
+        $context = BranchContext::current();
+
+        if (! $context->isAll()) {
+            if (! $context->branchId()) {
+                throw ValidationException::withMessages([
+                    'branch_id' => 'Akun Anda belum terhubung ke Branch/Depo, jadi customer belum bisa disimpan. Minta Super Admin mengisi Branch akun Anda di System > Users.',
+                ]);
+            }
+
+            return (int) $context->branchId();
+        }
+
+        $branchId = $formBranchId ? (int) $formBranchId : null;
+
+        if (! $branchId && $salesId) {
+            $branchId = Sales::find($salesId)?->branch_id;
+        }
+
+        if (! $branchId) {
+            throw ValidationException::withMessages(['branch_id' => 'Branch wajib dipilih.']);
+        }
+
+        if ($salesId) {
+            $this->assertSalesMatchesBranch($salesId, (int) $branchId);
+        }
+
+        return (int) $branchId;
+    }
+
+    /**
+     * Sales yang ditugaskan harus berada di Branch yang sama dengan Customer.
+     */
+    private function assertSalesMatchesBranch(int $salesId, int $branchId): void
+    {
+        $salesBranchId = Sales::find($salesId)?->branch_id;
+
+        if ($salesBranchId !== null && (int) $salesBranchId !== $branchId) {
+            throw ValidationException::withMessages([
+                'sales_id' => 'Sales yang dipilih berada di Branch yang berbeda dengan Branch customer.',
+            ]);
+        }
     }
 
     /**

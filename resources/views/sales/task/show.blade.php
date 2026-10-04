@@ -99,8 +99,8 @@
             </div>
 
             <div class="bg-green-50 border border-green-200 rounded-lg p-4 text-center" x-show="status === 'working'">
-                <p class="text-sm text-green-800 mb-2">Anda sedang bekerja. Jangan lupa aktifkan Tracking.</p>
-                <a href="{{ route('sales.tracking.show') }}" class="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">Buka Tracking</a>
+                <p class="text-sm text-green-800 mb-2">Anda sedang bekerja. Tracking berjalan otomatis dan berhenti sendiri setelah Return Stock.</p>
+                <a href="{{ route('sales.tracking.show') }}" class="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">Lihat Status Tracking</a>
             </div>
         </div>
     @endif
@@ -186,7 +186,9 @@
                     this.loading = false;
 
                     if (json.success) {
-                        window.location.href = '{{ route("sales.tracking.show") }}';
+                        // Tracking sudah menyala otomatis sejak Admin Apply/Release,
+                        // jadi cukup muat ulang halaman status tugas.
+                        window.location.reload();
                     } else {
                         this.errorMessage = json.message;
                     }

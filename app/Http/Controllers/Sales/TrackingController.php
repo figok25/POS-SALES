@@ -13,6 +13,7 @@ use App\Models\SalesLocationHistory;
 use App\Models\SalesTask;
 use App\Models\SalesTrackingSession;
 use App\Models\Visit;
+use App\Services\TrackingSessionService;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -28,6 +29,10 @@ class TrackingController extends Controller
 {
     use ResolvesCurrentSales;
 
+    public function __construct(protected TrackingSessionService $trackingService)
+    {
+    }
+
     public function status()
     {
         $sales = $this->currentSales();
@@ -36,6 +41,30 @@ class TrackingController extends Controller
             ->where('status', SalesTrackingSession::STATUS_ACTIVE)
             ->latest('id')
             ->first();
+
+        // Tracking otomatis (tanpa tombol Start): normalnya sesi sudah dibuat
+        // saat Admin Apply/Release. Kalau Sales punya Task HARI INI yang
+        // sudah di-Apply tapi belum selesai dan sesinya belum ada (mis. Task
+        // di-Apply sebelum fitur ini ada), sesi dibuat di sini. Task
+        // COMPLETED (setelah Return Stock) sengaja tidak termasuk, supaya
+        // tracking tidak menyala lagi sesudah selesai.
+        if (! $session) {
+            $task = SalesTask::where('sales_id', $sales->id)
+                ->whereDate('task_date', today())
+                ->whereIn('status', [
+                    SalesTask::STATUS_DOCUMENT_AVAILABLE,
+                    SalesTask::STATUS_STOCK_VERIFICATION,
+                    SalesTask::STATUS_STOCK_VARIANCE,
+                    SalesTask::STATUS_READY_TO_WORK,
+                    SalesTask::STATUS_WORKING,
+                ])
+                ->latest('id')
+                ->first();
+
+            if ($task) {
+                $session = $this->trackingService->startForTask($task);
+            }
+        }
 
         $current = SalesCurrentLocation::where('sales_id', $sales->id)->first();
 

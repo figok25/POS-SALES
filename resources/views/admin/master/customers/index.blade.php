@@ -120,6 +120,7 @@
                                             data-edit
                                             data-url="{{ route('admin.master.customers.update', $item) }}"
                                             data-id="{{ $item->getRouteKey() }}"
+                                            data-branch="{{ $item->branch_id }}"
                                             data-sales="{{ $item->sales_id }}"
                                             data-code="{{ $item->code }}"
                                             data-name="{{ $item->name }}"
@@ -187,13 +188,35 @@
             </div>
 
             <div class="frm-modal-body">
+                {{-- Error Branch untuk akun yang tidak melihat dropdown Branch
+                     (Admin biasa) -- supaya kegagalan simpan tidak diam-diam. --}}
+                @if (! \App\Support\BranchContext::current()->isAll())
+                    @error('branch_id')
+                        <div class="frm-alert is-error" role="alert"><span class="frm-alert-text">{{ $message }}</span></div>
+                    @enderror
+                @endif
+
                 <div class="frm-grid">
+                    @if (\App\Support\BranchContext::current()->isAll())
+                        <div class="frm-field is-full">
+                            <label class="frm-label" for="f-branch_id">Branch / Depo <span class="frm-req">*</span></label>
+                            <select id="f-branch_id" name="branch_id" class="frm-input is-select @error('branch_id') is-invalid @enderror" @error('branch_id') aria-invalid="true" @enderror>
+                                <option value="">Pilih branch</option>
+                                @foreach ($branchs as $opt)
+                                    <option value="{{ $opt->id }}" @selected((string) old('branch_id') === (string) $opt->id)>{{ $opt->name }}</option>
+                                @endforeach
+                            </select>
+                            @error('branch_id') <p class="frm-error">{{ $message }}</p> @enderror
+                            <p class="frm-hint">Kalau dikosongkan tapi Sales dipilih, Branch mengikuti Sales tersebut.</p>
+                        </div>
+                    @endif
+
                     <div class="frm-field is-full">
                         <label class="frm-label" for="f-sales_id">Sales</label>
                         <select id="f-sales_id" name="sales_id" class="frm-input is-select @error('sales_id') is-invalid @enderror" @error('sales_id') aria-invalid="true" @enderror>
                             <option value="">Pilih sales</option>
                             @foreach ($saless as $opt)
-                                <option value="{{ $opt->id }}" @selected((string) old('sales_id') === (string) $opt->id)>{{ $opt->name }}</option>
+                                <option value="{{ $opt->id }}" data-branch="{{ $opt->branch_id }}" @selected((string) old('sales_id') === (string) $opt->id)>{{ $opt->name }}</option>
                             @endforeach
                         </select>
                         @error('sales_id') <p class="frm-error">{{ $message }}</p> @enderror
@@ -335,6 +358,7 @@
             }
 
             function fill(v) {
+                if (field('branch_id')) field('branch_id').value = v.branch ?? '';
                 field('sales_id').value = v.sales ?? '';
                 field('code').value = v.code ?? '';
                 field('name').value = v.name ?? '';
@@ -396,6 +420,26 @@
                     if (downOnBackdrop && e.target === dlg) dlg.close();
                 });
             });
+
+            // Dropdown Sales hanya menampilkan Sales di Branch yang dipilih
+            // (Super Admin). Sales dari Branch lain disembunyikan.
+            const branchSel = field('branch_id');
+            const salesSel = field('sales_id');
+            function filterSalesByBranch() {
+                if (!branchSel) return;
+                const b = branchSel.value;
+                Array.from(salesSel.options).forEach((opt) => {
+                    if (!opt.value) return;
+                    const hide = b !== '' && opt.dataset.branch !== '' && opt.dataset.branch !== b;
+                    opt.hidden = hide;
+                    opt.disabled = hide;
+                });
+                if (salesSel.selectedOptions[0]?.disabled) salesSel.value = '';
+            }
+            if (branchSel) branchSel.addEventListener('change', filterSalesByBranch);
+            document.querySelectorAll('[data-open-create], [data-edit]').forEach((btn) =>
+                btn.addEventListener('click', () => setTimeout(filterSalesByBranch, 0)));
+            filterSalesByBranch();
 
             // Hilangkan tanda error begitu field diubah; perbarui link peta.
             form.addEventListener('input', (e) => {

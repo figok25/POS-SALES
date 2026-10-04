@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Customer;
+use App\Models\SalesTransaction;
 use App\Models\SalesVisitPlan;
 use App\Models\Visit;
 use Illuminate\Support\Carbon;
@@ -100,6 +101,35 @@ class SalesRouteMapService
             ->pluck('customer_id')
             ->unique()
             ->values();
+    }
+
+    /**
+     * Status cakupan per Customer pada 1 tanggal untuk 1 Sales:
+     * [customer_id => 'cm' | 'ec'] (lihat Visit::COVERAGE_*).
+     *
+     *  - Customer yang TIDAK ada di hasil = belum dikunjungi.
+     *  - 'cm' (Call Meet)      = ada check-in, belum ada transaksi selesai.
+     *  - 'ec' (Effective Call) = ada check-in DAN transaksi selesai pada
+     *    tanggal yang sama oleh Sales yang sama.
+     *
+     * Read-only; dipakai peta Sales & peta Admin.
+     */
+    public function visitStatusByCustomer(int $salesId, Carbon $date): Collection
+    {
+        $day = $date->toDateString();
+
+        $visited = $this->visitedCustomerIds($salesId, $date);
+
+        $transacted = SalesTransaction::where('sales_id', $salesId)
+            ->where('status', SalesTransaction::STATUS_COMPLETED)
+            ->whereDate('created_at', $day)
+            ->pluck('customer_id')
+            ->unique()
+            ->values();
+
+        return $visited->mapWithKeys(fn ($customerId) => [
+            $customerId => $transacted->contains($customerId) ? Visit::COVERAGE_EC : Visit::COVERAGE_CALL_MEET,
+        ]);
     }
 
     /**
