@@ -5,7 +5,6 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Sales\DashboardController as SalesDashboardController;
 use App\Http\Controllers\Sales\NativeTokenController;
 use Illuminate\Support\Facades\Route;
-use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
 
 // Halaman awal langsung ke login. Kalau user sudah login, middleware
 // 'guest' pada route login otomatis meneruskan ke /dashboard, lalu ke
@@ -120,20 +119,13 @@ Route::middleware(['auth', 'verified', 'role:sales'])
 
 /*
 |--------------------------------------------------------------------------
-| Sales API Routes - Live Sales Field Operations (Blueprint #38, Fase 2)
+| Sales API Routes -> dipindah ke routes/api.php
 |--------------------------------------------------------------------------
-| PERBAIKAN AUDIT (item C - P0): guard diubah dari 'auth' (session-only,
-| jalan untuk WebView tapi TIDAK untuk Android native/OkHttp-Retrofit yang
-| kirim Bearer token) -> 'auth:sanctum', yang menerima BAIK session
-| (WebView, lewat EnsureFrontendRequestsAreStateful untuk domain di
-| SANCTUM_STATEFUL_DOMAINS) MAUPUN Bearer token (Android native), tanpa
-| duplikasi endpoint. Syarat: `composer require laravel/sanctum` sudah
-| dijalankan (lihat CHANGELOG item C).
+| /api/sales/* (WebView + Android native) sengaja TIDAK di file ini: file
+| web.php otomatis memakai kelompok `web` (sesi + CSRF wajib), yang menolak
+| permintaan Bearer token dari Android dan bentrok dengan middleware
+| stateful Sanctum. Lihat penjelasan di routes/api.php.
 |--------------------------------------------------------------------------
 */
-Route::middleware([EnsureFrontendRequestsAreStateful::class, 'auth:sanctum', 'verified', 'role:sales'])
-    ->prefix('api/sales')
-    ->name('api.sales.')
-    ->group(base_path('routes/api_sales.php'));
 
 require __DIR__.'/auth.php';

@@ -15,10 +15,19 @@ use Symfony\Component\HttpFoundation\Response;
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
+        api: __DIR__.'/../routes/api.php',
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Rute /api/sales/* dipakai DUA jenis klien dengan satu set endpoint:
+        // WebView/browser (sesi cookie + token CSRF) dan Android native
+        // (Bearer token, tanpa cookie/CSRF). statefulApi() memasang middleware
+        // Sanctum di kelompok `api` sehingga sesi + CSRF hanya diterapkan pada
+        // permintaan dari domain di SANCTUM_STATEFUL_DOMAINS; permintaan Bearer
+        // tidak membuat sesi dan tidak butuh CSRF.
+        $middleware->statefulApi();
+
         $middleware->alias([
             'role' => RoleMiddleware::class,
             'permission' => PermissionMiddleware::class,

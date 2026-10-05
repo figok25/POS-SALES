@@ -4,7 +4,7 @@
 |--------------------------------------------------------------------------
 | Sales API Routes - Live Sales Field Operations (Blueprint #38, Fase 2)
 |--------------------------------------------------------------------------
-| Di-require dari routes/web.php di dalam group role:sales, prefix
+| Di-require dari routes/api.php (kelompok middleware `api`), prefix
 | /api/sales. Dipakai oleh WebView & Native Android Sales APK.
 | Permission 'sales-task.view' & 'tracking.manage' didaftarkan pada
 | RolePermissionSeeder.
