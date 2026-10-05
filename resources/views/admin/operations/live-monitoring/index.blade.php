@@ -1,40 +1,58 @@
 <x-admin-layout>
-    <div class="p-6">
-        <div class="flex items-center justify-between mb-4">
-            <h1 class="text-xl font-semibold">Live Monitoring Sales</h1>
-            <div class="flex items-center gap-2">
-                <span id="last-refresh" class="text-xs text-gray-400"></span>
-                @if (auth()->user()->isSuperAdmin())
-                    <select id="branch-filter" class="border rounded px-3 py-2 text-sm">
-                        <option value="all">Semua Branch</option>
-                        @foreach ($branches as $b)
-                            <option value="{{ $b->id }}">{{ $b->name }}</option>
-                        @endforeach
-                    </select>
-                @else
-                    <span class="text-xs text-gray-500 border rounded px-3 py-2">Depo: {{ auth()->user()->branch->name ?? '-' }}</span>
-                @endif
-            </div>
+    {{-- Kepala halaman --}}
+    <div class="frm-head">
+        <div>
+            <h1 class="frm-title">Live Monitoring Sales</h1>
+            <p class="frm-sub">
+                Polling otomatis tiap {{ $refreshSeconds }} detik (MVP, bukan WebSocket).
+                Klik marker atau nama Sales untuk melihat jejak perjalanan hari ini.
+            </p>
         </div>
-
-        <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
-            <div class="lg:col-span-3">
-                <div id="map" class="w-full rounded shadow bg-gray-200" style="height: 70vh;"></div>
-            </div>
-
-            <div class="lg:col-span-1">
-                <div class="bg-white rounded shadow">
-                    <div class="px-3 py-2 border-b font-medium text-sm">Sales Sedang Tracking</div>
-                    <div id="sales-list" class="divide-y max-h-[70vh] overflow-y-auto">
-                        <p class="px-3 py-6 text-center text-gray-400 text-sm">Memuat...</p>
-                    </div>
-                </div>
-            </div>
+        <div class="frm-head-actions">
+            @if (auth()->user()->isSuperAdmin())
+                <select id="branch-filter" class="frm-input is-select is-filter" aria-label="Filter branch">
+                    <option value="all">Semua Branch</option>
+                    @foreach ($branches as $b)
+                        <option value="{{ $b->id }}">{{ $b->name }}</option>
+                    @endforeach
+                </select>
+            @else
+                <span class="frm-code">Depo: {{ auth()->user()->branch->name ?? '-' }}</span>
+            @endif
         </div>
+    </div>
 
-        <p class="text-xs text-gray-400 mt-3">
-            Halaman ini polling otomatis tiap {{ $refreshSeconds }} detik (MVP, bukan WebSocket). Klik marker atau nama Sales untuk melihat jejak perjalanan hari ini.
-        </p>
+    {{-- Gagal memuat data (ditampilkan lewat JS) --}}
+    <div id="live-error" hidden>
+        <div class="frm-alert is-error" role="alert">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+            <span class="frm-alert-text">Gagal memuat data Sales. Mencoba lagi pada pembaruan berikutnya.</span>
+        </div>
+    </div>
+
+    <div class="frm-live">
+        {{-- Peta --}}
+        <section class="panel">
+            <div class="panel-head">
+                <h2 class="panel-title">Peta Sales</h2>
+                <span id="last-refresh" class="frm-count" aria-live="polite"></span>
+            </div>
+            <div class="frm-route-body">
+                <div id="live-legend" class="frm-legend" aria-label="Keterangan status"></div>
+            </div>
+            <div id="map" class="frm-map is-tall"></div>
+        </section>
+
+        {{-- Daftar Sales --}}
+        <section class="panel">
+            <div class="panel-head">
+                <h2 class="panel-title">Sales Sedang Tracking</h2>
+                <span id="sales-count" class="frm-count"></span>
+            </div>
+            <div id="sales-list" class="frm-live-list" aria-live="polite">
+                <p class="panel-empty">Memuat...</p>
+            </div>
+        </section>
     </div>
 
     <link href="https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.css" rel="stylesheet" />
@@ -70,6 +88,16 @@
         let trackLayerAdded = false;
         let pollTimer = null;
 
+        const colorOf = (status) => STATUS_COLOR[status] || STATUS_COLOR.offline;
+
+        // Buat elemen dengan teks aman (tanpa innerHTML) agar nama Sales tidak bisa menyisipkan HTML.
+        function el(tag, className, text) {
+            const node = document.createElement(tag);
+            if (className) node.className = className;
+            if (text !== undefined) node.textContent = text;
+            return node;
+        }
+
         function timeAgo(iso) {
             if (!iso) return '-';
             const diffSec = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
@@ -78,47 +106,66 @@
             return `${Math.floor(diffSec / 3600)} jam lalu`;
         }
 
+        function renderLegend() {
+            const legend = document.getElementById('live-legend');
+            Object.keys(STATUS_LABEL).forEach((key) => {
+                const item = el('span');
+                const dot = el('i', 'frm-dot');
+                dot.style.background = STATUS_COLOR[key];
+                item.append(dot, STATUS_LABEL[key]);
+                legend.appendChild(item);
+            });
+        }
+
         function buildMarkerElement(status) {
-            const el = document.createElement('div');
-            el.style.width = '16px';
-            el.style.height = '16px';
-            el.style.borderRadius = '50%';
-            el.style.border = '2px solid white';
-            el.style.boxShadow = '0 0 2px rgba(0,0,0,0.5)';
-            el.style.background = STATUS_COLOR[status] || STATUS_COLOR.offline;
-            return el;
+            const node = el('div', 'frm-marker');
+            node.style.width = '18px';
+            node.style.height = '18px';
+            node.style.background = colorOf(status);
+            return node;
+        }
+
+        function buildPopupContent(name, status) {
+            const box = el('div');
+            box.append(el('div', 'frm-popup-title', name), el('div', 'frm-popup-sub', STATUS_LABEL[status] || status));
+            return box;
         }
 
         async function showTrack(salesId) {
-            const url = salesLocationsUrlTemplate.replace('__ID__', salesId);
-            const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
-            const json = await res.json();
-            if (!json.success) return;
+            try {
+                const url = salesLocationsUrlTemplate.replace('__ID__', salesId);
+                const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+                if (!res.ok) return;
+                const json = await res.json();
+                if (!json.success) return;
 
-            const coords = json.data.map((p) => [parseFloat(p.longitude), parseFloat(p.latitude)]);
-            if (coords.length === 0) return;
+                const coords = json.data.map((p) => [parseFloat(p.longitude), parseFloat(p.latitude)]);
+                if (coords.length === 0) return;
 
-            const geojson = {
-                type: 'Feature',
-                geometry: { type: 'LineString', coordinates: coords },
-            };
+                const geojson = {
+                    type: 'Feature',
+                    geometry: { type: 'LineString', coordinates: coords },
+                };
 
-            if (trackLayerAdded) {
-                map.getSource('sales-track').setData(geojson);
-            } else {
-                map.addSource('sales-track', { type: 'geojson', data: geojson });
-                map.addLayer({
-                    id: 'sales-track-line',
-                    type: 'line',
-                    source: 'sales-track',
-                    paint: { 'line-color': '#2563eb', 'line-width': 3, 'line-opacity': 0.7 },
-                });
-                trackLayerAdded = true;
+                if (trackLayerAdded) {
+                    map.getSource('sales-track').setData(geojson);
+                } else {
+                    map.addSource('sales-track', { type: 'geojson', data: geojson });
+                    map.addLayer({
+                        id: 'sales-track-line',
+                        type: 'line',
+                        source: 'sales-track',
+                        paint: { 'line-color': '#2563eb', 'line-width': 3, 'line-opacity': 0.7 },
+                    });
+                    trackLayerAdded = true;
+                }
+
+                const bounds = new maplibregl.LngLatBounds();
+                coords.forEach((c) => bounds.extend(c));
+                map.fitBounds(bounds, { padding: 60, maxZoom: 16 });
+            } catch (e) {
+                console.error('Gagal memuat jejak Sales', e);
             }
-
-            const bounds = new maplibregl.LngLatBounds();
-            coords.forEach((c) => bounds.extend(c));
-            map.fitBounds(bounds, { padding: 60, maxZoom: 16 });
         }
 
         // BUGFIX/PRINSIP DESAIN: marker di-UPDATE posisinya (setLngLat),
@@ -126,7 +173,7 @@
         // dan hemat resource browser saat jumlah Sales banyak.
         function renderSales(items) {
             const listEl = document.getElementById('sales-list');
-            listEl.innerHTML = '';
+            listEl.replaceChildren();
 
             const seenIds = new Set();
 
@@ -140,29 +187,28 @@
 
                 if (markers[salesId]) {
                     markers[salesId].setLngLat([lng, lat]);
-                    markers[salesId].getElement().style.background = STATUS_COLOR[status] || STATUS_COLOR.offline;
+                    markers[salesId].getElement().style.background = colorOf(status);
+                    markers[salesId].getPopup().setDOMContent(buildPopupContent(name, status));
                 } else {
-                    const el = buildMarkerElement(status);
-                    const marker = new maplibregl.Marker({ element: el })
+                    const node = buildMarkerElement(status);
+                    const marker = new maplibregl.Marker({ element: node })
                         .setLngLat([lng, lat])
-                        .setPopup(new maplibregl.Popup({ offset: 12 }).setHTML(
-                            `<p class="font-medium text-sm">${name}</p><p class="text-xs">${STATUS_LABEL[status] || status}</p>`
-                        ))
+                        .setPopup(new maplibregl.Popup({ offset: 12 }).setDOMContent(buildPopupContent(name, status)))
                         .addTo(map);
-                    el.addEventListener('click', () => showTrack(salesId));
+                    node.addEventListener('click', () => showTrack(salesId));
                     markers[salesId] = marker;
                 }
 
-                const row = document.createElement('button');
+                const row = el('button', 'frm-live-item');
                 row.type = 'button';
-                row.className = 'w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center justify-between';
-                row.innerHTML = `
-                    <span>
-                        <span class="inline-block w-2 h-2 rounded-full mr-2" style="background:${STATUS_COLOR[status] || STATUS_COLOR.offline}"></span>
-                        ${name}
-                    </span>
-                    <span class="text-xs text-gray-400">${timeAgo(item.last_seen_at)}</span>
-                `;
+
+                const dot = el('i', 'frm-dot');
+                dot.style.background = colorOf(status);
+
+                const main = el('span', 'row-main');
+                main.append(el('span', 'frm-name', name), el('span', 'row-sub', STATUS_LABEL[status] || status));
+
+                row.append(dot, main, el('span', 'frm-meta', timeAgo(item.last_seen_at)));
                 row.addEventListener('click', () => {
                     map.flyTo({ center: [lng, lat], zoom: 15 });
                     markers[salesId].togglePopup();
@@ -181,27 +227,34 @@
             });
 
             if (items.length === 0) {
-                listEl.innerHTML = '<p class="px-3 py-6 text-center text-gray-400 text-sm">Tidak ada Sales yang sedang tracking.</p>';
+                listEl.appendChild(el('p', 'panel-empty', 'Tidak ada Sales yang sedang tracking.'));
             }
 
+            document.getElementById('sales-count').textContent = items.length + ' Sales';
             document.getElementById('last-refresh').textContent = 'Update terakhir: ' + new Date().toLocaleTimeString('id-ID');
         }
 
         async function poll() {
             const branchFilterEl = document.getElementById('branch-filter');
             const branch = branchFilterEl ? branchFilterEl.value : null;
-            const url = branch ? `${liveSalesUrl}?branch=${branch}` : liveSalesUrl;
+            const url = branch ? `${liveSalesUrl}?branch=${encodeURIComponent(branch)}` : liveSalesUrl;
+            const errorEl = document.getElementById('live-error');
 
             try {
                 const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
                 const json = await res.json();
-                if (json.success) renderSales(json.data);
+                if (!res.ok || !json.success) throw new Error('Respons tidak valid');
+                renderSales(json.data);
+                errorEl.hidden = true;
             } catch (e) {
                 console.error('Gagal polling live-sales', e);
+                errorEl.hidden = false;
             }
         }
 
         document.addEventListener('DOMContentLoaded', () => {
+            renderLegend();
+
             map = new maplibregl.Map({
                 style: mapStyleUrl,
                 container: 'map',

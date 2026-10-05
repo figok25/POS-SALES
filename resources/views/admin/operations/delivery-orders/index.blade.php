@@ -1,6 +1,16 @@
 <x-admin-layout>
     @php
+        $canManage = \Illuminate\Support\Facades\Gate::allows('operations.manage');
         $isFiltered = filled($status);
+
+        // Tab status: [nilai query, label]
+        $tabs = [
+            '' => 'Semua',
+            'draft' => 'Menunggu',
+            'dispatched' => 'Dalam Pengiriman',
+            'delivered' => 'Terkirim',
+            'cancelled' => 'Batal',
+        ];
 
         // Satu tombol per baris, sesuai status:
         //  Menunggu + tanpa kendaraan/driver -> Selesai  (serah langsung ke toko)
@@ -23,9 +33,12 @@
                 isi Kendaraan/Driver hanya bila barang diantar terpisah.
             </p>
         </div>
-        @can('operations.manage')
-            <a href="{{ route('admin.operations.delivery-orders.create') }}" class="adm-btn adm-btn-ghost adm-btn-sm">+ DO Manual</a>
-        @endcan
+        @if ($canManage)
+            <a href="{{ route('admin.operations.delivery-orders.create') }}" class="adm-btn adm-btn-primary adm-btn-sm">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                DO Manual
+            </a>
+        @endif
     </div>
 
     {{-- Notifikasi --}}
@@ -33,39 +46,38 @@
         <div class="frm-alert" role="status" data-alert="auto">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
             <span class="frm-alert-text">{{ session('status') }}</span>
+            <button type="button" class="frm-alert-close" data-alert-close aria-label="Tutup">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
         </div>
     @endif
     @if (session('error'))
-        <div class="frm-alert is-error" role="alert">
+        <div class="frm-alert is-error" role="alert" data-alert>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
             <span class="frm-alert-text">{{ session('error') }}</span>
+            <button type="button" class="frm-alert-close" data-alert-close aria-label="Tutup">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
         </div>
     @endif
     @if ($errors->any())
         <div class="frm-alert is-error" role="alert">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
             <span class="frm-alert-text">{{ $errors->first() }}</span>
         </div>
     @endif
 
     <section class="panel">
-        {{-- Filter --}}
-        <form method="GET" class="frm-toolbar">
-            <select name="status" class="frm-input is-select is-filter" aria-label="Filter status" onchange="this.form.submit()">
-                <option value="">Semua Status</option>
-                <option value="draft" @selected($status === 'draft')>Menunggu</option>
-                <option value="dispatched" @selected($status === 'dispatched')>Dalam Pengiriman</option>
-                <option value="delivered" @selected($status === 'delivered')>Terkirim</option>
-                <option value="cancelled" @selected($status === 'cancelled')>Batal</option>
-            </select>
-
-            <noscript><button type="submit" class="adm-btn adm-btn-primary adm-btn-sm">Filter</button></noscript>
-
-            @if ($isFiltered)
-                <a href="{{ route('admin.operations.delivery-orders.index') }}" class="adm-btn adm-btn-ghost adm-btn-sm">Reset</a>
-            @endif
-
+        {{-- Tab status --}}
+        <nav class="frm-tabs" aria-label="Filter status">
+            @foreach ($tabs as $value => $label)
+                @php $active = ($status ?? '') === (string) $value; @endphp
+                <a href="{{ route('admin.operations.delivery-orders.index', $value === '' ? [] : ['status' => $value]) }}"
+                   class="frm-tab {{ $active ? 'is-active' : '' }}"
+                   @if ($active) aria-current="page" @endif>{{ $label }}</a>
+            @endforeach
             <span class="frm-count">{{ number_format($items->total(), 0, ',', '.') }} DO</span>
-        </form>
+        </nav>
 
         <form id="bulk-form" method="POST"
               action="{{ route('admin.operations.delivery-orders.bulk-complete') }}"
@@ -74,73 +86,93 @@
             @csrf
             <input type="hidden" name="select_all_draft" id="select-all-flag" value="0">
 
-            @can('operations.manage')
+            @if ($canManage)
                 {{-- Panel aksi massal: baru tampil kalau ada DO yang dicentang. --}}
-                <div id="bulk-bar" class="frm-panel-body" style="display:none; border-bottom:1px solid var(--adm-border, #e5e7eb)">
-                    <p style="margin:0 0 .75rem"><strong id="bulk-count">0</strong> DO dipilih.</p>
+                <div id="bulk-bar" hidden>
+                    <div class="frm-bulkbar">
+                        @if ($openCount > 0)
+                            <label class="frm-bulkbar-check">
+                                <input type="checkbox" id="select-all-everywhere">
+                                Pilih semua {{ number_format($openCount, 0, ',', '.') }} DO yang belum Terkirim (termasuk di halaman lain)
+                            </label>
+                        @endif
+                        <span class="frm-bulkbar-info"><span id="bulk-count">0</span> DO dipilih</span>
+                    </div>
 
-                    <div class="frm-grid">
-                        <div class="frm-field">
-                            <label class="frm-label" for="bulk-vehicle">Kendaraan <span class="frm-opt">(opsional)</span></label>
-                            <select id="bulk-vehicle" name="vehicle_id" class="frm-input is-select">
-                                <option value="">-</option>
-                                @foreach ($vehicles ?? [] as $v)
-                                    <option value="{{ $v->id }}">{{ $v->name }}</option>
-                                @endforeach
-                            </select>
+                    <div class="frm-panel-body">
+                        <div class="frm-grid">
+                            <div class="frm-field">
+                                <label class="frm-label" for="bulk-vehicle">Kendaraan <span class="frm-opt">(opsional)</span></label>
+                                <select id="bulk-vehicle" name="vehicle_id" class="frm-input is-select">
+                                    <option value="">Tanpa kendaraan</option>
+                                    @foreach ($vehicles ?? [] as $v)
+                                        <option value="{{ $v->id }}">{{ $v->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="frm-field">
+                                <label class="frm-label" for="bulk-driver">Driver <span class="frm-opt">(opsional)</span></label>
+                                <select id="bulk-driver" name="driver_id" class="frm-input is-select">
+                                    <option value="">Tanpa driver</option>
+                                    @foreach ($drivers ?? [] as $d)
+                                        <option value="{{ $d->id }}">{{ $d->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="frm-field">
+                                <label class="frm-label" for="bulk-route">Rute <span class="frm-opt">(opsional)</span></label>
+                                <select id="bulk-route" name="route_id" class="frm-input is-select">
+                                    <option value="">Tanpa rute</option>
+                                    @foreach ($routes ?? [] as $r)
+                                        <option value="{{ $r->id }}">{{ $r->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="frm-field">
+                                <label class="frm-label" for="bulk-date">Jadwal <span class="frm-opt">(opsional)</span></label>
+                                <input id="bulk-date" type="date" name="scheduled_date" class="frm-input">
+                            </div>
                         </div>
-                        <div class="frm-field">
-                            <label class="frm-label" for="bulk-driver">Driver <span class="frm-opt">(opsional)</span></label>
-                            <select id="bulk-driver" name="driver_id" class="frm-input is-select">
-                                <option value="">-</option>
-                                @foreach ($drivers ?? [] as $d)
-                                    <option value="{{ $d->id }}">{{ $d->name }}</option>
-                                @endforeach
-                            </select>
+
+                        <div id="bulk-hint-direct">
+                            <div class="frm-alert is-info" role="note">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                                <span class="frm-alert-text">Kendaraan/Driver kosong = barang diserahkan langsung oleh Sales ke toko. Tombol: <strong>Selesai</strong>.</span>
+                            </div>
                         </div>
-                        <div class="frm-field">
-                            <label class="frm-label" for="bulk-route">Rute <span class="frm-opt">(opsional)</span></label>
-                            <select id="bulk-route" name="route_id" class="frm-input is-select">
-                                <option value="">-</option>
-                                @foreach ($routes ?? [] as $r)
-                                    <option value="{{ $r->id }}">{{ $r->name }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="frm-field">
-                            <label class="frm-label" for="bulk-date">Jadwal <span class="frm-opt">(opsional)</span></label>
-                            <input id="bulk-date" type="date" name="scheduled_date" class="frm-input">
+                        <div id="bulk-hint-send" hidden>
+                            <div class="frm-alert is-info" role="note">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                                <span class="frm-alert-text">Kendaraan/Driver diisi = barang diantar terpisah. Tombol: <strong>Kirim</strong>; setelah barang sampai, tandai <strong>Terkirim</strong>.</span>
+                            </div>
                         </div>
                     </div>
 
-                    <p class="frm-hint" id="bulk-hint-direct">Kendaraan/Driver kosong = barang diserahkan langsung oleh Sales ke toko. Tombol: <strong>Selesai</strong>.</p>
-                    <p class="frm-hint" id="bulk-hint-send" style="display:none">Kendaraan/Driver diisi = barang diantar terpisah. Tombol: <strong>Kirim</strong>; setelah barang sampai, tandai <strong>Terkirim</strong>.</p>
-
-                    @if ($openCount > 0)
-                        <label class="frm-hint" style="display:flex; gap:.5rem; align-items:center; margin:.5rem 0">
-                            <input type="checkbox" id="select-all-everywhere">
-                            Pilih SEMUA {{ $openCount }} DO yang belum Terkirim (termasuk yang tidak tampil di halaman ini)
-                        </label>
-                    @endif
-
-                    <button type="submit" id="bulk-submit" class="adm-btn adm-btn-primary adm-btn-sm">Selesai</button>
+                    <div class="frm-panel-foot is-split">
+                        <button type="button" id="bulk-clear" class="adm-btn adm-btn-ghost adm-btn-sm">Batal Pilih</button>
+                        <button type="submit" id="bulk-submit" class="adm-btn adm-btn-primary adm-btn-sm">Selesai</button>
+                    </div>
                 </div>
-            @endcan
+            @endif
 
             @if ($items->count())
                 <div class="frm-table-wrap">
                     <table class="frm-table">
                         <thead>
                             <tr>
-                                @can('operations.manage')
-                                    <th style="width:2rem"><input type="checkbox" id="check-all" aria-label="Pilih semua di halaman ini"></th>
-                                @endcan
+                                @if ($canManage)
+                                    <th class="frm-cell-check">
+                                        <input type="checkbox" id="check-all" class="frm-check" aria-label="Pilih semua di halaman ini">
+                                    </th>
+                                @endif
                                 <th>Kode</th>
                                 <th>Customer</th>
                                 <th>Pengiriman</th>
                                 <th>Jadwal</th>
                                 <th>Status</th>
-                                <th class="is-end">Aksi</th>
+                                @if ($canManage)
+                                    <th class="is-end">Aksi</th>
+                                @endif
                             </tr>
                         </thead>
                         <tbody>
@@ -151,19 +183,24 @@
                                         : ($item->isDispatched() ? 'deliver' : null);
                                     $action = $mode ? $rowActions[$mode] : null;
                                 @endphp
-                                <tr>
-                                    @can('operations.manage')
-                                        <td>
+                                <tr @class(['has-check' => $canManage && $mode])>
+                                    @if ($canManage)
+                                        <td class="frm-cell-check">
                                             @if ($mode)
-                                                <input type="checkbox" name="delivery_order_ids[]" value="{{ $item->id }}" class="do-checkbox" aria-label="Pilih {{ $item->code }}">
+                                                <input type="checkbox" name="delivery_order_ids[]" value="{{ $item->id }}" class="frm-check do-checkbox" aria-label="Pilih {{ $item->code }}">
                                             @endif
                                         </td>
-                                    @endcan
-                                    <td><a href="{{ route('admin.operations.delivery-orders.show', $item) }}" class="frm-code">{{ $item->code }}</a></td>
+                                    @endif
+                                    <td>
+                                        <a href="{{ route('admin.operations.delivery-orders.show', $item) }}" class="frm-code">{{ $item->code }}</a>
+                                    </td>
                                     <td data-label="Customer"><span class="frm-name">{{ $item->salesTransaction->customer->name ?? '-' }}</span></td>
                                     <td data-label="Pengiriman">
                                         @if ($item->isSeparateDelivery())
-                                            {{ collect([$item->vehicle->name ?? null, $item->driver->name ?? null])->filter()->implode(' / ') }}
+                                            <span class="frm-line">{{ $item->vehicle->name ?? '-' }}</span>
+                                            @if ($item->driver)
+                                                <span class="frm-line">{{ $item->driver->name }}</span>
+                                            @endif
                                         @else
                                             <span class="frm-dash">Serah langsung</span>
                                         @endif
@@ -172,16 +209,16 @@
                                     <td class="frm-cell-status">
                                         <span class="frm-status {{ $item->statusTone() }}">{{ $item->statusLabel() }}</span>
                                     </td>
-                                    <td class="is-end">
-                                        @can('operations.manage')
+                                    @if ($canManage)
+                                        <td class="is-end">
                                             @if ($action)
                                                 <button type="submit" data-row-action data-action="{{ $mode }}"
                                                         formaction="{{ route($action['route'], $item) }}"
                                                         onclick="return confirm(@js($action['confirm']))"
                                                         class="adm-btn adm-btn-primary adm-btn-sm">{{ $action['label'] }}</button>
                                             @endif
-                                        @endcan
-                                    </td>
+                                        </td>
+                                    @endif
                                 </tr>
                             @endforeach
                         </tbody>
@@ -193,8 +230,14 @@
                 @endif
             @else
                 <div class="frm-empty">
+                    <div class="frm-empty-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg>
+                    </div>
                     <p class="frm-empty-title">{{ $isFiltered ? 'Tidak ada hasil' : 'Belum ada Delivery Order' }}</p>
                     <p class="frm-empty-text">{{ $isFiltered ? 'Tidak ada DO dengan status ini.' : 'DO muncul otomatis setiap ada transaksi penjualan yang selesai.' }}</p>
+                    @if ($isFiltered)
+                        <a href="{{ route('admin.operations.delivery-orders.index') }}" class="adm-btn adm-btn-ghost adm-btn-sm">Lihat semua DO</a>
+                    @endif
                 </div>
             @endif
         </form>
@@ -202,6 +245,17 @@
 
     <script>
         (function () {
+            // Notifikasi: tombol tutup + hilang sendiri (jalan juga untuk user tanpa hak kelola)
+            document.querySelectorAll('[data-alert]').forEach(function (el) {
+                function dismiss() {
+                    el.classList.add('is-leaving');
+                    setTimeout(function () { el.remove(); }, 300);
+                }
+                var close = el.querySelector('[data-alert-close]');
+                if (close) close.addEventListener('click', dismiss);
+                if (el.getAttribute('data-alert') === 'auto') setTimeout(dismiss, 6000);
+            });
+
             var form = document.getElementById('bulk-form');
             var bar = document.getElementById('bulk-bar');
             if (!form || !bar) return;
@@ -211,6 +265,7 @@
             var allEverywhere = document.getElementById('select-all-everywhere');
             var countEl = document.getElementById('bulk-count');
             var submitBtn = document.getElementById('bulk-submit');
+            var clearBtn = document.getElementById('bulk-clear');
             var vehicle = document.getElementById('bulk-vehicle');
             var driver = document.getElementById('bulk-driver');
             var hintDirect = document.getElementById('bulk-hint-direct');
@@ -227,8 +282,8 @@
                 var checked = boxes.filter(function (cb) { return cb.checked; }).length;
                 var everywhere = allFlag.value === '1';
 
-                bar.style.display = (checked > 0 || everywhere) ? '' : 'none';
-                countEl.textContent = everywhere ? ('Semua (' + openCount + ')') : checked;
+                bar.hidden = !(checked > 0 || everywhere);
+                countEl.textContent = everywhere ? ('Semua ' + openCount) : checked;
 
                 var m = mode();
                 submitBtn.textContent = m === 'dispatch' ? 'Kirim' : 'Selesai';
@@ -237,8 +292,8 @@
                 } else {
                     submitBtn.removeAttribute('formaction');
                 }
-                hintDirect.style.display = m === 'dispatch' ? 'none' : '';
-                hintSend.style.display = m === 'dispatch' ? '' : 'none';
+                hintDirect.hidden = m === 'dispatch';
+                hintSend.hidden = m !== 'dispatch';
 
                 if (checkAll && !checkAll.disabled) {
                     checkAll.checked = boxes.length > 0 && checked === boxes.length;
@@ -268,6 +323,16 @@
                 });
             }
 
+            // Batal Pilih: kosongkan centang dan isian panel
+            clearBtn.addEventListener('click', function () {
+                allFlag.value = '0';
+                if (allEverywhere) allEverywhere.checked = false;
+                rows().forEach(function (cb) { cb.checked = false; cb.disabled = false; });
+                if (checkAll) { checkAll.checked = false; checkAll.disabled = false; checkAll.indeterminate = false; }
+                bar.querySelectorAll('select, input[type="date"]').forEach(function (el) { el.value = ''; });
+                refresh();
+            });
+
             form.addEventListener('submit', function (e) {
                 // Tombol per baris tidak butuh centang tabel.
                 if (e.submitter && e.submitter.hasAttribute('data-row-action')) return;
@@ -286,11 +351,6 @@
             });
 
             refresh();
-
-            // Pesan sukses hilang sendiri
-            document.querySelectorAll('[data-alert="auto"]').forEach(function (el) {
-                setTimeout(function () { el.remove(); }, 6000);
-            });
         })();
     </script>
 </x-admin-layout>

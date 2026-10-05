@@ -733,7 +733,7 @@ html[data-theme="dark"] { --adm-warning: #f0b95c; --adm-warning-bg: rgba(240, 18
 }
 
 /* Halaman form sempit (satu kolom isian) */
-.frm-page.is-narrow { max-width: 640px; }
+.frm-page.is-narrow { max-width: 100%x; }
 
 /* Warna jumlah: positif (income) */
 .frm-num.is-pos { color: var(--adm-success); }
@@ -1013,6 +1013,96 @@ html[data-theme="dark"] { --adm-warning: #f0b95c; --adm-warning-bg: rgba(240, 18
     .frm-panel-foot.is-split { flex-wrap: wrap; }
 }
 
+.frm-page.is-medium { max-width: 100%; }
+
+.frm-live { display: grid; grid-template-columns: minmax(0, 3fr) minmax(260px, 1fr); gap: 16px; align-items: start; }
+.frm-map.is-tall { height: 70vh; min-height: 360px; }
+.frm-live-list { max-height: 70vh; overflow-y: auto; }
+ 
+.frm-live-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 12px 18px;
+    font-family: inherit;
+    text-align: left;
+    color: inherit;
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid var(--adm-line);
+    cursor: pointer;
+    transition: background-color 0.15s;
+}
+.frm-live-item:last-child { border-bottom: 0; }
+.frm-live-item:hover { background: var(--adm-hover); }
+.frm-live-item:focus-visible { outline: 2px solid var(--adm-blue); outline-offset: -2px; }
+.frm-live-item .row-main { flex: 1; }
+.frm-live-item .frm-name { display: block; }
+.frm-live-item .frm-meta { margin: 0; flex-shrink: 0; white-space: nowrap; }
+.frm-live-item .frm-dot { flex-shrink: 0; }
+ 
+@media (max-width: 1100px) {
+    .frm-live { grid-template-columns: minmax(0, 1fr); }
+    .frm-live-list { max-height: 360px; }
+}
+@media (max-width: 600px) {
+    .frm-map.is-tall { height: 55vh; }
+}
+
+/* Pill info (biru) untuk .frm-status, padanan is-on / is-warn / is-danger */
+.frm-status.is-info { color: var(--adm-blue-deep); background: var(--adm-hover); }
+ 
+/* Papan tiga kolom (Monitoring Pengiriman) */
+.frm-board { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.frm-board-list { max-height: 70vh; overflow-y: auto; }
+ 
+a.frm-board-item {
+    color: inherit;
+    text-decoration: none;
+    transition: background-color 0.15s;
+}
+a.frm-board-item:hover { background: var(--adm-hover); }
+a.frm-board-item:focus-visible { outline: 2px solid var(--adm-blue); outline-offset: -2px; }
+.frm-board-item .row-main { flex: 1; }
+.frm-board-item .row-code { display: block; }
+.frm-board-item .frm-line { margin-top: 2px; }
+ 
+@media (max-width: 1100px) {
+    .frm-board { grid-template-columns: minmax(0, 1fr); }
+    .frm-board-list { max-height: 360px; }
+}
+
+.adm-btn.is-file { position: relative; cursor: pointer; }
+.adm-btn.is-file:focus-within { outline: 2px solid var(--adm-blue); outline-offset: 2px; }
+.frm-file-input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+ 
+/* Segmented control yang boleh turun baris (pilih hari / minggu kunjungan) */
+.frm-seg.is-wrap { flex-wrap: wrap; }
+ 
+/* Tabel editor lebar (grid hari & minggu kunjungan) di dalam panel */
+.frm-items-wrap.is-flush { margin: 0; border: 0; border-radius: 0; }
+.frm-items-table.is-wide { min-width: 1040px; }
+.frm-items-table .is-center { text-align: center; }
+.frm-items-table .frm-check { vertical-align: middle; }
+ 
+/* Input filter ringkas di baris header tabel */
+.frm-items-table .frm-input.is-mini { height: 32px; padding: 0 8px; font-size: 12px; font-weight: 600; }
+.frm-items-table .frm-input.is-select.is-mini { min-width: 70px; padding-right: 24px; background-position: right 7px center; background-size: 12px 12px; }
+@supports (appearance: base-select) {
+    .frm-items-table .frm-input.is-select.is-mini { padding-right: 8px; }
+}
+ 
+/* Baris pelanggan yang diubah tapi belum disimpan */
+.frm-items-table tbody tr.is-dirty td { background: var(--adm-warning-bg); }
+
+/* Teks isi alert di bawah .frm-alert-title */
+.frm-alert-body { margin: 0; font-weight: 600; }
+.frm-alert-body a { text-decoration: underline; }
+ 
+/* Teks bantuan sebagai anak langsung badan panel (tidak perlu jarak atas) */
+.frm-panel-body > .frm-hint { margin: 0; }
+ 
 /* --------------------------------------------------------------------------
    Responsive
    -------------------------------------------------------------------------- */

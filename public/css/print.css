@@ -219,6 +219,9 @@ table.struk-kv td.r,
 table.struk-items td.r { font-variant-numeric: tabular-nums; }
 table.struk-kv tr.is-grand td { padding-top: 3px; font-size: 13px; font-weight: 800; }
 
+table.a4-items tr.is-diff td { color: #b83232; font-weight: 700; }
+.a4-parties .b { display: block; }
+
 /* --------------------------------------------------------------------------
    Cetak
    -------------------------------------------------------------------------- */
