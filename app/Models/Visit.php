@@ -22,15 +22,24 @@ class Visit extends Model
 
     /**
      * Klasifikasi cakupan kunjungan (per Sales + Toko + Hari):
-     *  - Call Meet (CM): toko dikunjungi (check-in), TIDAK ada transaksi.
-     *  - Effective Call (EC): toko dikunjungi DAN ada transaksi selesai.
+     *  - Call Made (CM): toko dikunjungi (check-in), TIDAK ada transaksi
+     *    (hanya kunjungan).
+     *  - Effective Call (EC): toko dikunjungi DAN ada transaksi selesai
+     *    (kunjungan + transaksi).
+     * Total kunjungan = Call Made + EC.
      */
-    public const COVERAGE_CALL_MEET = 'cm';
+    public const COVERAGE_CALL_MADE = 'cm';
     public const COVERAGE_EC = 'ec';
+
+    /**
+     * @deprecated Istilah "Call Meet" diganti "Call Made". Alias ini hanya
+     *             dipertahankan agar kode lama yang masih memakainya tidak error.
+     */
+    public const COVERAGE_CALL_MEET = self::COVERAGE_CALL_MADE;
 
     public static function coverageLabel(string $coverage): string
     {
-        return $coverage === self::COVERAGE_EC ? 'EC (Kunjungan + Transaksi)' : 'Call Meet (Kunjungan)';
+        return $coverage === self::COVERAGE_EC ? 'EC (Kunjungan + Transaksi)' : 'Call Made (Kunjungan)';
     }
 
     protected $fillable = [

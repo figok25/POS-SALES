@@ -101,11 +101,13 @@ class DashboardController extends Controller
             $tblSalesId = null;
         }
 
-        $salesPerformance = $this->buildSalesPerformance(
-            $tblSalesId ? $salesList->where('id', $tblSalesId)->values() : $salesList,
-            $tblFrom,
-            $tblTo,
-        );
+        $tblSalesRows = $tblSalesId ? $salesList->where('id', $tblSalesId)->values() : $salesList;
+
+        $salesPerformance = $this->buildSalesPerformance($tblSalesRows, $tblFrom, $tblTo);
+
+        // Tabel "Kunjungan per Sales" memakai filter periode & Sales yang SAMA
+        // dengan tabel Penjualan per Sales di atas, supaya keduanya sejajar.
+        $visitCoverage = $this->buildVisitCoverage($tblSalesRows, $tblFrom, $tblTo);
 
         $transactions = fn () => $branchContext->applyVia(
             SalesTransaction::where('status', SalesTransaction::STATUS_COMPLETED)
@@ -146,24 +148,28 @@ class DashboardController extends Controller
             fn ($q, $branchId) => $q->whereHas('sales', fn ($qq) => $qq->where('branch_id', $branchId))
         );
 
-        // Cakupan kunjungan (Call Meet vs EC). Satuan = "call" = kombinasi
+        // Cakupan kunjungan (Call Made vs EC). Satuan = "call" = kombinasi
         // Sales + Toko + Hari, jadi toko yang sama dikunjungi di 2 hari
         // berbeda terhitung 2 call (toko unik ditampilkan terpisah).
-        //   Toko Dikunjungi = Call Meet + EC
-        //   Call Meet       = dikunjungi, tanpa transaksi selesai di hari itu
-        //   EC              = dikunjungi + ada transaksi selesai di hari itu
+        //   Toko Dikunjungi = Call Made + EC (total kunjungan)
+        //   Call Made       = hanya kunjungan: dikunjungi, tanpa transaksi selesai di hari itu
+        //   EC              = kunjungan + transaksi: dikunjungi + ada transaksi selesai di hari itu
+        // toBase() pada kedua query di bawah: koleksi Eloquent yang KOSONG tetap
+        // bertipe Eloquent\Collection setelah map(), dan intersect()-nya
+        // mengharapkan model (getKey()) -- crash "getKey() on string" (500) saat
+        // periode itu ada transaksi tapi tidak ada kunjungan.
         $visitCalls = $branchContext->applyVia(
             Visit::whereBetween('check_in_at', [$dateFrom, $dateTo])
                 ->when($salesId, fn ($q) => $q->where('sales_id', $salesId)),
             fn ($q, $branchId) => $q->whereHas('sales', fn ($qq) => $qq->where('branch_id', $branchId))
-        )->select('sales_id', 'customer_id')->selectRaw('DATE(check_in_at) as call_day')->distinct()->get();
+        )->select('sales_id', 'customer_id')->selectRaw('DATE(check_in_at) as call_day')->distinct()->get()->toBase();
 
         $transactionCalls = $branchContext->applyVia(
             SalesTransaction::where('status', SalesTransaction::STATUS_COMPLETED)
                 ->whereBetween('created_at', [$dateFrom, $dateTo])
                 ->when($salesId, fn ($q) => $q->where('sales_id', $salesId)),
             fn ($q, $branchId) => $q->whereHas('sales', fn ($qq) => $qq->where('branch_id', $branchId))
-        )->select('sales_id', 'customer_id')->selectRaw('DATE(created_at) as call_day')->distinct()->get();
+        )->select('sales_id', 'customer_id')->selectRaw('DATE(created_at) as call_day')->distinct()->get()->toBase();
 
         $callKey = fn ($row) => $row->sales_id.'|'.$row->customer_id.'|'.$row->call_day;
         $visitKeys = $visitCalls->map($callKey)->unique()->values();
@@ -173,7 +179,7 @@ class DashboardController extends Controller
         $kpi = [
             'visit_total' => $visitKeys->count(),
             'visit_stores' => $visitCalls->pluck('customer_id')->unique()->count(),
-            'call_meet' => $visitKeys->count() - $ecCount,
+            'call_made' => $visitKeys->count() - $ecCount,
             'effective_call' => $ecCount,
             'total_products' => Product::count(),
             'total_customers' => $branchContext->applyTo(
@@ -231,6 +237,7 @@ class DashboardController extends Controller
             'recentInvoices' => $recentInvoices,
             'salesList' => $salesList,
             'salesPerformance' => $salesPerformance,
+            'visitCoverage' => $visitCoverage,
             'tblView' => $tblView,
             'tblDate' => $tblDate->toDateString(),
             'tblSalesId' => $tblSalesId,
@@ -262,6 +269,8 @@ class DashboardController extends Controller
      *                       (harga satuan x qty, sebelum diskon/pajak).
      *  - Total Transaksi  : akumulasi `total` transaksi COMPLETED
      *                       (setelah diskon/pajak) + jumlah transaksinya.
+     *  - products         : rincian per PRODUK untuk tiap Sales: dibawa,
+     *                       terjual (qty) dan nilai terjual (subtotal item).
      *
      * Hanya 3 query agregat (group by sales_id), bukan N+1 per Sales.
      *
@@ -275,7 +284,12 @@ class DashboardController extends Controller
         $carried = SalesTaskStock::query()
             ->join('sales_tasks', 'sales_tasks.id', '=', 'sales_task_stocks.sales_task_id')
             ->whereIn('sales_tasks.sales_id', $ids)
-            ->whereBetween('sales_tasks.task_date', [$from->toDateString(), $to->toDateString()])
+            // whereDate (bukan whereBetween pada string tanggal): kolom `date` dengan
+            // cast Eloquent disimpan "YYYY-MM-DD 00:00:00" di SQLite, sehingga
+            // BETWEEN '2026-10-05' AND '2026-10-05' tidak mengena. whereDate benar
+            // di SQLite (test) maupun PostgreSQL (produksi).
+            ->whereDate('sales_tasks.task_date', '>=', $from->toDateString())
+            ->whereDate('sales_tasks.task_date', '<=', $to->toDateString())
             ->whereNotIn('sales_tasks.status', [SalesTask::STATUS_DRAFT, SalesTask::STATUS_CANCELLED])
             ->groupBy('sales_tasks.sales_id')
             ->selectRaw('sales_tasks.sales_id as sales_id')
@@ -305,10 +319,59 @@ class DashboardController extends Controller
             ->get()
             ->keyBy('sales_id');
 
+        // Rincian per PRODUK untuk tiap Sales (dibawa, terjual, nilai terjual).
+        // 2 query agregat tambahan (group by sales_id, product_id) + 1 query
+        // nama produk -- tetap bukan N+1.
+        $carriedByProduct = SalesTaskStock::query()
+            ->join('sales_tasks', 'sales_tasks.id', '=', 'sales_task_stocks.sales_task_id')
+            ->whereIn('sales_tasks.sales_id', $ids)
+            ->whereDate('sales_tasks.task_date', '>=', $from->toDateString())
+            ->whereDate('sales_tasks.task_date', '<=', $to->toDateString())
+            ->whereNotIn('sales_tasks.status', [SalesTask::STATUS_DRAFT, SalesTask::STATUS_CANCELLED])
+            ->groupBy('sales_tasks.sales_id', 'sales_task_stocks.product_id')
+            ->selectRaw('sales_tasks.sales_id as sales_id, sales_task_stocks.product_id as product_id')
+            ->selectRaw('SUM(COALESCE(sales_task_stocks.quantity_verified, sales_task_stocks.quantity_assigned)) as qty')
+            ->get();
+
+        $soldByProduct = SalesTransactionItem::query()
+            ->join('sales_transactions', 'sales_transactions.id', '=', 'sales_transaction_items.sales_transaction_id')
+            ->whereIn('sales_transactions.sales_id', $ids)
+            ->where('sales_transactions.status', SalesTransaction::STATUS_COMPLETED)
+            ->whereBetween('sales_transactions.created_at', [$from, $to])
+            ->groupBy('sales_transactions.sales_id', 'sales_transaction_items.product_id')
+            ->selectRaw('sales_transactions.sales_id as sales_id, sales_transaction_items.product_id as product_id')
+            ->selectRaw('SUM(sales_transaction_items.quantity) as qty')
+            ->selectRaw('SUM(sales_transaction_items.subtotal) as sold_value')
+            ->get();
+
+        $productLines = [];
+        foreach ($carriedByProduct as $r) {
+            $productLines[$r->sales_id][$r->product_id]['carried_qty'] = (float) $r->qty;
+        }
+        foreach ($soldByProduct as $r) {
+            $productLines[$r->sales_id][$r->product_id]['sold_qty'] = (float) $r->qty;
+            $productLines[$r->sales_id][$r->product_id]['sold_value'] = (float) $r->sold_value;
+        }
+
+        $productIds = collect($productLines)->flatMap(fn ($byProduct) => array_keys($byProduct))->unique()->values()->all();
+        $productNames = Product::query()->whereIn('id', $productIds)->get(['id', 'name', 'sku'])->keyBy('id');
+
         $rows = $salesRows->map(fn (Sales $s) => [
             'id' => $s->id,
             'name' => $s->name,
             'code' => $s->code,
+            'products' => collect($productLines[$s->id] ?? [])
+                ->map(fn (array $line, int $productId) => [
+                    'product_id' => $productId,
+                    'name' => $productNames[$productId]->name ?? '-',
+                    'sku' => $productNames[$productId]->sku ?? null,
+                    'carried_qty' => (float) ($line['carried_qty'] ?? 0),
+                    'sold_qty' => (float) ($line['sold_qty'] ?? 0),
+                    'sold_value' => (float) ($line['sold_value'] ?? 0),
+                ])
+                ->sortBy(fn (array $p) => mb_strtolower($p['name']))
+                ->values()
+                ->all(),
             'carried_qty' => (float) ($carried[$s->id]->qty ?? 0),
             'carried_products' => (int) ($carried[$s->id]->products ?? 0),
             'sold_qty' => (float) ($sold[$s->id]->qty ?? 0),
@@ -325,6 +388,86 @@ class DashboardController extends Controller
                 'sold_value' => $rows->sum('sold_value'),
                 'trx_count' => $rows->sum('trx_count'),
                 'trx_total' => $rows->sum('trx_total'),
+            ],
+        ];
+    }
+
+    /**
+     * Kunjungan per Sales: Call Made & EC (Effective Call).
+     *
+     * Definisi SAMA PERSIS dengan kartu KPI di index() supaya angkanya
+     * konsisten. Satuan = "call" = kombinasi Sales + Toko + Hari:
+     *  - Call Made   : hanya kunjungan -- toko dikunjungi (check-in) pada hari
+     *                  itu TANPA transaksi selesai
+     *  - EC          : kunjungan + transaksi -- toko dikunjungi DAN di hari yang
+     *                  sama ada transaksi COMPLETED dari Sales yang sama ke toko
+     *                  yang sama
+     *  - Total       : Call Made + EC (seluruh toko yang dikunjungi)
+     *  - % EC        : EC / Total
+     * Toko yang sama dikunjungi di 2 hari berbeda = 2 call; kunjungan
+     * berulang ke toko yang sama di hari yang sama = 1 call.
+     *
+     * Hanya 2 query (kunjungan & transaksi), dikelompokkan di PHP.
+     *
+     * @param  Collection<int, Sales>  $salesRows  Sales yang sudah di-scope Branch context
+     * @return array{rows: Collection, totals: array<string, int>}
+     */
+    private function buildVisitCoverage(Collection $salesRows, Carbon $from, Carbon $to): array
+    {
+        $ids = $salesRows->pluck('id')->all();
+
+        $visits = Visit::query()
+            ->whereIn('sales_id', $ids)
+            ->whereBetween('check_in_at', [$from, $to])
+            ->select('sales_id', 'customer_id')
+            ->selectRaw('DATE(check_in_at) as call_day')
+            ->distinct()
+            ->get()
+            ->toBase();
+
+        $transactions = SalesTransaction::query()
+            ->whereIn('sales_id', $ids)
+            ->where('status', SalesTransaction::STATUS_COMPLETED)
+            ->whereBetween('created_at', [$from, $to])
+            ->select('sales_id', 'customer_id')
+            ->selectRaw('DATE(created_at) as call_day')
+            ->distinct()
+            ->get()
+            ->toBase();
+
+        $callKey = fn ($r) => $r->customer_id.'|'.$r->call_day;
+        $visitsBySales = $visits->groupBy('sales_id');
+        $trxKeysBySales = $transactions->groupBy('sales_id')->map(fn ($g) => $g->map($callKey)->unique()->values());
+
+        $rows = $salesRows->map(function (Sales $s) use ($visitsBySales, $trxKeysBySales, $callKey) {
+            $salesVisits = $visitsBySales[$s->id] ?? collect();
+            $calls = $salesVisits->map($callKey)->unique()->values();
+            $totalCalls = $calls->count();
+            $ec = $calls->intersect($trxKeysBySales[$s->id] ?? collect())->count();
+
+            return [
+                'id' => $s->id,
+                'name' => $s->name,
+                'code' => $s->code,
+                'call_made' => $totalCalls - $ec,
+                'ec' => $ec,
+                'total_calls' => $totalCalls,
+                'ec_pct' => $totalCalls > 0 ? (int) round($ec / $totalCalls * 100) : 0,
+                'stores' => $salesVisits->pluck('customer_id')->unique()->count(),
+            ];
+        })->sortBy([['ec', 'desc'], ['total_calls', 'desc'], ['name', 'asc']])->values();
+
+        $sumCallMade = (int) $rows->sum('call_made');
+        $sumEc = (int) $rows->sum('ec');
+        $sumTotal = (int) $rows->sum('total_calls');
+
+        return [
+            'rows' => $rows,
+            'totals' => [
+                'call_made' => $sumCallMade,
+                'ec' => $sumEc,
+                'total_calls' => $sumTotal,
+                'ec_pct' => $sumTotal > 0 ? (int) round($sumEc / $sumTotal * 100) : 0,
             ],
         ];
     }

@@ -28,9 +28,9 @@
 
         $periodCards = [
             ['label' => 'Toko Dikunjungi', 'value' => number_format($kpi['visit_total']), 'tone' => 'teal', 'icon' => 'pin', 'href' => null,
-                'hint' => number_format($kpi['visit_stores']).' toko unik'],
-            ['label' => 'Call Meet (Kunjungan)', 'value' => number_format($kpi['call_meet']), 'tone' => 'blue', 'icon' => 'pin', 'href' => null,
-                'hint' => 'Dikunjungi, belum transaksi'],
+                'hint' => number_format($kpi['visit_stores']).' toko unik · Call Made + EC'],
+            ['label' => 'Call Made (Kunjungan)', 'value' => number_format($kpi['call_made']), 'tone' => 'blue', 'icon' => 'pin', 'href' => null,
+                'hint' => 'Hanya kunjungan, tanpa transaksi'],
             ['label' => 'EC (Kunjungan + Transaksi)', 'value' => number_format($kpi['effective_call']), 'tone' => 'green', 'icon' => 'star', 'href' => null,
                 'hint' => $ecPercent.'% dari kunjungan'],
             ['label' => 'Transaksi', 'value' => number_format($kpi['sales_count']), 'tone' => 'blue', 'icon' => 'cart', 'href' => null],
@@ -202,6 +202,8 @@
 
             <noscript><button type="submit" class="adm-btn adm-btn-primary adm-btn-sm">Terapkan</button></noscript>
 
+            <button type="button" class="adm-btn adm-btn-ghost adm-btn-sm" data-perf-toggle-all>Buka semua rincian produk</button>
+
             @if ($tblView !== 'today' || $tblSalesId)
                 <a href="{{ route('admin.dashboard', $perfResetQuery) }}#sales-performance" class="adm-btn adm-btn-ghost adm-btn-sm">Reset</a>
             @endif
@@ -224,8 +226,20 @@
                             @php $idle = $row['carried_qty'] == 0 && $row['trx_count'] == 0; @endphp
                             <tr @if ($idle) style="opacity: .6" @endif>
                                 <td>
-                                    <span class="frm-name">{{ $row['name'] }}</span>
-                                    @if ($row['code'])<p class="frm-meta">{{ $row['code'] }}</p>@endif
+                                    <div class="perf-name">
+                                        @if (count($row['products']))
+                                            <button type="button" class="perf-toggle" data-perf-toggle="{{ $row['id'] }}" aria-expanded="false"
+                                                    aria-label="Rincian produk {{ $row['name'] }}" title="Rincian produk">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+                                            </button>
+                                        @else
+                                            <span class="perf-toggle-spacer" aria-hidden="true"></span>
+                                        @endif
+                                        <div>
+                                            <span class="frm-name">{{ $row['name'] }}</span>
+                                            @if ($row['code'])<p class="frm-meta">{{ $row['code'] }}</p>@endif
+                                        </div>
+                                    </div>
                                 </td>
                                 <td data-label="Stok Dibawa" class="is-num">
                                     <span class="frm-num">{{ $fmtQty($row['carried_qty']) }}</span>
@@ -245,6 +259,33 @@
                                     <p class="frm-meta">{{ number_format($row['trx_count'], 0, ',', '.') }} transaksi</p>
                                 </td>
                             </tr>
+                            @if (count($row['products']))
+                                {{-- Rincian per produk: dibawa, terjual, dan nilai terjual. --}}
+                                <tr class="perf-detail" data-perf-detail="{{ $row['id'] }}" hidden style="display: none">
+                                    <td colspan="5">
+                                        <table class="perf-sub">
+                                            <thead>
+                                                <tr>
+                                                    <th>Produk</th>
+                                                    <th class="is-num">Dibawa</th>
+                                                    <th class="is-num">Terjual</th>
+                                                    <th class="is-num">Nilai Terjual</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach ($row['products'] as $p)
+                                                    <tr>
+                                                        <td>{{ $p['name'] }}@if ($p['sku']) <span class="frm-meta">({{ $p['sku'] }})</span>@endif</td>
+                                                        <td class="is-num">{{ $fmtQty($p['carried_qty']) }}</td>
+                                                        <td class="is-num">{{ $fmtQty($p['sold_qty']) }}</td>
+                                                        <td class="is-num">{{ $fmtRp($p['sold_value']) }}</td>
+                                                    </tr>
+                                                @endforeach
+                                            </tbody>
+                                        </table>
+                                    </td>
+                                </tr>
+                            @endif
                         @endforeach
                     </tbody>
                     <tfoot>
@@ -265,6 +306,114 @@
             <p class="panel-empty">Tidak ada Sales aktif pada Depo/filter yang dipilih.</p>
         @endif
     </section>
+
+    @php
+        $cov = $visitCoverage['rows'];
+        $covTotals = $visitCoverage['totals'];
+    @endphp
+
+    <section class="panel dash-section" id="visit-coverage">
+        <div class="panel-head">
+            <div>
+                <h2 class="panel-title">Kunjungan per Sales (Call Made &amp; EC)</h2>
+                <span class="dash-section-note">{{ $perfLabel }} &middot; mengikuti filter tabel Penjualan per Sales</span>
+            </div>
+            <span class="frm-count">{{ number_format($cov->count(), 0, ',', '.') }} sales</span>
+        </div>
+
+        @if ($cov->isNotEmpty())
+            <div class="frm-table-wrap">
+                <table class="frm-table">
+                    <thead>
+                        <tr>
+                            <th>Sales</th>
+                            <th class="is-num">Call Made (Kunjungan)</th>
+                            <th class="is-num">EC (Kunjungan + Transaksi)</th>
+                            <th class="is-num">Total Kunjungan</th>
+                            <th class="is-num">% EC</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($cov as $row)
+                            <tr @if ($row['total_calls'] == 0) style="opacity: .6" @endif>
+                                <td>
+                                    <span class="frm-name">{{ $row['name'] }}</span>
+                                    @if ($row['code'])<p class="frm-meta">{{ $row['code'] }}</p>@endif
+                                </td>
+                                <td data-label="Call Made" class="is-num"><span class="frm-num">{{ number_format($row['call_made'], 0, ',', '.') }}</span></td>
+                                <td data-label="EC" class="is-num"><span class="frm-num">{{ number_format($row['ec'], 0, ',', '.') }}</span></td>
+                                <td data-label="Total Kunjungan" class="is-num">
+                                    <span class="frm-num is-strong">{{ number_format($row['total_calls'], 0, ',', '.') }}</span>
+                                    @if ($row['stores'] > 0)<p class="frm-meta">{{ number_format($row['stores'], 0, ',', '.') }} toko unik</p>@endif
+                                </td>
+                                <td data-label="% EC" class="is-num"><span class="frm-num">{{ $row['ec_pct'] }}%</span></td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                    <tfoot>
+                        <tr class="perf-total">
+                            <th>Total{{ $tblSalesId ? '' : ' Seluruh Sales' }}</th>
+                            <th class="is-num"><span class="frm-num">{{ number_format($covTotals['call_made'], 0, ',', '.') }}</span></th>
+                            <th class="is-num"><span class="frm-num">{{ number_format($covTotals['ec'], 0, ',', '.') }}</span></th>
+                            <th class="is-num"><span class="frm-num">{{ number_format($covTotals['total_calls'], 0, ',', '.') }}</span></th>
+                            <th class="is-num"><span class="frm-num">{{ $covTotals['ec_pct'] }}%</span></th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            <p class="frm-hint" style="padding: .75rem 1rem; margin: 0">
+                1 call = 1 Sales + 1 toko + 1 hari. <strong>Call Made</strong> = hanya kunjungan (check-in, tanpa transaksi);
+                <strong>EC</strong> = kunjungan + transaksi (di hari yang sama ada transaksi selesai ke toko itu);
+                <strong>Total Kunjungan</strong> = Call Made + EC; <strong>% EC</strong> = EC dibagi Total Kunjungan.
+                Kunjungan berulang ke toko yang sama di hari yang sama dihitung 1 call.
+            </p>
+        @else
+            <p class="panel-empty">Tidak ada Sales aktif pada Depo/filter yang dipilih.</p>
+        @endif
+    </section>
+
+    <style>
+        .perf-name { display: flex; align-items: flex-start; gap: .5rem; }
+        .perf-toggle, .perf-toggle-spacer { flex: none; width: 1.5rem; height: 1.5rem; }
+        .perf-toggle {
+            display: inline-flex; align-items: center; justify-content: center; padding: 0;
+            border: 1px solid color-mix(in srgb, currentColor 22%, transparent); border-radius: .375rem;
+            background: transparent; color: inherit; cursor: pointer;
+        }
+        .perf-toggle svg { width: .85rem; height: .85rem; transition: transform .15s; }
+        .perf-toggle[aria-expanded="true"] svg { transform: rotate(90deg); }
+        .perf-detail > td { background: color-mix(in srgb, currentColor 4%, transparent); padding: .75rem 1rem; }
+        .perf-sub { width: 100%; border-collapse: collapse; font-size: .875rem; }
+        .perf-sub th, .perf-sub td { padding: .35rem .5rem; text-align: left; border-bottom: 1px solid color-mix(in srgb, currentColor 10%, transparent); }
+        .perf-sub .is-num { text-align: right; }
+    </style>
+
+    <script>
+        (function () {
+            function setOpen(btn, open) {
+                var row = document.querySelector('[data-perf-detail="' + btn.getAttribute('data-perf-toggle') + '"]');
+                if (!row) return;
+                btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+                row.hidden = !open;
+                row.style.display = open ? '' : 'none';
+            }
+
+            document.addEventListener('click', function (e) {
+                var all = e.target.closest('[data-perf-toggle-all]');
+                if (all) {
+                    var buttons = document.querySelectorAll('[data-perf-toggle]');
+                    var open = all.getAttribute('data-open') !== '1';
+                    buttons.forEach(function (b) { setOpen(b, open); });
+                    all.setAttribute('data-open', open ? '1' : '0');
+                    all.textContent = open ? 'Tutup semua rincian produk' : 'Buka semua rincian produk';
+                    return;
+                }
+
+                var btn = e.target.closest('[data-perf-toggle]');
+                if (btn) setOpen(btn, btn.getAttribute('aria-expanded') !== 'true');
+            });
+        })();
+    </script>
 
     <div class="dash-cols">
         <section class="panel">
