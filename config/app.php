@@ -65,7 +65,10 @@ return [
     |
     */
 
-    'timezone' => 'UTC',
+    // Zona waktu bisnis: WIB. Semua now()/today()/tanggal dokumen/struk dan
+    // kolom timestamp mengikuti ini. Waktu dari perangkat (mis. recorded_at
+    // lokasi) dikonversi ke zona ini saat disimpan (lihat TrackingController).
+    'timezone' => env('APP_TIMEZONE', 'Asia/Jakarta'),
 
     /*
     |--------------------------------------------------------------------------

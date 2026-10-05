@@ -14,6 +14,7 @@ use App\Models\SalesTask;
 use App\Models\SalesTrackingSession;
 use App\Models\Visit;
 use App\Services\TrackingSessionService;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -237,7 +238,12 @@ class TrackingController extends Controller
         $existing = SalesLocationHistory::where('location_event_id', $request->validated('location_event_id'))->first();
 
         if (! $existing) {
-            DB::transaction(function () use ($request, $sales, $session) {
+            // Waktu dari perangkat membawa offset sendiri (Android: +07:00,
+            // browser: Z/UTC). Dikonversi ke zona waktu aplikasi sebelum disimpan
+            // supaya recorded_at selalu sebanding dengan received_at/created_at.
+            $recordedAt = Carbon::parse($request->validated('recorded_at'))->setTimezone(config('app.timezone'));
+
+            DB::transaction(function () use ($request, $sales, $session, $recordedAt) {
                 SalesLocationHistory::create([
                     'sales_id' => $sales->id,
                     'location_event_id' => $request->validated('location_event_id'),
@@ -246,7 +252,7 @@ class TrackingController extends Controller
                     'latitude' => $request->validated('latitude'),
                     'longitude' => $request->validated('longitude'),
                     'accuracy' => $request->validated('accuracy'),
-                    'recorded_at' => $request->validated('recorded_at'),
+                    'recorded_at' => $recordedAt,
                     'received_at' => now(),
                 ]);
 

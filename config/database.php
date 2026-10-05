@@ -97,6 +97,10 @@ return [
             'prefix_indexes' => true,
             'search_path' => 'public',
             'sslmode' => env('DB_SSLMODE', 'prefer'),
+            // Samakan zona waktu sesi PostgreSQL dengan aplikasi supaya nilai yang
+            // dibuat database sendiri (mis. CURRENT_TIMESTAMP) tidak selisih dengan
+            // yang dibuat Laravel.
+            'timezone' => env('APP_TIMEZONE', 'Asia/Jakarta'),
         ],
 
         'sqlsrv' => [
