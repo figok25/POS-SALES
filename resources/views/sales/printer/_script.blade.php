@@ -443,7 +443,15 @@ window.ThermalPrinter = window.ThermalPrinter || (function () {
         b.twoCol('No. Transaksi', payload.code || '-');
         b.twoCol('Tanggal', payload.date || '-');
         b.twoCol('Sales', payload.sales_name || '-');
-        b.twoCol('Customer', payload.customer_name || '-');
+        // Nama Toko (Customer) sengaja TIDAK pakai twoCol seperti baris lain
+        // di atas -- twoCol tidak pernah membungkus/memotong teks di sisi
+        // kanan, jadi nama toko yang panjang bisa overflow lebar kertas dan
+        // di-wrap paksa oleh firmware printer (bisa putus di tengah kata).
+        // Dicetak BOLD di baris sendiri + wrap() (fungsi yang sama dipakai
+        // nama produk di bawah) supaya nama toko selalu utuh & jelas
+        // terbaca berapa pun panjangnya.
+        b.line('Customer:');
+        b.bold(true).wrap(payload.customer_name || '-').bold(false);
         b.divider();
         (payload.items || []).forEach(function (item) {
             b.wrap(item.name || '-');

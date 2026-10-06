@@ -97,8 +97,6 @@
             ['Branch Transfer (BKB/BTB Cabang)', 'admin.distribution.branch-transfer.index'],
         ]],
         ['title' => 'Sales', 'items' => [
-            ['Sales Management', 'admin.master.sales.index'],
-            ['Customer', 'admin.master.customers.index'],
             ['Customer Assignment', 'admin.sales.customer-assignments.index'],
             ['Visit Plan (Rute Kanvas)', 'admin.sales.visit-plans.index'],
             ['Rute Toko per Sales', 'admin.sales.route-map.index'],

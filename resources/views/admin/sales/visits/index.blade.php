@@ -45,6 +45,7 @@
                         <tr>
                             <th>Sales</th>
                             <th>Customer</th>
+                            <th>Kondisi</th>
                             <th>Check-in</th>
                             <th>Check-out</th>
                             <th>Durasi</th>
@@ -58,6 +59,17 @@
                             <tr>
                                 <td><span class="frm-name">{{ $item->sales->name ?? '-' }}</span></td>
                                 <td data-label="Customer">{{ $item->customer->name ?? '-' }}</td>
+                                <td data-label="Kondisi">
+                                    @if ($item->check_in_condition === 'normal')
+                                        <span class="frm-status is-on">Normal</span>
+                                    @elseif ($item->check_in_condition === 'closed')
+                                        <span class="frm-status is-danger">{{ \App\Models\Visit::conditionLabel($item->check_in_condition) }}</span>
+                                    @elseif ($item->check_in_condition)
+                                        <span class="frm-status is-warn">{{ \App\Models\Visit::conditionLabel($item->check_in_condition) }}</span>
+                                    @else
+                                        <span class="frm-dash">—</span>
+                                    @endif
+                                </td>
                                 <td data-label="Check-in" class="frm-nowrap">{{ $item->check_in_at->format('d M Y H:i') }}</td>
                                 <td data-label="Check-out" class="frm-nowrap">
                                     @if ($item->check_out_at)

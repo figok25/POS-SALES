@@ -79,6 +79,13 @@ class VisitService
             ]);
         }
 
+        // RevisiMinor #6: info Promosi/POSM hanya bermakna jika outlet benar-benar
+        // diperiksa (kondisi normal). Untuk toko tutup / kendala lain nilainya
+        // dibiarkan NULL = "tidak diamati", bukan "tidak ada", supaya laporan
+        // tidak salah menghitung outlet yang sebenarnya tidak sempat diperiksa.
+        $condition = $data['condition'] ?? null;
+        $observed = $condition === Visit::CONDITION_NORMAL;
+
         $visit = Visit::create([
             'sales_id' => $salesId,
             'customer_id' => $customerId,
@@ -86,6 +93,11 @@ class VisitService
             'check_in_latitude' => $data['latitude'] ?? null,
             'check_in_longitude' => $data['longitude'] ?? null,
             'notes' => $data['notes'] ?? null,
+            'check_in_condition' => $condition,
+            'has_promo' => $observed && isset($data['has_promo']) ? (bool) $data['has_promo'] : null,
+            'has_posm' => $observed && isset($data['has_posm']) ? (bool) $data['has_posm'] : null,
+            'has_banner' => $observed && isset($data['has_banner']) ? (bool) $data['has_banner'] : null,
+            'facility_notes' => $observed ? ($data['facility_notes'] ?? null) : null,
             'status' => Visit::STATUS_ONGOING,
         ]);
 
@@ -104,11 +116,14 @@ class VisitService
 
         $before = $visit->toArray();
 
+        // RevisiMinor #5: keterangan check-out disimpan terpisah di
+        // check_out_notes. Sebelumnya `notes` ditimpa di sini, sehingga
+        // alasan/kondisi yang dicatat saat check-in ikut hilang.
         $visit->update([
             'check_out_at' => now(),
             'check_out_latitude' => $data['latitude'] ?? null,
             'check_out_longitude' => $data['longitude'] ?? null,
-            'notes' => $data['notes'] ?? $visit->notes,
+            'check_out_notes' => $data['notes'] ?? null,
             'status' => Visit::STATUS_COMPLETED,
         ]);
 
