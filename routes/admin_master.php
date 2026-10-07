@@ -47,6 +47,10 @@ Route::middleware('permission:master-data.manage')->group(function () {
         Route::resource('customers', \App\Http\Controllers\Admin\Master\CustomerController::class)->parameters(['customers' => 'item']);
         Route::resource('vehicles', \App\Http\Controllers\Admin\Master\VehicleController::class)->parameters(['vehicles' => 'item'])->except(['show']);
         Route::resource('suppliers', \App\Http\Controllers\Admin\Master\SupplierController::class)->parameters(['suppliers' => 'item'])->except(['show']);
+
+        // Item Promosi/POSM untuk checklist Kunjungan: boleh dikelola Admin (daftar dipakai bersama
+        // semua Depo). Tanpa hapus -- cukup nonaktifkan -- supaya riwayat kunjungan lama utuh.
+        Route::resource('promo-items', \App\Http\Controllers\Admin\Master\PromoItemController::class)->parameters(['promo-items' => 'item'])->only(['index', 'store', 'update']);
 });
 
 // --- Ubah struktur (WAJIB Super Admin) ---

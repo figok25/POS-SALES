@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 /**
  * Phase 6 - Kunjungan / Visit (Blueprint #12.4).
@@ -86,10 +87,6 @@ class Visit extends Model
         'notes',
         'check_in_condition',
         'check_out_notes',
-
-        'has_promo',
-        'has_posm',
-        'has_banner',
         'facility_notes',
 
         'status',
@@ -108,10 +105,6 @@ class Visit extends Model
             'check_out_latitude' => 'decimal:7',
             'check_out_longitude' => 'decimal:7',
             'check_out_accuracy' => 'decimal:2',
-
-            'has_promo' => 'boolean',
-            'has_posm' => 'boolean',
-            'has_banner' => 'boolean',
         ];
     }
 
@@ -148,11 +141,59 @@ class Visit extends Model
     }
 
     /**
-     * Apakah info Promosi/POSM diamati pada kunjungan ini (NULL = tidak
-     * diamati, mis. toko tutup atau data kunjungan lama).
+     * Jawaban Ada / Tidak ada per item Promosi/POSM yang dicentang Sales saat
+     * check-in (pivot `is_present`). Item baru yang ditambah Admin setelah
+     * kunjungan ini tidak ikut muncul di kunjungan lama.
+     */
+    public function promoItems(): BelongsToMany
+    {
+        return $this->belongsToMany(PromoItem::class, 'visit_promo_items')
+            ->withPivot('is_present')
+            ->withTimestamps()
+            ->orderBy('promo_items.sort_order')
+            ->orderBy('promo_items.id');
+    }
+
+    /**
+     * Apakah ada jawaban Promosi/POSM pada kunjungan ini (kosong = data
+     * kunjungan lama sebelum fitur ini ada).
      */
     public function hasFacilityInfo(): bool
     {
-        return $this->has_promo !== null || $this->has_posm !== null || $this->has_banner !== null;
+        return $this->promoItems->isNotEmpty();
+    }
+
+    /**
+     * Alasan/keterangan CHECK-IN wajib hanya bila kondisi outlet bermasalah
+     * (toko tutup atau kendala lain). Outlet normal tidak perlu alasan.
+     */
+    public static function conditionNeedsReason(?string $condition): bool
+    {
+        return $condition !== self::CONDITION_NORMAL;
+    }
+
+    /**
+     * Sudah ada transaksi (selesai) untuk Customer ini oleh Sales ini sejak
+     * check-in? Dipakai untuk menentukan apakah kunjungan "tanpa transaksi".
+     */
+    public function hasTransaction(): bool
+    {
+        return SalesTransaction::query()
+            ->where('sales_id', $this->sales_id)
+            ->where('customer_id', $this->customer_id)
+            ->where('status', SalesTransaction::STATUS_COMPLETED)
+            ->where('created_at', '>=', $this->check_in_at)
+            ->exists();
+    }
+
+    /**
+     * Alasan CHECK-OUT wajib hanya bila kunjungan bermasalah yang BELUM
+     * dijelaskan saat check-in: outlet normal (buka) tetapi tidak ada
+     * transaksi, jadi Sales menjelaskan alasan tidak transaksi. Toko tutup /
+     * kendala lain sudah menjelaskan alasannya saat check-in.
+     */
+    public function needsCheckOutReason(): bool
+    {
+        return $this->check_in_condition === self::CONDITION_NORMAL && ! $this->hasTransaction();
     }
 }

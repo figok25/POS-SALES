@@ -84,6 +84,7 @@
             ['Sales', 'admin.master.sales.index'],
             ['Vehicle', 'admin.master.vehicles.index'],
             ['Supplier', 'admin.master.suppliers.index'],
+            ['Item Promosi / POSM', 'admin.master.promo-items.index'],
         ]],
         ['title' => 'Inventory', 'items' => [
             ['Stock', 'admin.inventory.stock.index'],

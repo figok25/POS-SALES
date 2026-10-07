@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Sales\Concerns\ResolvesCurrentSales;
 use App\Http\Requests\Sales\VisitCheckInRequest;
 use App\Http\Requests\Sales\VisitCheckOutRequest;
+use App\Models\PromoItem;
 use App\Models\Visit;
 use App\Services\SalesRouteMapService;
 use App\Services\VisitService;
@@ -28,13 +29,16 @@ class VisitController extends Controller
 
         $ongoing = Visit::where('sales_id', $sales->id)->where('status', Visit::STATUS_ONGOING)->with('customer')->first();
 
+        // Alasan check-out hanya diwajibkan bila outlet normal tapi belum ada transaksi.
+        $checkOutReasonRequired = $ongoing?->needsCheckOutReason() ?? false;
+
         $items = Visit::where('sales_id', $sales->id)
             ->where('status', Visit::STATUS_COMPLETED)
             ->with('customer')
             ->orderBy('id', 'desc')
             ->paginate(15);
 
-        return view('sales.visits.index', compact('ongoing', 'items'));
+        return view('sales.visits.index', compact('ongoing', 'items', 'checkOutReasonRequired'));
     }
 
     /**
@@ -54,7 +58,10 @@ class VisitController extends Controller
         $today = now()->dayOfWeekIso;
         [$customers, $usingFallback] = $this->routeMapService->customersForDay($sales->id, $today);
 
-        return view('sales.visits.create', compact('customers', 'usingFallback'));
+        // Item Promosi/POSM aktif (dikelola Admin) yang dicentang Sales saat check-in.
+        $promoItems = PromoItem::active()->ordered()->get();
+
+        return view('sales.visits.create', compact('customers', 'usingFallback', 'promoItems'));
     }
 
     public function store(VisitCheckInRequest $request)

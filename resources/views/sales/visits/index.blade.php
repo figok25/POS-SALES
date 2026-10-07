@@ -29,8 +29,14 @@
                 @csrf
                 <input type="hidden" name="latitude" id="co-latitude">
                 <input type="hidden" name="longitude" id="co-longitude">
-                <label for="co-notes" class="block text-sm text-gray-600 mb-1">Keterangan Check-out <span class="text-red-500">*</span></label>
-                <textarea id="co-notes" name="notes" rows="3" required minlength="3" maxlength="1000" placeholder="Hasil kunjungan / kondisi outlet saat selesai" class="w-full border rounded px-3 py-2 text-sm mb-2">{{ old('notes') }}</textarea>
+                @if ($checkOutReasonRequired)
+                    <label for="co-notes" class="block text-sm text-gray-600 mb-1">Alasan Tidak Transaksi <span class="text-red-500">*</span></label>
+                    <textarea id="co-notes" name="notes" rows="3" required minlength="3" maxlength="1000" placeholder="Mis. stok toko masih banyak, pemilik minta datang lagi minggu depan" class="w-full border rounded px-3 py-2 text-sm mb-1">{{ old('notes') }}</textarea>
+                    <p class="text-xs text-amber-700 mb-2">Belum ada transaksi di kunjungan ini, jadi alasan wajib diisi.</p>
+                @else
+                    <label for="co-notes" class="block text-sm text-gray-600 mb-1">Catatan Check-out (opsional)</label>
+                    <textarea id="co-notes" name="notes" rows="2" minlength="3" maxlength="1000" placeholder="Hasil kunjungan / catatan tambahan" class="w-full border rounded px-3 py-2 text-sm mb-2">{{ old('notes') }}</textarea>
+                @endif
                 <button type="submit" class="w-full bg-red-600 text-white px-3 py-2 rounded text-sm">Check-out</button>
             </form>
         </div>

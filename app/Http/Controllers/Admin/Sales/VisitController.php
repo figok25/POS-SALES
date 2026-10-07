@@ -35,7 +35,7 @@ class VisitController extends Controller
             abort(403, 'Anda tidak memiliki akses ke Kunjungan ini.');
         }
 
-        $visit->load(['sales', 'customer']);
+        $visit->load(['sales', 'customer', 'promoItems']);
 
         return view('admin.sales.visits.show', compact('visit'));
     }

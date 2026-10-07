@@ -44,33 +44,36 @@
             </div>
         </div>
 
+        {{-- Alasan wajib HANYA bila bermasalah (toko tutup / kendala lain). --}}
         <div>
-            <label for="notes" class="block text-sm text-gray-600 mb-1">Keterangan Kondisi Outlet <span class="text-red-500">*</span></label>
-            <textarea id="notes" name="notes" rows="3" required minlength="3" maxlength="1000" class="w-full border rounded px-3 py-2 text-sm" placeholder="Jelaskan kondisi outlet saat Anda tiba">{{ old('notes') }}</textarea>
-            <p class="text-xs text-gray-400 mt-1">Wajib diisi di setiap kunjungan, terutama jika toko tutup atau ada kendala.</p>
+            <label for="notes" class="block text-sm text-gray-600 mb-1">Keterangan / Alasan <span id="notes-star" class="text-red-500 hidden">*</span></label>
+            <textarea id="notes" name="notes" rows="3" minlength="3" maxlength="1000" class="w-full border rounded px-3 py-2 text-sm" placeholder="Mis. toko buka, pemilik ada">{{ old('notes') }}</textarea>
+            <p id="notes-hint" class="text-xs text-gray-400 mt-1">Opsional bila toko normal. Wajib diisi bila toko tutup atau ada kendala.</p>
         </div>
 
-        {{-- Promosi / POSM: hanya diamati (dan wajib) jika outlet normal/buka. --}}
-        <fieldset id="promo-section" class="border rounded p-3 space-y-2 hidden" disabled>
-            <legend class="text-sm font-medium text-gray-700 px-1">Promosi &amp; POSM Outlet</legend>
-            @foreach (['has_promo' => 'Program promosi', 'has_posm' => 'POSM', 'has_banner' => 'Banner'] as $field => $label)
-                <div class="flex items-center justify-between gap-2">
-                    <span class="text-sm text-gray-600">{{ $label }} <span class="text-red-500">*</span></span>
-                    <div class="flex gap-2">
-                        @foreach (['1' => 'Ada', '0' => 'Tidak ada'] as $value => $text)
-                            <label class="cursor-pointer">
-                                <input type="radio" name="{{ $field }}" value="{{ $value }}" class="peer sr-only" required @checked((string) old($field) === (string) $value && old($field) !== null)>
-                                <span class="block border rounded px-3 py-1 text-xs text-gray-700 peer-checked:bg-indigo-600 peer-checked:text-white peer-checked:border-indigo-600 peer-focus-visible:ring-2 peer-focus-visible:ring-indigo-400">{{ $text }}</span>
-                            </label>
-                        @endforeach
-                    </div>
+        {{-- Promosi / POSM: Sales cukup mencentang item yang ADA (tidak dicentang = Tidak ada).
+             Selalu tampil, termasuk saat toko tutup. Daftar item dikelola Admin. --}}
+        @if ($promoItems->isNotEmpty())
+            @php $oldPromo = array_map('strval', (array) old('promo_items', [])); @endphp
+            <fieldset class="border rounded p-3 space-y-2">
+                <legend class="text-sm font-medium text-gray-700 px-1">Promosi &amp; POSM Outlet</legend>
+                <p class="text-xs text-gray-400">Centang yang ada di outlet.</p>
+                @foreach ($promoItems as $promo)
+                    <label class="flex items-center justify-between gap-2 cursor-pointer">
+                        <span class="text-sm text-gray-700">{{ $promo->name }}</span>
+                        <span>
+                            <input type="checkbox" name="promo_items[]" value="{{ $promo->id }}" class="peer sr-only" @checked(in_array((string) $promo->id, $oldPromo, true))>
+                            <span class="block border rounded px-3 py-1 text-xs text-gray-500 peer-checked:hidden peer-focus-visible:ring-2 peer-focus-visible:ring-indigo-400">Tidak ada</span>
+                            <span class="hidden border rounded px-3 py-1 text-xs bg-green-600 text-white border-green-600 peer-checked:block peer-focus-visible:ring-2 peer-focus-visible:ring-green-400">Ada</span>
+                        </span>
+                    </label>
+                @endforeach
+                <div>
+                    <label for="facility_notes" class="block text-xs text-gray-500 mb-1">Keterangan promosi / POSM (opsional)</label>
+                    <textarea id="facility_notes" name="facility_notes" rows="2" maxlength="1000" class="w-full border rounded px-3 py-2 text-sm" placeholder="Mis. banner promo terpasang di depan, rak display ada">{{ old('facility_notes') }}</textarea>
                 </div>
-            @endforeach
-            <div>
-                <label for="facility_notes" class="block text-xs text-gray-500 mb-1">Keterangan promosi / POSM / fasilitas lain (opsional)</label>
-                <textarea id="facility_notes" name="facility_notes" rows="2" maxlength="1000" class="w-full border rounded px-3 py-2 text-sm" placeholder="Mis. banner promo rokok sudah terpasang, rak display ada">{{ old('facility_notes') }}</textarea>
-            </div>
-        </fieldset>
+            </fieldset>
+        @endif
 
         <input type="hidden" name="latitude" id="latitude">
         <input type="hidden" name="longitude" id="longitude">
@@ -82,15 +85,15 @@
     @endif
 
     <script>
-        // RevisiMinor #5/#6: blok Promosi/POSM hanya muncul & wajib saat kondisi "Normal";
-        // placeholder keterangan menyesuaikan kondisi. <fieldset disabled> membuat
-        // radio di dalamnya tidak ikut terkirim/divalidasi saat tersembunyi.
+        // Keterangan/alasan menjadi WAJIB hanya saat kondisi "Toko Tutup" atau "Kendala Lain";
+        // placeholder menyesuaikan kondisi. Blok Promosi/POSM selalu tampil.
         (function () {
-            const promo = document.getElementById('promo-section');
             const notes = document.getElementById('notes');
-            if (! promo || ! notes) return;
+            const star = document.getElementById('notes-star');
+            const hint = document.getElementById('notes-hint');
+            if (! notes) return;
 
-            const hints = {
+            const placeholders = {
                 normal: 'Mis. toko buka, pemilik ada, stok rak terlihat',
                 closed: 'Mis. toko tutup, pemilik sedang keluar kota',
                 other: 'Jelaskan kendala di lapangan (renovasi, pemilik tidak ada, dll)'
@@ -99,10 +102,14 @@
             function sync() {
                 const checked = document.querySelector('input[name="condition"]:checked');
                 const value = checked ? checked.value : null;
-                const show = value === 'normal';
-                promo.disabled = ! show;
-                promo.classList.toggle('hidden', ! show);
-                if (value && hints[value]) notes.placeholder = hints[value];
+                const needsReason = value !== null && value !== 'normal';
+
+                notes.required = needsReason;
+                star.classList.toggle('hidden', ! needsReason);
+                hint.textContent = needsReason
+                    ? 'Wajib diisi: jelaskan alasan/kondisi di lokasi.'
+                    : 'Opsional bila toko normal. Wajib diisi bila toko tutup atau ada kendala.';
+                if (value && placeholders[value]) notes.placeholder = placeholders[value];
             }
 
             document.querySelectorAll('input[name="condition"]').forEach(function (r) {

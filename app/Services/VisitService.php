@@ -4,9 +4,11 @@ namespace App\Services;
 
 use App\Models\Customer;
 use App\Models\CustomerAssignment;
+use App\Models\PromoItem;
 use App\Models\Visit;
 use App\Services\AuditLogger;
 use App\Support\Geo;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -79,27 +81,32 @@ class VisitService
             ]);
         }
 
-        // RevisiMinor #6: info Promosi/POSM hanya bermakna jika outlet benar-benar
-        // diperiksa (kondisi normal). Untuk toko tutup / kendala lain nilainya
-        // dibiarkan NULL = "tidak diamati", bukan "tidak ada", supaya laporan
-        // tidak salah menghitung outlet yang sebenarnya tidak sempat diperiksa.
-        $condition = $data['condition'] ?? null;
-        $observed = $condition === Visit::CONDITION_NORMAL;
+        // Promosi/POSM: Sales mencentang item yang ADA; item aktif yang tidak
+        // dicentang dicatat "Tidak ada". Dicatat untuk SEMUA kondisi outlet
+        // (toko tutup pun POSM-nya tetap dicatat, sesuai keputusan bisnis).
+        $presentIds = collect($data['promo_items'] ?? [])->map(fn ($id) => (int) $id)->all();
 
-        $visit = Visit::create([
-            'sales_id' => $salesId,
-            'customer_id' => $customerId,
-            'check_in_at' => now(),
-            'check_in_latitude' => $data['latitude'] ?? null,
-            'check_in_longitude' => $data['longitude'] ?? null,
-            'notes' => $data['notes'] ?? null,
-            'check_in_condition' => $condition,
-            'has_promo' => $observed && isset($data['has_promo']) ? (bool) $data['has_promo'] : null,
-            'has_posm' => $observed && isset($data['has_posm']) ? (bool) $data['has_posm'] : null,
-            'has_banner' => $observed && isset($data['has_banner']) ? (bool) $data['has_banner'] : null,
-            'facility_notes' => $observed ? ($data['facility_notes'] ?? null) : null,
-            'status' => Visit::STATUS_ONGOING,
-        ]);
+        $visit = DB::transaction(function () use ($salesId, $customerId, $data, $presentIds) {
+            $visit = Visit::create([
+                'sales_id' => $salesId,
+                'customer_id' => $customerId,
+                'check_in_at' => now(),
+                'check_in_latitude' => $data['latitude'] ?? null,
+                'check_in_longitude' => $data['longitude'] ?? null,
+                'notes' => $data['notes'] ?? null,
+                'check_in_condition' => $data['condition'] ?? null,
+                'facility_notes' => $data['facility_notes'] ?? null,
+                'status' => Visit::STATUS_ONGOING,
+            ]);
+
+            $answers = [];
+            foreach (PromoItem::active()->pluck('id') as $itemId) {
+                $answers[$itemId] = ['is_present' => in_array((int) $itemId, $presentIds, true)];
+            }
+            $visit->promoItems()->sync($answers);
+
+            return $visit;
+        });
 
         AuditLogger::log('check_in', 'Sales', Visit::class, $visit->id, null, $visit->toArray());
 

@@ -73,14 +73,14 @@
                         @endif
                     </dd>
                 </div>
-                <div><dt>Keterangan Check-in</dt><dd>{{ $visit->notes ?? '-' }}</dd></div>
+                <div><dt>Keterangan / Alasan Check-in</dt><dd>{{ $visit->notes ?? '-' }}</dd></div>
                 @if ($visit->check_out_at)
-                    <div><dt>Keterangan Check-out</dt><dd>{{ $visit->check_out_notes ?? '-' }}</dd></div>
+                    <div><dt>Catatan / Alasan Tidak Transaksi (Check-out)</dt><dd>{{ $visit->check_out_notes ?? '-' }}</dd></div>
                 @endif
             </dl>
         </section>
 
-        {{-- RevisiMinor #6: info Promosi/POSM hanya ada untuk kunjungan baru (diamati saat check-in) --}}
+        {{-- Promosi/POSM dicatat di SEMUA kunjungan baru (termasuk toko tutup); data lama bisa kosong --}}
         @if ($visit->check_in_condition)
             <section class="panel">
                 <div class="panel-head">
@@ -89,13 +89,11 @@
 
                 @if ($visit->hasFacilityInfo())
                     <dl class="frm-detail">
-                        @foreach (['has_promo' => 'Program promosi', 'has_posm' => 'POSM', 'has_banner' => 'Banner'] as $field => $label)
+                        @foreach ($visit->promoItems as $promo)
                             <div>
-                                <dt>{{ $label }}</dt>
+                                <dt>{{ $promo->name }}</dt>
                                 <dd>
-                                    @if ($visit->{$field} === null)
-                                        -
-                                    @elseif ($visit->{$field})
+                                    @if ($promo->pivot->is_present)
                                         <span class="frm-status is-on">Ada</span>
                                     @else
                                         <span class="frm-status is-off">Tidak ada</span>
@@ -107,7 +105,7 @@
                     </dl>
                 @else
                     <div class="frm-empty">
-                        <p class="frm-empty-text">Tidak diamati pada kunjungan ini ({{ \App\Models\Visit::conditionLabel($visit->check_in_condition) }}).</p>
+                        <p class="frm-empty-text">Tidak ada data promosi/POSM pada kunjungan ini.</p>
                     </div>
                 @endif
             </section>

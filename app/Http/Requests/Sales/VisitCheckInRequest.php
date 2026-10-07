@@ -23,18 +23,19 @@ class VisitCheckInRequest extends FormRequest
             'latitude' => ['required', 'numeric', 'between:-90,90'],
             'longitude' => ['required', 'numeric', 'between:-180,180'],
 
-            // RevisiMinor #5: kondisi outlet + keterangan WAJIB di setiap
-            // check-in (bukan hanya saat ada kendala), supaya Admin selalu
-            // punya konteks kunjungan -- terutama saat toko tutup.
+            // Kondisi outlet selalu dipilih. Keterangan/alasan WAJIB hanya bila
+            // bermasalah (toko tutup / kendala lain); outlet normal tidak perlu.
             'condition' => ['required', Rule::in(Visit::CONDITIONS)],
-            'notes' => ['required', 'string', 'min:3', 'max:1000'],
+            'notes' => [
+                Rule::requiredIf(fn () => Visit::conditionNeedsReason($this->input('condition'))),
+                'nullable', 'string', 'min:3', 'max:1000',
+            ],
 
-            // RevisiMinor #6: info Promosi/POSM/Banner diamati saat outlet
-            // normal (buka). Jika toko tutup / ada kendala, Sales tidak bisa
-            // memeriksanya, jadi tidak diwajibkan.
-            'has_promo' => ['required_if:condition,'.Visit::CONDITION_NORMAL, 'nullable', 'boolean'],
-            'has_posm' => ['required_if:condition,'.Visit::CONDITION_NORMAL, 'nullable', 'boolean'],
-            'has_banner' => ['required_if:condition,'.Visit::CONDITION_NORMAL, 'nullable', 'boolean'],
+            // Promosi/POSM: Sales cukup MENCENTANG item yang ADA; item yang tidak
+            // dicentang dianggap "Tidak ada". Berlaku untuk SEMUA kondisi
+            // (toko tutup pun POSM-nya tetap dicatat). Daftar item dikelola Admin.
+            'promo_items' => ['nullable', 'array'],
+            'promo_items.*' => ['integer', Rule::exists('promo_items', 'id')->where('is_active', true)],
             'facility_notes' => ['nullable', 'string', 'max:1000'],
         ];
     }
@@ -44,9 +45,7 @@ class VisitCheckInRequest extends FormRequest
         return [
             'condition' => 'kondisi outlet',
             'notes' => 'keterangan kondisi outlet',
-            'has_promo' => 'status program promosi',
-            'has_posm' => 'status POSM',
-            'has_banner' => 'status banner',
+            'promo_items' => 'item promosi/POSM',
             'facility_notes' => 'keterangan promosi/POSM',
         ];
     }
@@ -55,11 +54,9 @@ class VisitCheckInRequest extends FormRequest
     {
         return [
             'condition.required' => 'Pilih kondisi outlet (Normal, Toko Tutup, atau Kendala Lain).',
-            'notes.required' => 'Keterangan kondisi outlet wajib diisi. Jelaskan situasi di lokasi (mis. toko tutup, pemilik tidak ada).',
-            'notes.min' => 'Keterangan kondisi outlet terlalu singkat. Jelaskan dengan lebih detail.',
-            'has_promo.required_if' => 'Pilih Ada atau Tidak ada untuk program promosi.',
-            'has_posm.required_if' => 'Pilih Ada atau Tidak ada untuk POSM.',
-            'has_banner.required_if' => 'Pilih Ada atau Tidak ada untuk banner.',
+            'notes.required' => 'Jelaskan alasan/kondisi di lokasi (mis. toko tutup, pemilik tidak ada).',
+            'notes.min' => 'Keterangan terlalu singkat. Jelaskan dengan lebih detail.',
+            'promo_items.*.exists' => 'Ada item promosi/POSM yang tidak valid atau sudah dinonaktifkan. Muat ulang halaman lalu coba lagi.',
         ];
     }
 }
