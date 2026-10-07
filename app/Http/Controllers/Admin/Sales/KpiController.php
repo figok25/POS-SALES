@@ -8,7 +8,6 @@ use App\Models\KpiPeriod;
 use App\Models\KpiProduct;
 use App\Models\KpiTarget;
 use App\Models\Product;
-use App\Models\Sales;
 use App\Services\AuditLogger;
 use App\Services\KpiAchievementService;
 use App\Support\BranchContext;
@@ -78,18 +77,15 @@ class KpiController extends Controller
 
         // Salin target periode sebelumnya di Depo yang sama supaya Admin tidak mengisi ulang.
         $previous = KpiPeriod::where('branch_id', $branchId)->where('id', '<', $period->id)->orderByDesc('id')->first();
-        if ($previous) {
-            foreach ($previous->targets as $target) {
-                KpiTarget::create([
-                    'kpi_period_id' => $period->id,
-                    'sales_id' => $target->sales_id,
-                    'call_made' => $target->call_made,
-                    'ec' => $target->ec,
-                    'absensi' => $target->absensi,
-                    'volume' => $target->volume,
-                    'product_targets' => $target->product_targets,
-                ]);
-            }
+        $previousTarget = $previous?->targets()->first();
+        if ($previousTarget) {
+            KpiTarget::create([
+                'kpi_period_id' => $period->id,
+                'call_made' => $previousTarget->call_made,
+                'ec' => $previousTarget->ec,
+                'absensi' => $previousTarget->absensi,
+                'product_targets' => $previousTarget->product_targets,
+            ]);
         }
 
         AuditLogger::log('create', 'Target & Pencapaian', KpiPeriod::class, $period->id, null, $period->toArray());
@@ -103,9 +99,7 @@ class KpiController extends Controller
 
         return view('admin.sales.kpi.targets', [
             'period' => $period,
-            'default' => $this->service->defaultTarget($period),
-            'overrides' => $period->targets()->whereNotNull('sales_id')->get()->keyBy('sales_id'),
-            'salesList' => Sales::where('branch_id', $period->branch_id)->where('is_active', true)->orderBy('name')->get(),
+            'target' => $this->service->periodTarget($period),
             'kpiProducts' => KpiProduct::with('product:id,name')->orderBy('sort_order')->orderBy('id')->get(),
         ]);
     }
@@ -118,62 +112,31 @@ class KpiController extends Controller
             'name' => ['required', 'string', 'max:100'],
             'start_date' => ['required', 'date'],
             'end_date' => ['required', 'date', 'after_or_equal:start_date'],
-            'default.call_made' => ['required', 'integer', 'min:0'],
-            'default.ec' => ['required', 'integer', 'min:0'],
-            'default.absensi' => ['required', 'integer', 'min:0', 'max:31'],
-            'default.volume' => ['required', 'numeric', 'min:0'],
-            'default_products.*' => ['nullable', 'numeric', 'min:0'],
-            'override' => ['nullable', 'array'],
-            'override.*.call_made' => ['nullable', 'integer', 'min:0'],
-            'override.*.ec' => ['nullable', 'integer', 'min:0'],
-            'override.*.absensi' => ['nullable', 'integer', 'min:0', 'max:31'],
-            'override.*.volume' => ['nullable', 'numeric', 'min:0'],
-            'override_products.*.*' => ['nullable', 'numeric', 'min:0'],
+            'call_made' => ['required', 'integer', 'min:0'],
+            'ec' => ['required', 'integer', 'min:0'],
+            'absensi' => ['required', 'integer', 'min:0', 'max:31'],
+            'products' => ['nullable', 'array'],
+            'products.*' => ['nullable', 'numeric', 'min:0'],
         ]);
 
         $before = $period->toArray();
         $period->update(['name' => trim($data['name']), 'start_date' => $data['start_date'], 'end_date' => $data['end_date']]);
 
         $kpiProductIds = KpiProduct::pluck('product_id')->map(fn ($id) => (int) $id)->all();
-        $clean = fn (?array $values) => collect($values ?? [])
+        $products = collect($data['products'] ?? [])
             ->filter(fn ($v, $pid) => in_array((int) $pid, $kpiProductIds, true) && $v !== null && $v !== '')
             ->map(fn ($v) => (float) $v)
             ->all();
 
         KpiTarget::updateOrCreate(
-            ['kpi_period_id' => $period->id, 'sales_id' => null],
+            ['kpi_period_id' => $period->id],
             [
-                'call_made' => (int) $data['default']['call_made'],
-                'ec' => (int) $data['default']['ec'],
-                'absensi' => (int) $data['default']['absensi'],
-                'volume' => (float) $data['default']['volume'],
-                'product_targets' => $clean($data['default_products'] ?? []),
+                'call_made' => (int) $data['call_made'],
+                'ec' => (int) $data['ec'],
+                'absensi' => (int) $data['absensi'],
+                'product_targets' => $products,
             ]
         );
-
-        $validSalesIds = Sales::where('branch_id', $period->branch_id)->pluck('id')->all();
-        $fields = ['call_made', 'ec', 'absensi', 'volume'];
-
-        foreach ($validSalesIds as $salesId) {
-            $values = collect($fields)->mapWithKeys(function ($f) use ($data, $salesId) {
-                $v = $data['override'][$salesId][$f] ?? null;
-
-                return [$f => ($v === null || $v === '') ? null : $v];
-            })->all();
-            $products = $clean($request->input("override_products.{$salesId}"));
-
-            $isEmpty = collect($values)->every(fn ($v) => $v === null) && $products === [];
-
-            if ($isEmpty) {
-                KpiTarget::where('kpi_period_id', $period->id)->where('sales_id', $salesId)->delete();
-                continue;
-            }
-
-            KpiTarget::updateOrCreate(
-                ['kpi_period_id' => $period->id, 'sales_id' => $salesId],
-                $values + ['product_targets' => $products === [] ? null : $products]
-            );
-        }
 
         AuditLogger::log('update', 'Target & Pencapaian', KpiPeriod::class, $period->id, $before, $period->fresh()->toArray());
 

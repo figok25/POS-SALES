@@ -88,7 +88,7 @@
                     <tbody>
                         @forelse ($result['rows'] as $r)
                             <tr>
-                                <td class="name">{{ $r['sales']->name }}@if ($r['customized'])<span class="kpi-badge">target khusus</span>@endif</td>
+                                <td class="name">{{ $r['sales']->name }}</td>
                                 @foreach (['absensi','call_made','ec'] as $m)
                                     <td>{{ $fmt($r['target'][$m]) }}</td><td>{{ $fmt($r['actual'][$m]) }}</td><td class="{{ $gapClass($r['gap'][$m]) }}">{{ $fmt($r['gap'][$m]) }}</td>
                                 @endforeach
@@ -128,7 +128,7 @@
             <p class="kpi-note">
                 Call Made = jumlah toko-hari yang dikunjungi (termasuk yang transaksi{{ config('kpi.call_made_includes_closed') ? ', dan Toko Tutup' : '' }}). EC = kunjungan yang menghasilkan transaksi.
                 Absensi = hari kerja Senin–Sabtu yang punya Sales Task. GAP / Sisa = Target − Actual (<span class="kpi-over">hijau</span> = tercapai/melebihi, <span class="kpi-short">merah</span> = masih kurang).
-                Total Penjualan = total qty semua produk pada transaksi selesai.
+                Total Penjualan = jumlah produk KPI (target = jumlah target produk, actual = jumlah penjualan produk KPI).
             </p>
         @endif
     </div>

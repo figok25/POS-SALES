@@ -7,12 +7,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class KpiTarget extends Model
 {
-    protected $fillable = ['kpi_period_id', 'sales_id', 'call_made', 'ec', 'absensi', 'volume', 'product_targets'];
+    protected $fillable = ['kpi_period_id', 'call_made', 'ec', 'absensi', 'product_targets'];
 
     protected function casts(): array
     {
         return [
-            'volume' => 'float',
             'product_targets' => 'array',
         ];
     }
@@ -20,11 +19,6 @@ class KpiTarget extends Model
     public function period(): BelongsTo
     {
         return $this->belongsTo(KpiPeriod::class, 'kpi_period_id');
-    }
-
-    public function sales(): BelongsTo
-    {
-        return $this->belongsTo(Sales::class);
     }
 
     public function productTarget(int $productId): ?float

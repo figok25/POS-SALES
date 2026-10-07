@@ -18,8 +18,11 @@ use Illuminate\Support\Collection;
  *                Toko Tutup ikut dihitung bila config kpi.call_made_includes_closed.
  *  - EC        : kunjungan (toko-hari) yang menghasilkan transaksi selesai.
  *  - Absensi   : hari kerja (Senin-Sabtu) yang punya Sales Task (bukan draft/batal).
- *  - Volume    : total qty SEMUA produk pada transaksi selesai.
- *  - Produk KPI: qty per produk yang didaftarkan Admin.
+ *  - Produk KPI: qty per produk yang didaftarkan Admin (target = angka mingguan
+ *                yang diisi Admin, sama untuk semua Sales).
+ *  - Volume    : TOTAL dari produk-produk KPI (target = jumlah target produk,
+ *                actual = jumlah penjualan produk KPI). Dengan config
+ *                kpi.volume_kpi_products_only=false actual memakai semua produk.
  *
  * GAP / Sisa = target - actual (bertanda; negatif = melebihi target).
  */
@@ -28,20 +31,19 @@ class KpiAchievementService
     public const METRICS = ['absensi', 'call_made', 'ec', 'volume'];
 
     /**
-     * Target default periode (baris sales_id NULL), atau bawaan config.
+     * Target periode (sama untuk semua Sales), atau bawaan config.
      *
-     * @return array{call_made:int,ec:int,absensi:int,volume:float,products:array<int,float>}
+     * @return array{call_made:int,ec:int,absensi:int,products:array<int,float>}
      */
-    public function defaultTarget(KpiPeriod $period): array
+    public function periodTarget(KpiPeriod $period): array
     {
-        $row = $period->targets()->whereNull('sales_id')->first();
+        $row = $period->targets()->first();
         $config = config('kpi.defaults');
 
         return [
             'call_made' => (int) ($row?->call_made ?? $config['call_made']),
             'ec' => (int) ($row?->ec ?? $config['ec']),
             'absensi' => (int) ($row?->absensi ?? $config['absensi']),
-            'volume' => (float) ($row?->volume ?? $config['volume']),
             'products' => collect($row?->product_targets ?? [])->map(fn ($v) => (float) $v)->all(),
         ];
     }
@@ -64,8 +66,7 @@ class KpiAchievementService
 
         $kpiProducts = KpiProduct::with('product:id,name')->orderBy('sort_order')->orderBy('id')->get();
 
-        $default = $this->defaultTarget($period);
-        $overrides = $period->targets()->whereNotNull('sales_id')->get()->keyBy('sales_id');
+        $default = $this->periodTarget($period);
 
         // ---- Call Made & EC ----
         $includeClosed = (bool) config('kpi.call_made_includes_closed');
@@ -136,31 +137,33 @@ class KpiAchievementService
         $rows = [];
         $totals = $this->emptyTotals($kpiProducts);
 
-        foreach ($salesList as $sales) {
-            $override = $overrides->get($sales->id);
+        $volumeKpiOnly = (bool) config('kpi.volume_kpi_products_only');
 
+        foreach ($salesList as $sales) {
             $target = [
-                'absensi' => (int) ($override?->absensi ?? $default['absensi']),
-                'call_made' => (int) ($override?->call_made ?? $default['call_made']),
-                'ec' => (int) ($override?->ec ?? $default['ec']),
-                'volume' => (float) ($override?->volume ?? $default['volume']),
+                'absensi' => $default['absensi'],
+                'call_made' => $default['call_made'],
+                'ec' => $default['ec'],
+                'volume' => 0.0,
                 'products' => [],
             ];
             $actual = [
                 'absensi' => count($attendance[$sales->id] ?? []),
                 'call_made' => count($callMade[$sales->id] ?? []),
                 'ec' => count($ecSet[$sales->id] ?? []),
-                'volume' => (float) ($volume[$sales->id] ?? 0),
+                'volume' => 0.0,
                 'products' => [],
             ];
 
             foreach ($kpiProducts as $kp) {
-                $target['products'][$kp->product_id] = $override?->productTarget($kp->product_id) ?? (float) ($default['products'][$kp->product_id] ?? 0);
+                $target['products'][$kp->product_id] = (float) ($default['products'][$kp->product_id] ?? 0);
                 $actual['products'][$kp->product_id] = (float) ($productQty[$sales->id][$kp->product_id] ?? 0);
             }
 
+            $target['volume'] = array_sum($target['products']);
+            $actual['volume'] = $volumeKpiOnly ? array_sum($actual['products']) : (float) ($volume[$sales->id] ?? 0);
+
             $row = $this->finalize($sales, $target, $actual, $kpiProducts);
-            $row['customized'] = $override !== null;
             $rows[] = $row;
 
             $this->accumulate($totals, $target, $actual, $kpiProducts);

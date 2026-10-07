@@ -102,7 +102,7 @@ class KpiAchievementTest extends TestCase
     {
         [, $sales, $p1] = $this->scenario();
         $period = $this->period();
-        KpiTarget::create(['kpi_period_id' => $period->id, 'sales_id' => null, 'call_made' => 195, 'ec' => 20, 'absensi' => 6, 'volume' => 100]);
+        KpiTarget::create(['kpi_period_id' => $period->id, 'call_made' => 195, 'ec' => 20, 'absensi' => 6, 'product_targets' => [$p1->id => 110]]);
 
         $result = app(KpiAchievementService::class)->build($period);
         $row = $result['rows'][0];
@@ -111,11 +111,12 @@ class KpiAchievementTest extends TestCase
         $this->assertSame(3, $row['actual']['call_made']);       // 2 buka + 1 tutup
         $this->assertSame(1, $row['actual']['ec']);              // hanya toko A
         $this->assertSame(2, $row['actual']['absensi']);         // Senin & Selasa
-        $this->assertSame(5.0, $row['actual']['volume']);        // semua produk
+        $this->assertSame(3.0, $row['actual']['volume']);        // total produk KPI saja
+        $this->assertSame(110.0, $row['target']['volume']);      // jumlah target produk KPI
         $this->assertSame(3.0, $row['actual']['products'][$p1->id]);
         $this->assertSame(192, $row['gap']['call_made']);        // 195 - 3
-        $this->assertSame(95.0, $row['gap']['volume']);
-        $this->assertSame(5.0, $row['achieve']);
+        $this->assertSame(107.0, $row['gap']['volume']);
+        $this->assertSame(2.7, $row['achieve']);
     }
 
     public function test_closed_visits_can_be_excluded_by_config(): void
@@ -138,20 +139,27 @@ class KpiAchievementTest extends TestCase
         $this->assertSame(0, $row['actual']['call_made']);
     }
 
-    public function test_per_sales_override_replaces_default_only_where_filled(): void
+    public function test_same_target_applies_to_every_sales_and_volume_sums_kpi_products(): void
     {
-        [, $sales] = $this->makeSalesUser();
-        [, $other] = $this->makeSalesUser();
+        [, $a] = $this->makeSalesUser();
+        [, $b] = $this->makeSalesUser();
+        $vanila = $this->makeProduct();
+        $coklat = $this->makeProduct();
+        KpiProduct::create(['product_id' => $vanila->id, 'sort_order' => 10]);
+        KpiProduct::create(['product_id' => $coklat->id, 'sort_order' => 20]);
+
         $period = $this->period();
-        KpiTarget::create(['kpi_period_id' => $period->id, 'sales_id' => null, 'call_made' => 195, 'ec' => 20, 'absensi' => 6, 'volume' => 100]);
-        KpiTarget::create(['kpi_period_id' => $period->id, 'sales_id' => $sales->id, 'call_made' => 100]);
+        KpiTarget::create(['kpi_period_id' => $period->id, 'call_made' => 195, 'ec' => 20, 'absensi' => 6,
+            'product_targets' => [$vanila->id => 110, $coklat->id => 60]]);
 
-        $rows = collect(app(KpiAchievementService::class)->build($period)['rows'])->keyBy(fn ($r) => $r['sales']->id);
+        $result = app(KpiAchievementService::class)->build($period);
 
-        $this->assertSame(100, $rows[$sales->id]['target']['call_made']);
-        $this->assertSame(20, $rows[$sales->id]['target']['ec']);          // kosong => ikut default
-        $this->assertSame(195, $rows[$other->id]['target']['call_made']);
-        $this->assertTrue($rows[$sales->id]['customized']);
+        $this->assertCount(2, $result['rows']);
+        foreach ($result['rows'] as $row) {
+            $this->assertSame(195, $row['target']['call_made']);
+            $this->assertSame(170.0, $row['target']['volume']);
+        }
+        $this->assertSame(340.0, $result['totals']['target']['volume']);
     }
 
     public function test_other_branch_sales_are_not_listed(): void
@@ -181,12 +189,13 @@ class KpiAchievementTest extends TestCase
 
         $this->actingAs($admin)->put(route('admin.sales.kpi.targets.update', $period), [
             'name' => 'Minggu 41', 'start_date' => self::START, 'end_date' => '2026-10-10',
-            'default' => ['call_made' => 195, 'ec' => 20, 'absensi' => 6, 'volume' => 100],
-            'default_products' => [$p1->id => 40],
-            'override' => [$sales->id => ['call_made' => 150, 'ec' => '', 'absensi' => '', 'volume' => '']],
+            'call_made' => 195, 'ec' => 20, 'absensi' => 6,
+            'products' => [$p1->id => 110],
         ])->assertSessionHasNoErrors();
 
-        $this->assertSame(150, KpiTarget::where('sales_id', $sales->id)->value('call_made'));
+        $this->assertSame(1, KpiTarget::count());
+        $this->assertSame(195, KpiTarget::first()->call_made);
+        $this->assertSame(110.0, KpiTarget::first()->productTarget($p1->id));
 
         $this->actingAs($admin)->get(route('admin.sales.kpi.index', ['period' => $period->id]))
             ->assertOk()->assertSee($sales->name)->assertSee('Minggu 41');
@@ -225,7 +234,7 @@ class KpiAchievementTest extends TestCase
         [$user, $sales] = $this->scenario();
         [, $other] = $this->makeSalesUser();
         $period = $this->period();
-        KpiTarget::create(['kpi_period_id' => $period->id, 'sales_id' => null, 'call_made' => 195, 'ec' => 20, 'absensi' => 6, 'volume' => 100]);
+        KpiTarget::create(['kpi_period_id' => $period->id, 'call_made' => 195, 'ec' => 20, 'absensi' => 6]);
 
         $this->actingAs($user)->get(route('sales.kpi.index', ['period' => $period->id]))
             ->assertOk()->assertSee('Call Made')->assertSee('3 / 195');

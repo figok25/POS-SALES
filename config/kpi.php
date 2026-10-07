@@ -7,6 +7,12 @@ return [
     */
     'call_made_includes_closed' => true,
 
+    /*
+    | Total Penjualan (volume) = total produk KPI yang dipilih Admin. Ubah ke false
+    | bila actual harus menghitung SEMUA produk yang terjual.
+    */
+    'volume_kpi_products_only' => true,
+
     // Hari kerja (ISO: 1=Senin ... 6=Sabtu). Minggu tidak dihitung Absensi.
     'working_days' => [1, 2, 3, 4, 5, 6],
 
@@ -18,6 +24,5 @@ return [
         'call_made' => 195,
         'ec' => 0,
         'absensi' => 6,
-        'volume' => 0,
     ],
 ];

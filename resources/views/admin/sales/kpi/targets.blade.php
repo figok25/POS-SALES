@@ -8,7 +8,7 @@
         <div class="frm-head">
             <div>
                 <h1 class="frm-title">Atur Target — {{ $period->name }}</h1>
-                <p class="frm-sub">{{ $period->branch->name ?? '' }} · {{ $period->rangeLabel() }}. Target default berlaku untuk semua Sales; isi kolom per Sales hanya bila perlu disesuaikan (kosong = ikut default).</p>
+                <p class="frm-sub">{{ $period->branch->name ?? '' }} · {{ $period->rangeLabel() }}. Target ini berlaku sama untuk semua Sales di Depo.</p>
             </div>
             <a href="{{ route('admin.sales.kpi.index', ['period' => $period->id]) }}" class="adm-btn adm-btn-ghost adm-btn-sm">Kembali</a>
         </div>
@@ -28,45 +28,28 @@
             </div>
 
             <div class="kpi-card">
-                <h2>Target default (semua Sales)</h2>
+                <h2>Target aktivitas (per periode)</h2>
                 <div class="kpi-grid">
-                    <div class="kpi-field"><label>Absensi (hari)</label><input type="number" min="0" max="31" name="default[absensi]" value="{{ old('default.absensi', $default['absensi']) }}" required></div>
-                    <div class="kpi-field"><label>Call Made</label><input type="number" min="0" name="default[call_made]" value="{{ old('default.call_made', $default['call_made']) }}" required></div>
-                    <div class="kpi-field"><label>EC</label><input type="number" min="0" name="default[ec]" value="{{ old('default.ec', $default['ec']) }}" required></div>
-                    <div class="kpi-field"><label>Total Penjualan (volume)</label><input type="number" min="0" step="0.01" name="default[volume]" value="{{ old('default.volume', $v($default['volume'])) }}" required></div>
-                    @foreach ($kpiProducts as $kp)
-                        <div class="kpi-field"><label>{{ $kp->product->name ?? 'Produk' }}</label>
-                            <input type="number" min="0" step="0.01" name="default_products[{{ $kp->product_id }}]" value="{{ old('default_products.'.$kp->product_id, $v($default['products'][$kp->product_id] ?? null)) }}"></div>
-                    @endforeach
+                    <div class="kpi-field"><label>Absensi (hari)</label><input type="number" min="0" max="31" name="absensi" value="{{ old('absensi', $target['absensi']) }}" required></div>
+                    <div class="kpi-field"><label>Call Made</label><input type="number" min="0" name="call_made" value="{{ old('call_made', $target['call_made']) }}" required></div>
+                    <div class="kpi-field"><label>EC</label><input type="number" min="0" name="ec" value="{{ old('ec', $target['ec']) }}" required></div>
                 </div>
-                @if ($kpiProducts->isEmpty())<p class="kpi-note">Belum ada produk KPI. Tambahkan di menu “Produk KPI” agar muncul kolom target per produk.</p>@endif
             </div>
 
             <div class="kpi-card">
-                <h2>Penyesuaian per Sales (opsional)</h2>
-                @forelse ($salesList as $s)
-                    @php $o = $overrides->get($s->id); @endphp
-                    <div style="border-top:1px solid #f1f5f9;padding:10px 0">
-                        <strong style="font-size:13px">{{ $s->name }}</strong>
-                        <div class="kpi-grid" style="margin-top:6px">
-                            <div class="kpi-field"><label>Absensi</label><input type="number" min="0" max="31" name="override[{{ $s->id }}][absensi]" value="{{ old("override.{$s->id}.absensi", $o?->absensi) }}" placeholder="default"></div>
-                            <div class="kpi-field"><label>Call Made</label><input type="number" min="0" name="override[{{ $s->id }}][call_made]" value="{{ old("override.{$s->id}.call_made", $o?->call_made) }}" placeholder="default"></div>
-                            <div class="kpi-field"><label>EC</label><input type="number" min="0" name="override[{{ $s->id }}][ec]" value="{{ old("override.{$s->id}.ec", $o?->ec) }}" placeholder="default"></div>
-                            <div class="kpi-field"><label>Volume</label><input type="number" min="0" step="0.01" name="override[{{ $s->id }}][volume]" value="{{ old("override.{$s->id}.volume", $v($o?->volume)) }}" placeholder="default"></div>
-                            @foreach ($kpiProducts as $kp)
-                                <div class="kpi-field"><label>{{ $kp->product->name ?? 'Produk' }}</label>
-                                    <input type="number" min="0" step="0.01" name="override_products[{{ $s->id }}][{{ $kp->product_id }}]" value="{{ old("override_products.{$s->id}.{$kp->product_id}", $v($o?->productTarget($kp->product_id))) }}" placeholder="default"></div>
-                            @endforeach
-                        </div>
-                    </div>
-                @empty
-                    <p class="kpi-note">Belum ada Sales aktif di Depo ini.</p>
-                @endforelse
+                <h2>Target produk (volume per periode)</h2>
+                <p class="kpi-note" style="margin-bottom:10px">Isi total target satu periode per produk (mis. 110 = 5 hari × 20 + Sabtu 10). Total Penjualan otomatis = jumlah semua produk di bawah.</p>
+                <div class="kpi-grid">
+                    @forelse ($kpiProducts as $kp)
+                        <div class="kpi-field"><label>{{ $kp->product->name ?? 'Produk' }}</label>
+                            <input type="number" min="0" step="0.01" name="products[{{ $kp->product_id }}]" value="{{ old('products.'.$kp->product_id, $v($target['products'][$kp->product_id] ?? null)) }}"></div>
+                    @empty
+                        <p class="kpi-note">Belum ada produk KPI. Tambahkan dulu di menu “Produk KPI”.</p>
+                    @endforelse
+                </div>
             </div>
 
-            <div class="kpi-bar">
-                <button type="submit" class="adm-btn adm-btn-primary">Simpan target</button>
-            </div>
+            <div class="kpi-bar"><button type="submit" class="adm-btn adm-btn-primary">Simpan target</button></div>
         </form>
 
         <form method="POST" action="{{ route('admin.sales.kpi.periods.destroy', $period) }}" onsubmit="return confirm('Hapus periode ini beserta targetnya?')">
