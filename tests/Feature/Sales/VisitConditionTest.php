@@ -343,6 +343,24 @@ class VisitConditionTest extends TestCase
             ->assertDontSee('Alasan Tidak Transaksi');
     }
 
+    // ---------------------------------------------------- tampilan form check-in
+
+    public function test_check_in_form_has_choice_controls_that_do_not_depend_on_tailwind_build(): void
+    {
+        [$user] = $this->salesWithCustomer();
+
+        // Tombol pilihan memakai gaya bawaan halaman (:checked), bukan peer-checked:* Tailwind
+        // yang hanya ada kalau CSS dibangun ulang dan diunggah ke server.
+        $this->actingAs($user)
+            ->get(route('sales.visits.create'))
+            ->assertOk()
+            ->assertSee('name="condition"', false)
+            ->assertSee('name="promo_items[]"', false)
+            ->assertSee('.vc-choice > input:checked + .vc-box', false)
+            ->assertSee('.vc-toggle > input:checked ~ .vc-on', false)
+            ->assertDontSee('peer-checked', false);
+    }
+
     // --------------------------------------------------------------- admin
 
     public function test_admin_visit_pages_show_condition_reasons_and_item_answers(): void
