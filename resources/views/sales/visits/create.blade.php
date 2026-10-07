@@ -11,11 +11,20 @@
         </div>
     @endif
 
-    @if ($customers->isEmpty() && ! $usingFallback)
+    @if ($customers->isEmpty() && ($quotaBlockedCount > 0 || ! $usingFallback))
         <div class="bg-white rounded-lg shadow p-4 text-sm text-gray-500">
-            Tidak ada toko terjadwal untuk dikunjungi hari ini di Rute Kanvas Anda.
+            @if ($quotaBlockedCount > 0)
+                Semua toko di Rute Kanvas hari ini sudah Anda kunjungi ({{ $quotaBlockedCount }} toko). Satu toko hanya bisa dikunjungi sekali per hari, kecuali kunjungan sebelumnya Toko Tutup.
+            @else
+                Tidak ada toko terjadwal untuk dikunjungi hari ini di Rute Kanvas Anda.
+            @endif
         </div>
     @else
+        @if ($quotaBlockedCount > 0)
+            <div class="mb-3 p-3 bg-blue-50 text-blue-800 rounded text-xs">
+                {{ $quotaBlockedCount }} toko tidak ditampilkan karena sudah Anda kunjungi hari ini.
+            </div>
+        @endif
         @if ($usingFallback)
             <div class="mb-3 p-3 bg-amber-50 text-amber-800 rounded text-xs">
                 Rute Kanvas Anda belum pernah diatur Admin -- daftar di bawah menampilkan semua toko yang di-assign ke Anda untuk sementara.

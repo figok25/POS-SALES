@@ -9,9 +9,11 @@ use App\Models\Price;
 use App\Models\Product;
 use App\Models\SalesTransaction;
 use App\Models\Stock;
+use App\Models\Visit;
 use App\Services\SalesRouteMapService;
 use App\Services\SalesTransactionService;
 use App\Services\StockService;
+use App\Services\VisitService;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -25,6 +27,7 @@ class TransactionController extends Controller
         protected SalesTransactionService $service,
         protected StockService $stockService,
         protected SalesRouteMapService $routeMapService,
+        protected VisitService $visitService,
     ) {
     }
 
@@ -41,19 +44,20 @@ class TransactionController extends Controller
     }
 
     /**
-     * PERBAIKAN: sebelumnya dropdown Customer di form transaksi
-     * menampilkan SEMUA Customer yang di-assign ke Sales (+ yang belum
-     * di-assign ke siapapun), tanpa peduli hari -- konsisten dengan bug
-     * yang sama di Peta Customer & Check-in Kunjungan. Sekarang dibatasi
-     * ke Rute Kanvas HARI INI, memakai service yang sama supaya "toko hari
-     * ini" konsisten di semua fitur Sales App.
+     * Transaksi hanya bisa dibuat saat Sales SEDANG berkunjung (sudah Check-in)
+     * ke toko tersebut -- jadi form ini tidak lagi menawarkan daftar toko,
+     * melainkan toko dari kunjungan yang sedang berjalan ($visit). Kalau belum
+     * Check-in (atau toko tercatat tutup), form menampilkan petunjuknya.
      */
     public function create()
     {
         $sales = $this->currentSales();
 
-        $today = now()->dayOfWeekIso;
-        [$customers, $usingFallback] = $this->routeMapService->customersForDay($sales->id, $today);
+        $visit = Visit::query()
+            ->where('sales_id', $sales->id)
+            ->where('status', Visit::STATUS_ONGOING)
+            ->with('customer')
+            ->first();
 
         // Hanya tampilkan produk yang tersedia di Sales Stock milik Sales
         // ini, agar pemilihan produk di form transaksi realistis
@@ -73,7 +77,7 @@ class TransactionController extends Controller
             ->orderBy('id')
             ->pluck('amount', 'product_id');
 
-        return view('sales.transactions.create', compact('customers', 'usingFallback', 'myStock', 'prices', 'sales'));
+        return view('sales.transactions.create', compact('visit', 'myStock', 'prices', 'sales'));
     }
 
     public function store(SalesTransactionRequest $request)
@@ -81,6 +85,9 @@ class TransactionController extends Controller
         $sales = $this->currentSales();
 
         try {
+            // Wajib sedang berkunjung (Check-in) di toko yang sama sebelum transaksi.
+            $this->visitService->assertCanTransact($sales->id, (int) $request->validated('customer_id'));
+
             $trx = $this->service->create($sales->id, auth()->id(), $request->validated());
         } catch (ValidationException $e) {
             return back()->withErrors($e->errors())->withInput();

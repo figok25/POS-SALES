@@ -46,6 +46,7 @@
                             <th>Sales</th>
                             <th>Customer</th>
                             <th>Kondisi</th>
+                            <th>Hasil</th>
                             <th>Check-in</th>
                             <th>Check-out</th>
                             <th>Durasi</th>
@@ -69,6 +70,10 @@
                                     @else
                                         <span class="frm-dash">—</span>
                                     @endif
+                                </td>
+                                <td data-label="Hasil">
+                                    @php $outcome = $item->outcome(); @endphp
+                                    <span class="frm-status {{ ['closed' => 'is-danger', 'transaction' => 'is-on', 'no_transaction' => 'is-warn', 'ongoing' => 'is-warn'][$outcome] ?? 'is-off' }}">{{ \App\Models\Visit::outcomeLabel($outcome) }}</span>
                                 </td>
                                 <td data-label="Check-in" class="frm-nowrap">{{ $item->check_in_at->format('d M Y H:i') }}</td>
                                 <td data-label="Check-out" class="frm-nowrap">

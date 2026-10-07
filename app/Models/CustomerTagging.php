@@ -18,6 +18,7 @@ class CustomerTagging extends Model
 
     protected $fillable = [
         'sales_id', 'customer_id',
+        'duplicate_customer_id', 'duplicate_reason', 'auto_approved',
         'name', 'phone', 'address', 'latitude', 'longitude', 'customer_type',
         'status', 'notes', 'tagged_at',
         'reviewed_by', 'reviewed_at', 'review_notes',
@@ -28,6 +29,7 @@ class CustomerTagging extends Model
         return [
             'tagged_at' => 'datetime',
             'reviewed_at' => 'datetime',
+            'auto_approved' => 'boolean',
             'latitude' => 'decimal:7',
             'longitude' => 'decimal:7',
         ];
@@ -41,6 +43,14 @@ class CustomerTagging extends Model
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    /**
+     * Customer yang dicurigai sama dengan toko yang di-tagging (kalau terindikasi duplikat).
+     */
+    public function duplicateCustomer(): BelongsTo
+    {
+        return $this->belongsTo(Customer::class, 'duplicate_customer_id');
     }
 
     public function reviewer(): BelongsTo

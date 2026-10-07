@@ -8,6 +8,7 @@ use App\Models\PromoItem;
 use App\Models\Visit;
 use App\Services\AuditLogger;
 use App\Support\Geo;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -55,6 +56,8 @@ class VisitService
                 'customer_id' => 'Customer ini tidak termasuk dalam assignment Anda. Hubungi Admin jika ini seharusnya milik Anda.',
             ]);
         }
+
+        $this->assertDailyQuota($salesId, $customerId);
 
         if (! $customer->hasLocation()) {
             throw ValidationException::withMessages([
@@ -109,6 +112,95 @@ class VisitService
         });
 
         AuditLogger::log('check_in', 'Sales', Visit::class, $visit->id, null, $visit->toArray());
+
+        return $visit;
+    }
+
+    /**
+     * Kuota kunjungan: SATU kali per toko per hari (per Sales). Kunjungan yang
+     * hasilnya "Toko Tutup" TIDAK menghabiskan kuota: Sales boleh kunjungan ulang
+     * satu kali di hari yang sama. Kalau kunjungan ulang itu pun tutup (atau
+     * kunjungan pertama bukan tutup), kuota habis sampai besok.
+     */
+    private function assertDailyQuota(int $salesId, int $customerId): void
+    {
+        $visits = Visit::query()
+            ->where('sales_id', $salesId)
+            ->where('customer_id', $customerId)
+            ->whereDate('check_in_at', now()->toDateString())
+            ->orderBy('id')
+            ->get(['id', 'customer_id', 'check_in_condition']);
+
+        if (self::quotaAllows($visits)) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'customer_id' => $visits->count() >= 2
+                ? 'Kuota kunjungan toko ini hari ini sudah habis (kunjungan ulang setelah Toko Tutup sudah dipakai).'
+                : 'Toko ini sudah Anda kunjungi hari ini. Kunjungan ulang hanya diizinkan bila kunjungan sebelumnya Toko Tutup.',
+        ]);
+    }
+
+    /** Boleh check-in lagi? (belum ada kunjungan hari ini, atau satu-satunya kunjungan = Toko Tutup) */
+    private static function quotaAllows(Collection $visitsToday): bool
+    {
+        return $visitsToday->isEmpty()
+            || ($visitsToday->count() === 1 && $visitsToday->first()->check_in_condition === Visit::CONDITION_CLOSED);
+    }
+
+    /**
+     * ID Customer yang kuota kunjungannya hari ini sudah habis, supaya daftar
+     * toko di form Check-in tidak menawarkan toko yang pasti ditolak.
+     *
+     * @return array<int, int>
+     */
+    public function quotaExhaustedCustomerIds(int $salesId): array
+    {
+        return Visit::query()
+            ->where('sales_id', $salesId)
+            ->whereDate('check_in_at', now()->toDateString())
+            ->orderBy('id')
+            ->get(['id', 'customer_id', 'check_in_condition'])
+            ->groupBy('customer_id')
+            ->reject(fn (Collection $visits) => self::quotaAllows($visits))
+            ->keys()
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Transaksi hanya boleh dibuat saat Sales SEDANG berkunjung (sudah Check-in)
+     * di toko yang sama, dan toko itu tidak tercatat tutup pada kunjungan ini.
+     * Dipakai oleh jalur transaksi Sales di lapangan; transaksi Admin (mis. ke
+     * Konsumen) memang tidak lewat sini.
+     */
+    public function assertCanTransact(int $salesId, int $customerId): Visit
+    {
+        $visit = Visit::query()
+            ->where('sales_id', $salesId)
+            ->where('status', Visit::STATUS_ONGOING)
+            ->with('customer')
+            ->first();
+
+        if (! $visit) {
+            throw ValidationException::withMessages([
+                'customer_id' => 'Lakukan Check-in kunjungan ke toko ini terlebih dahulu sebelum membuat transaksi.',
+            ]);
+        }
+
+        if ((int) $visit->customer_id !== $customerId) {
+            throw ValidationException::withMessages([
+                'customer_id' => 'Anda sedang berkunjung ke '.($visit->customer->name ?? 'toko lain').'. Transaksi hanya bisa dibuat untuk toko yang sedang dikunjungi.',
+            ]);
+        }
+
+        if ($visit->isOutletClosed()) {
+            throw ValidationException::withMessages([
+                'customer_id' => 'Toko tercatat tutup pada kunjungan ini, jadi transaksi tidak dapat dibuat.',
+            ]);
+        }
 
         return $visit;
     }

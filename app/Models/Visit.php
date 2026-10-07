@@ -183,6 +183,9 @@ class Visit extends Model
             ->where('customer_id', $this->customer_id)
             ->where('status', SalesTransaction::STATUS_COMPLETED)
             ->where('created_at', '>=', $this->check_in_at)
+            // Kunjungan yang sudah selesai hanya menghitung transaksi sampai check-out,
+            // supaya kunjungan ulang di hari yang sama tidak saling "meminjam" transaksi.
+            ->when($this->check_out_at, fn ($q) => $q->where('created_at', '<=', $this->check_out_at))
             ->exists();
     }
 
@@ -195,5 +198,40 @@ class Visit extends Model
     public function needsCheckOutReason(): bool
     {
         return $this->check_in_condition === self::CONDITION_NORMAL && ! $this->hasTransaction();
+    }
+
+    /**
+     * Hasil/status kunjungan untuk laporan & tampilan:
+     *  - ongoing        : masih berjalan (belum check-out)
+     *  - closed         : Toko Tutup
+     *  - transaction    : ada transaksi selesai (EC)
+     *  - no_transaction : kunjungan tanpa transaksi (Call Made)
+     */
+    public const OUTCOME_ONGOING = 'ongoing';
+    public const OUTCOME_CLOSED = 'closed';
+    public const OUTCOME_TRANSACTION = 'transaction';
+    public const OUTCOME_NO_TRANSACTION = 'no_transaction';
+
+    public function outcome(): string
+    {
+        if ($this->isOutletClosed()) {
+            return self::OUTCOME_CLOSED;
+        }
+
+        if ($this->isOngoing()) {
+            return self::OUTCOME_ONGOING;
+        }
+
+        return $this->hasTransaction() ? self::OUTCOME_TRANSACTION : self::OUTCOME_NO_TRANSACTION;
+    }
+
+    public static function outcomeLabel(string $outcome): string
+    {
+        return match ($outcome) {
+            self::OUTCOME_CLOSED => 'Toko Tutup',
+            self::OUTCOME_ONGOING => 'Sedang Berkunjung',
+            self::OUTCOME_TRANSACTION => 'Transaksi (EC)',
+            default => 'Tanpa Transaksi (Call Made)',
+        };
     }
 }

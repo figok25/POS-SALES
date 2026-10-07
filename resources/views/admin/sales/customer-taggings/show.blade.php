@@ -67,6 +67,9 @@
                             </dd>
                         </div>
                     @endif
+                    @if ($tagging->auto_approved)
+                        <div><dt>Persetujuan</dt><dd>Otomatis oleh sistem (tidak terindikasi duplikat) &middot; {{ $tagging->reviewed_at?->format('d M Y H:i') }}</dd></div>
+                    @endif
                     @if ($tagging->reviewer)
                         <div>
                             <dt>Direview oleh</dt>
@@ -78,6 +81,20 @@
                     @endif
                 </dl>
             </section>
+
+            {{-- Alasan ditahan (terindikasi duplikat saat tagging) --}}
+            @if ($tagging->duplicate_reason)
+                <div class="frm-alert is-warn is-block" role="alert">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                    <div class="frm-alert-text">
+                        <p class="frm-alert-title">Ditahan karena terindikasi duplikat</p>
+                        <p>{{ $tagging->duplicate_reason }}</p>
+                        @if ($tagging->duplicateCustomer)
+                            <p><a href="{{ route('admin.master.customers.show', $tagging->duplicateCustomer) }}" class="panel-link">Lihat customer yang mirip: {{ $tagging->duplicateCustomer->code }} - {{ $tagging->duplicateCustomer->name }}</a></p>
+                        @endif
+                    </div>
+                </div>
+            @endif
 
             {{-- Kemungkinan duplikasi --}}
             @if ($duplicates->isNotEmpty())

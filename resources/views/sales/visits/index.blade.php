@@ -55,6 +55,7 @@
                     @endif
                 </div>
                 <p class="text-xs text-gray-500">{{ $item->check_in_at->format('d M Y H:i') }} - {{ $item->check_out_at?->format('H:i') }}</p>
+                <p class="text-xs text-gray-600 mt-0.5">Hasil: <span class="font-medium">{{ \App\Models\Visit::outcomeLabel($item->outcome()) }}</span></p>
             </div>
         @empty
             <p class="text-center text-gray-500 text-sm py-6">Belum ada riwayat kunjungan.</p>

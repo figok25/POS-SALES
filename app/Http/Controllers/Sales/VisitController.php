@@ -58,10 +58,16 @@ class VisitController extends Controller
         $today = now()->dayOfWeekIso;
         [$customers, $usingFallback] = $this->routeMapService->customersForDay($sales->id, $today);
 
+        // Toko yang kuota kunjungannya hari ini sudah habis (sudah dikunjungi, dan
+        // bukan Toko Tutup) tidak ditawarkan lagi di daftar.
+        $exhausted = $this->service->quotaExhaustedCustomerIds($sales->id);
+        $quotaBlockedCount = $customers->whereIn('id', $exhausted)->count();
+        $customers = $customers->reject(fn ($c) => in_array((int) $c->id, $exhausted, true))->values();
+
         // Item Promosi/POSM aktif (dikelola Admin) yang dicentang Sales saat check-in.
         $promoItems = PromoItem::active()->ordered()->get();
 
-        return view('sales.visits.create', compact('customers', 'usingFallback', 'promoItems'));
+        return view('sales.visits.create', compact('customers', 'usingFallback', 'promoItems', 'quotaBlockedCount'));
     }
 
     public function store(VisitCheckInRequest $request)

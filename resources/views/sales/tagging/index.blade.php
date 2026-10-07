@@ -16,14 +16,17 @@
                 <div class="flex justify-between">
                     <span class="font-medium">{{ $item->name }}</span>
                     @if ($item->status === 'pending')
-                        <span class="text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded text-xs">Pending</span>
+                        <span class="text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded text-xs">Menunggu Admin</span>
                     @elseif ($item->status === 'approved')
-                        <span class="text-green-700 bg-green-100 px-2 py-0.5 rounded text-xs">Approved</span>
+                        <span class="text-green-700 bg-green-100 px-2 py-0.5 rounded text-xs">{{ $item->auto_approved ? 'Otomatis disetujui' : 'Disetujui Admin' }}</span>
                     @else
                         <span class="text-red-700 bg-red-100 px-2 py-0.5 rounded text-xs">Rejected</span>
                     @endif
                 </div>
                 <p class="text-gray-500 text-xs mt-1">{{ $item->tagged_at->format('d M Y H:i') }}</p>
+                @if ($item->status === 'pending' && $item->duplicate_reason)
+                    <p class="text-yellow-700 text-xs mt-1">Ditahan: terindikasi duplikat ({{ $item->duplicate_reason }})</p>
+                @endif
                 @if ($item->review_notes)
                     <p class="text-gray-500 text-xs mt-1">Catatan Admin: {{ $item->review_notes }}</p>
                 @endif

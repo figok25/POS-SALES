@@ -15,16 +15,18 @@
         <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm text-yellow-800">
             Sales Stock Anda kosong. Hubungi Admin untuk pengiriman barang (BKB) terlebih dahulu.
         </div>
-    @elseif ($customers->isEmpty())
-        <div class="bg-white rounded-lg shadow p-4 text-sm text-gray-500">
-            Tidak ada toko terjadwal untuk hari ini di Rute Kanvas Anda, jadi belum bisa membuat transaksi baru.
+    @elseif (! $visit)
+        <div class="bg-white rounded-lg shadow p-4 text-sm text-gray-600 space-y-3">
+            <p>Untuk membuat transaksi, <strong>Check-in</strong> dulu ke toko yang Anda kunjungi.</p>
+            <a href="{{ route('sales.visits.create') }}" class="block text-center bg-indigo-600 text-white px-3 py-2 rounded text-sm">Check-in Kunjungan</a>
+        </div>
+    @elseif ($visit->isOutletClosed())
+        <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-800">
+            Toko <strong>{{ $visit->customer->name ?? '-' }}</strong> tercatat tutup pada kunjungan ini, jadi transaksi tidak bisa dibuat.
+            Check-out dulu; bila toko sudah buka, lakukan satu kali kunjungan ulang.
+            <a href="{{ route('sales.visits.index') }}" class="block text-center mt-3 bg-amber-600 text-white px-3 py-2 rounded text-sm">Ke Kunjungan</a>
         </div>
     @else
-        @if ($usingFallback)
-            <div class="mb-3 p-3 bg-amber-50 text-amber-800 rounded text-xs">
-                Rute Kanvas Anda belum pernah diatur Admin -- daftar Customer di bawah menampilkan semua toko yang di-assign ke Anda untuk sementara.
-            </div>
-        @endif
         <form method="POST" action="{{ route('sales.transactions.store') }}" x-data="salesTransactionForm()" class="bg-white rounded-lg shadow p-4 space-y-3">
             @csrf
             <div class="flex items-center justify-between text-xs bg-indigo-50 text-indigo-700 rounded px-3 py-2">
@@ -33,13 +35,11 @@
             </div>
 
             <div>
-                <label class="block text-sm text-gray-600 mb-1">Customer</label>
-                <x-searchable-select
-                    name="customer_id"
-                    :options="$customers->map(fn ($c) => ['id' => $c->id, 'label' => $c->name . ($c->code ? ' (' . $c->code . ')' : '')])"
-                    placeholder="Cari nama atau kode customer..."
-                    required
-                />
+                <label class="block text-sm text-gray-600 mb-1">Customer (kunjungan berjalan)</label>
+                <input type="hidden" name="customer_id" value="{{ $visit->customer_id }}">
+                <div class="border rounded px-3 py-2 text-sm bg-gray-50">
+                    {{ $visit->customer->name ?? '-' }}@if ($visit->customer?->code) <span class="text-gray-500">({{ $visit->customer->code }})</span>@endif
+                </div>
             </div>
 
             <div>

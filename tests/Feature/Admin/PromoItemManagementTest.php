@@ -110,14 +110,17 @@ class PromoItemManagementTest extends TestCase
         [$user, $sales] = $this->makeSalesUser();
         $this->makeSalesTask($sales);
 
+        // Dua toko berbeda: satu toko hanya boleh dikunjungi sekali per hari.
         $customer = $this->makeCustomer($sales->id);
         $customer->forceFill(['latitude' => -7.9797, 'longitude' => 112.6304])->save();
+        $customer2 = $this->makeCustomer($sales->id);
+        $customer2->forceFill(['latitude' => -7.9797, 'longitude' => 112.6304])->save();
 
         $banner = PromoItem::where('name', 'Banner')->firstOrFail();
         $posm = PromoItem::where('name', 'POSM')->firstOrFail();
 
-        $checkIn = fn (array $ticked) => $this->actingAs($user)->post(route('sales.visits.store'), [
-            'customer_id' => $customer->id,
+        $checkIn = fn (array $ticked, $store) => $this->actingAs($user)->post(route('sales.visits.store'), [
+            'customer_id' => $store->id,
             'latitude' => -7.9797,
             'longitude' => 112.6304,
             'condition' => Visit::CONDITION_NORMAL,
@@ -125,7 +128,7 @@ class PromoItemManagementTest extends TestCase
         ])->assertSessionHasNoErrors();
 
         // Kunjungan pertama (semua item aktif, Banner dicentang), lalu selesai.
-        $checkIn([$banner->id]);
+        $checkIn([$banner->id], $customer);
         $oldVisit = Visit::first();
         $this->actingAs($user)->post(route('sales.visits.check-out', $oldVisit), ['notes' => 'Tidak order, stok masih ada.']);
 
@@ -136,7 +139,7 @@ class PromoItemManagementTest extends TestCase
         $this->assertFalse($banner->fresh()->is_active);
 
         // Kunjungan baru tidak lagi mencatat Banner (form hanya menampilkan item aktif)...
-        $checkIn([$posm->id]);
+        $checkIn([$posm->id], $customer2);
         $newVisit = Visit::latest('id')->first();
         $this->assertNotSame($oldVisit->id, $newVisit->id);
         $this->assertFalse($newVisit->promoItems->contains($banner->id));

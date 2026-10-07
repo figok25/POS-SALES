@@ -40,14 +40,13 @@ class CustomerTaggingController extends Controller
         $sales = $this->currentSales();
         $data = $request->validated();
 
-        $duplicates = $this->service->findPossibleDuplicates($data['name'], $data['phone'] ?? null);
-
         $tagging = $this->service->submit($sales->id, $data);
 
-        $status = 'Tagging toko berhasil dikirim. Menunggu verifikasi Admin.';
-        if ($duplicates->isNotEmpty()) {
-            $status .= ' Catatan: ditemukan '.$duplicates->count().' customer dengan nama/telepon mirip, Admin akan memeriksa kemungkinan duplikasi.';
-        }
+        // Tidak duplikat -> langsung jadi Customer & masuk Rute Kanvas hari ini.
+        // Terindikasi duplikat -> ditahan sampai Admin memutuskan.
+        $status = $tagging->status === CustomerTagging::STATUS_APPROVED
+            ? "Tagging berhasil. Toko {$tagging->name} langsung masuk daftar customer dan Rute Kanvas Anda."
+            : "Tagging terkirim, tetapi terindikasi duplikat ({$tagging->duplicate_reason}). Menunggu keputusan Admin.";
 
         return redirect()->route('sales.tagging.index')->with('status', $status);
     }
