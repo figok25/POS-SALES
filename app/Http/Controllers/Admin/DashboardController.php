@@ -151,9 +151,10 @@ class DashboardController extends Controller
         // Cakupan kunjungan (Call Made vs EC). Satuan = "call" = kombinasi
         // Sales + Toko + Hari, jadi toko yang sama dikunjungi di 2 hari
         // berbeda terhitung 2 call (toko unik ditampilkan terpisah).
-        //   Toko Dikunjungi = Call Made + EC (total kunjungan)
-        //   Call Made       = hanya kunjungan: dikunjungi, tanpa transaksi selesai di hari itu
-        //   EC              = kunjungan + transaksi: dikunjungi + ada transaksi selesai di hari itu
+        // Definisi SAMA dengan tabel Target & Pencapaian (KpiAchievementService):
+        //   Call Made = TOTAL kunjungan (termasuk yang transaksi). Kunjungan Toko Tutup ikut
+        //               dihitung bila config kpi.call_made_includes_closed = true.
+        //   EC        = kunjungan + transaksi selesai di hari yang sama (Toko Tutup tidak mungkin EC)
         // toBase() pada kedua query di bawah: koleksi Eloquent yang KOSONG tetap
         // bertipe Eloquent\Collection setelah map(), dan intersect()-nya
         // mengharapkan model (getKey()) -- crash "getKey() on string" (500) saat
@@ -162,7 +163,11 @@ class DashboardController extends Controller
             Visit::whereBetween('check_in_at', [$dateFrom, $dateTo])
                 ->when($salesId, fn ($q) => $q->where('sales_id', $salesId)),
             fn ($q, $branchId) => $q->whereHas('sales', fn ($qq) => $qq->where('branch_id', $branchId))
-        )->select('sales_id', 'customer_id')->selectRaw('DATE(check_in_at) as call_day')->distinct()->get()->toBase();
+        )->select('sales_id', 'customer_id')
+            ->selectRaw('DATE(check_in_at) as call_day')
+            ->selectRaw("MIN(CASE WHEN check_in_condition = 'closed' THEN 1 ELSE 0 END) as all_closed")
+            ->groupBy('sales_id', 'customer_id')->groupByRaw('DATE(check_in_at)')
+            ->get()->toBase();
 
         $transactionCalls = $branchContext->applyVia(
             SalesTransaction::where('status', SalesTransaction::STATUS_COMPLETED)
@@ -172,14 +177,16 @@ class DashboardController extends Controller
         )->select('sales_id', 'customer_id')->selectRaw('DATE(created_at) as call_day')->distinct()->get()->toBase();
 
         $callKey = fn ($row) => $row->sales_id.'|'.$row->customer_id.'|'.$row->call_day;
-        $visitKeys = $visitCalls->map($callKey)->unique()->values();
+        $includeClosed = (bool) config('kpi.call_made_includes_closed');
+        $openVisitKeys = $visitCalls->filter(fn ($row) => ! (int) $row->all_closed)->map($callKey)->unique()->values();
+        $visitKeys = $includeClosed ? $visitCalls->map($callKey)->unique()->values() : $openVisitKeys;
         $transactionKeys = $transactionCalls->map($callKey)->unique()->values();
-        $ecCount = $visitKeys->intersect($transactionKeys)->count();
+        $ecCount = $openVisitKeys->intersect($transactionKeys)->count();
 
         $kpi = [
             'visit_total' => $visitKeys->count(),
             'visit_stores' => $visitCalls->pluck('customer_id')->unique()->count(),
-            'call_made' => $visitKeys->count() - $ecCount,
+            'call_made' => $visitKeys->count(),
             'effective_call' => $ecCount,
             'total_products' => Product::count(),
             'total_customers' => $branchContext->applyTo(
@@ -397,13 +404,12 @@ class DashboardController extends Controller
      *
      * Definisi SAMA PERSIS dengan kartu KPI di index() supaya angkanya
      * konsisten. Satuan = "call" = kombinasi Sales + Toko + Hari:
-     *  - Call Made   : hanya kunjungan -- toko dikunjungi (check-in) pada hari
-     *                  itu TANPA transaksi selesai
+     *  - Call Made   : TOTAL kunjungan -- toko dikunjungi (check-in) pada hari itu,
+     *                  termasuk yang transaksi (dan Toko Tutup bila config mengizinkan)
      *  - EC          : kunjungan + transaksi -- toko dikunjungi DAN di hari yang
      *                  sama ada transaksi COMPLETED dari Sales yang sama ke toko
      *                  yang sama
-     *  - Total       : Call Made + EC (seluruh toko yang dikunjungi)
-     *  - % EC        : EC / Total
+     *  - % EC        : EC / Call Made
      * Toko yang sama dikunjungi di 2 hari berbeda = 2 call; kunjungan
      * berulang ke toko yang sama di hari yang sama = 1 call.
      *
@@ -421,7 +427,9 @@ class DashboardController extends Controller
             ->whereBetween('check_in_at', [$from, $to])
             ->select('sales_id', 'customer_id')
             ->selectRaw('DATE(check_in_at) as call_day')
-            ->distinct()
+            ->selectRaw("MIN(CASE WHEN check_in_condition = 'closed' THEN 1 ELSE 0 END) as all_closed")
+            ->groupBy('sales_id', 'customer_id')
+            ->groupByRaw('DATE(check_in_at)')
             ->get()
             ->toBase();
 
@@ -441,15 +449,17 @@ class DashboardController extends Controller
 
         $rows = $salesRows->map(function (Sales $s) use ($visitsBySales, $trxKeysBySales, $callKey) {
             $salesVisits = $visitsBySales[$s->id] ?? collect();
-            $calls = $salesVisits->map($callKey)->unique()->values();
+            $includeClosed = (bool) config('kpi.call_made_includes_closed');
+            $openCalls = $salesVisits->filter(fn ($r) => ! (int) $r->all_closed)->map($callKey)->unique()->values();
+            $calls = $includeClosed ? $salesVisits->map($callKey)->unique()->values() : $openCalls;
             $totalCalls = $calls->count();
-            $ec = $calls->intersect($trxKeysBySales[$s->id] ?? collect())->count();
+            $ec = $openCalls->intersect($trxKeysBySales[$s->id] ?? collect())->count();
 
             return [
                 'id' => $s->id,
                 'name' => $s->name,
                 'code' => $s->code,
-                'call_made' => $totalCalls - $ec,
+                'call_made' => $totalCalls,
                 'ec' => $ec,
                 'total_calls' => $totalCalls,
                 'ec_pct' => $totalCalls > 0 ? (int) round($ec / $totalCalls * 100) : 0,

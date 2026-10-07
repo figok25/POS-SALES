@@ -175,19 +175,19 @@ class DashboardSalesDetailTest extends TestCase
         $coverage = $response->viewData('visitCoverage');
         $row = $coverage['rows']->firstWhere('id', $sales->id);
 
-        $this->assertSame(2, $row['call_made']);    // hanya kunjungan: c2, c4
+        $this->assertSame(3, $row['call_made']);    // total kunjungan (termasuk EC): c1, c2, c4
         $this->assertSame(1, $row['ec']);           // kunjungan + transaksi: c1
         $this->assertSame(3, $row['total_calls']);  // c1, c2, c4
         $this->assertSame(33, $row['ec_pct']);      // 1 dari 3
         $this->assertSame(3, $row['stores']);
 
-        $this->assertSame(2, $coverage['totals']['call_made']);
+        $this->assertSame(3, $coverage['totals']['call_made']);
         $this->assertSame(1, $coverage['totals']['ec']);
         $this->assertSame(3, $coverage['totals']['total_calls']);
 
         // Konsisten dengan kartu KPI agregat di atasnya.
         $this->assertSame(3, $response->viewData('kpi')['visit_total']);
-        $this->assertSame(2, $response->viewData('kpi')['call_made']);
+        $this->assertSame(3, $response->viewData('kpi')['call_made']);
         $this->assertSame(1, $response->viewData('kpi')['effective_call']);
 
         $response->assertSee('Kunjungan per Sales');

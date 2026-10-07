@@ -119,6 +119,22 @@ class KpiAchievementTest extends TestCase
         $this->assertSame(2.7, $row['achieve']);
     }
 
+    public function test_admin_dashboard_coverage_matches_kpi_numbers(): void
+    {
+        $this->scenario();
+        $admin = $this->makeAdminUser();
+
+        $response = $this->actingAs($admin)->get(route('admin.dashboard', [
+            'tbl_view' => 'all',
+            'date_from' => self::START, 'date_to' => self::END,
+        ]))->assertOk();
+
+        $totals = $response->viewData('visitCoverage')['totals'];
+
+        $this->assertSame(3, $totals['call_made']);   // 2 buka + 1 tutup, sama dengan KPI
+        $this->assertSame(1, $totals['ec']);
+    }
+
     public function test_closed_visits_can_be_excluded_by_config(): void
     {
         $this->scenario();
