@@ -9,16 +9,12 @@
             </p>
         </div>
         <div class="frm-head-actions">
-            @if (auth()->user()->isSuperAdmin())
-                <select id="branch-filter" class="frm-input is-select is-filter" aria-label="Filter branch">
-                    <option value="all">Semua Branch</option>
-                    @foreach ($branches as $b)
-                        <option value="{{ $b->id }}">{{ $b->name }}</option>
-                    @endforeach
-                </select>
-            @else
-                <span class="frm-code">Depo: {{ auth()->user()->branch->name ?? '-' }}</span>
-            @endif
+            <select id="branch-filter" class="frm-input is-select is-filter" aria-label="Filter branch">
+                <option value="all">Semua Branch</option>
+                @foreach ($branches as $b)
+                    <option value="{{ $b->id }}">{{ $b->name }}</option>
+                @endforeach
+            </select>
         </div>
     </div>
 
@@ -29,6 +25,9 @@
             <span class="frm-alert-text">Gagal memuat data Sales. Mencoba lagi pada pembaruan berikutnya.</span>
         </div>
     </div>
+
+    {{-- Alert Sales diam melebihi batas --}}
+    <div id="idle-alert" role="alert" hidden style="background:#fef2f2;border:1px solid #fca5a5;color:#991b1b;border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:13px"></div>
 
     <div class="frm-live">
         {{-- Peta --}}
@@ -67,7 +66,8 @@
 
         const STATUS_COLOR = {
             active: '#16a34a',       // hijau
-            idle: '#eab308',         // kuning
+            idle: '#dc2626',         // merah (alert diam)
+            on_break: '#8b5cf6',     // ungu
             at_customer: '#2563eb',  // biru
             signal_lost: '#f97316',  // oranye
             offline: '#9ca3af',      // abu terang
@@ -76,7 +76,8 @@
 
         const STATUS_LABEL = {
             active: 'Aktif',
-            idle: 'Diam Sebentar',
+            idle: 'Diam (Alert)',
+            on_break: 'Istirahat',
             at_customer: 'Di Customer',
             signal_lost: 'Sinyal Hilang',
             offline: 'Offline',
@@ -125,10 +126,36 @@
             return node;
         }
 
-        function buildPopupContent(name, status) {
+        // Keterangan tambahan: lama diam / lama istirahat.
+        function detailText(item) {
+            const status = item.effective_status || item.status;
+            if (status === 'idle') return `Diam ${item.idle_minutes} menit`;
+            if (status === 'on_break') return `Istirahat ${item.break_minutes ?? 0} menit` + (item.break_overdue ? ' (melewati batas)' : '');
+            return STATUS_LABEL[status] || status;
+        }
+
+        function buildPopupContent(name, item) {
             const box = el('div');
-            box.append(el('div', 'frm-popup-title', name), el('div', 'frm-popup-sub', STATUS_LABEL[status] || status));
+            box.append(el('div', 'frm-popup-title', name), el('div', 'frm-popup-sub', detailText(item)));
             return box;
+        }
+
+        function renderIdleAlert(items) {
+            const box = document.getElementById('idle-alert');
+            const idle = items.filter((i) => i.idle_alert);
+            const overdue = items.filter((i) => i.break_overdue);
+            box.replaceChildren();
+            if (idle.length === 0 && overdue.length === 0) { box.hidden = true; return; }
+
+            if (idle.length) {
+                const names = idle.map((i) => `${i.sales?.name || 'Sales #' + i.sales_id} (${i.idle_minutes} menit)`).join(', ');
+                box.appendChild(el('div', null, `⚠️ ${idle.length} Sales diam lebih dari batas: ${names}`));
+            }
+            if (overdue.length) {
+                const names = overdue.map((i) => `${i.sales?.name || 'Sales #' + i.sales_id} (${i.break_minutes} menit)`).join(', ');
+                box.appendChild(el('div', null, `⏱️ Istirahat melewati batas: ${names}`));
+            }
+            box.hidden = false;
         }
 
         async function showTrack(salesId) {
@@ -177,23 +204,28 @@
 
             const seenIds = new Set();
 
+            renderIdleAlert(items);
+
+            // Alert diam tampil paling atas.
+            items = items.slice().sort((a, b) => Number(!!b.idle_alert) - Number(!!a.idle_alert));
+
             items.forEach((item) => {
                 const salesId = item.sales_id;
                 const lng = parseFloat(item.longitude);
                 const lat = parseFloat(item.latitude);
-                const status = item.status;
+                const status = item.effective_status || item.status;
                 const name = item.sales?.name || `Sales #${salesId}`;
                 seenIds.add(salesId);
 
                 if (markers[salesId]) {
                     markers[salesId].setLngLat([lng, lat]);
                     markers[salesId].getElement().style.background = colorOf(status);
-                    markers[salesId].getPopup().setDOMContent(buildPopupContent(name, status));
+                    markers[salesId].getPopup().setDOMContent(buildPopupContent(name, item));
                 } else {
                     const node = buildMarkerElement(status);
                     const marker = new maplibregl.Marker({ element: node })
                         .setLngLat([lng, lat])
-                        .setPopup(new maplibregl.Popup({ offset: 12 }).setDOMContent(buildPopupContent(name, status)))
+                        .setPopup(new maplibregl.Popup({ offset: 12 }).setDOMContent(buildPopupContent(name, item)))
                         .addTo(map);
                     node.addEventListener('click', () => showTrack(salesId));
                     markers[salesId] = marker;
@@ -206,7 +238,8 @@
                 dot.style.background = colorOf(status);
 
                 const main = el('span', 'row-main');
-                main.append(el('span', 'frm-name', name), el('span', 'row-sub', STATUS_LABEL[status] || status));
+                main.append(el('span', 'frm-name', name), el('span', 'row-sub', detailText(item)));
+                if (item.idle_alert) row.style.background = '#fef2f2';
 
                 row.append(dot, main, el('span', 'frm-meta', timeAgo(item.last_seen_at)));
                 row.addEventListener('click', () => {

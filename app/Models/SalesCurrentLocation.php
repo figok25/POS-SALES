@@ -19,6 +19,7 @@ class SalesCurrentLocation extends Model
     public const STATUS_SIGNAL_LOST = 'signal_lost';
     public const STATUS_OFFLINE = 'offline';
     public const STATUS_OFF_DUTY = 'off_duty';
+    public const STATUS_ON_BREAK = 'on_break';
 
     protected $fillable = [
         'sales_id', 'branch_id', 'tracking_session_id',

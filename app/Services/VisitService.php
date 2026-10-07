@@ -111,6 +111,9 @@ class VisitService
             return $visit;
         });
 
+        // Mulai kunjungan = kembali bekerja: istirahat yang masih terbuka otomatis diakhiri.
+        \App\Models\SalesBreak::endOpenFor($salesId);
+
         AuditLogger::log('check_in', 'Sales', Visit::class, $visit->id, null, $visit->toArray());
 
         return $visit;

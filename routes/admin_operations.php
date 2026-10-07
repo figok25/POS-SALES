@@ -16,7 +16,8 @@ use App\Http\Controllers\Admin\Operations\MonitoringController;
 use App\Http\Controllers\Admin\RoutingQuotaController;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware('permission:live-monitoring.view')->group(function () {
+// Live Monitoring: KHUSUS Super Admin.
+Route::middleware(['permission:live-monitoring.view', 'role:super_admin'])->group(function () {
     // BUGFIX: JSON API-nya (/api/admin/live-sales, /api/admin/sales/{id}/locations)
     // sudah ada sejak Fase 2, tapi halaman peta-nya sendiri belum pernah
     // dibuat -- Admin tidak punya cara melihat pergerakan Sales sama

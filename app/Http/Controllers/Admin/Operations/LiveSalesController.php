@@ -7,10 +7,14 @@ use App\Models\Branch;
 use App\Models\Sales;
 use App\Models\SalesCurrentLocation;
 use App\Models\SalesLocationHistory;
+use App\Services\LiveMonitoringService;
 use App\Support\BranchContext;
 use Illuminate\Http\Request;
 
 /**
+ * KHUSUS SUPER ADMIN (route dikunci role:super_admin). Status efektif (diam/istirahat/dll)
+ * diturunkan LiveMonitoringService.
+ *
  * Live Sales Field Operations - Admin Live Monitoring (Blueprint #28,
  * #29, #38, Fase 2 & Fase 7):
  *
@@ -32,6 +36,10 @@ use Illuminate\Http\Request;
  */
 class LiveSalesController extends Controller
 {
+    public function __construct(private readonly LiveMonitoringService $monitoring)
+    {
+    }
+
     /**
      * Halaman peta Live Monitoring: menampilkan seluruh Sales yang
      * sedang tracking di satu peta MapLibre, auto-refresh lewat polling
@@ -60,7 +68,14 @@ class LiveSalesController extends Controller
             SalesCurrentLocation::with(['sales', 'branch'])
         )->orderByDesc('last_seen_at')->get();
 
-        return response()->json(['success' => true, 'data' => $locations]);
+        $data = $this->monitoring->enrich($locations);
+
+        return response()->json([
+            'success' => true,
+            'data' => $data,
+            'idle_alert_count' => collect($data)->where('idle_alert', true)->count(),
+            'idle_minutes_threshold' => (int) config('monitoring.idle_minutes'),
+        ]);
     }
 
     public function locations(Request $request, Sales $sales)

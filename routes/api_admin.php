@@ -13,7 +13,8 @@
 use App\Http\Controllers\Admin\Operations\LiveSalesController;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware('permission:live-monitoring.view')->group(function () {
+// Live Monitoring: KHUSUS Super Admin.
+Route::middleware(['permission:live-monitoring.view', 'role:super_admin'])->group(function () {
     Route::get('live-sales', [LiveSalesController::class, 'liveSales'])->name('live-sales');
     Route::get('sales/{sales}/locations', [LiveSalesController::class, 'locations'])->name('sales.locations');
 });

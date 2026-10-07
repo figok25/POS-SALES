@@ -10,6 +10,7 @@
 | RolePermissionSeeder.
 */
 
+use App\Http\Controllers\Sales\BreakController;
 use App\Http\Controllers\Sales\RouteController;
 use App\Http\Controllers\Sales\TaskController;
 use App\Http\Controllers\Sales\TrackingController;
@@ -28,6 +29,13 @@ Route::middleware('permission:tracking.manage')->prefix('tracking')->name('track
     Route::post('start', [TrackingController::class, 'start'])->name('start');
     Route::post('stop', [TrackingController::class, 'stop'])->name('stop');
     Route::get('status', [TrackingController::class, 'status'])->name('status');
+});
+
+// Tombol Istirahat (tidak dihitung diam di Live Monitoring).
+Route::middleware('permission:tracking.manage')->prefix('break')->name('break.')->group(function () {
+    Route::get('status', [BreakController::class, 'status'])->name('status');
+    Route::post('start', [BreakController::class, 'start'])->name('start');
+    Route::post('end', [BreakController::class, 'end'])->name('end');
 });
 
 Route::middleware('permission:tracking.manage')->post('location', [TrackingController::class, 'location'])->name('location');

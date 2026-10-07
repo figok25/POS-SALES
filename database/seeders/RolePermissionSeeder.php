@@ -43,7 +43,6 @@ class RolePermissionSeeder extends Seeder
             // Sales Task / Penugasan & Live Monitoring (Live Sales Field
             // Operations Blueprint #14, #28)
             'sales-task.view', 'sales-task.manage',
-            'live-monitoring.view',
             // Reports & Dashboard
             'reports.view',
             'dashboard.admin.view',
@@ -77,6 +76,8 @@ class RolePermissionSeeder extends Seeder
         $superAdminOnlyPermissions = [
             'system.manage',
             'branch.manage',
+            // Live Monitoring Sales: hanya Super Admin.
+            'live-monitoring.view',
         ];
 
         $allPermissions = array_unique(array_merge($adminPermissions, $salesPermissions, $superAdminOnlyPermissions));

@@ -13,6 +13,8 @@
         </div>
     </section>
 
+    @include('sales._break-button')
+
     <div class="sls-section-head">
         <div>
             <p class="sls-section-title">Ringkasan Hari Ini</p>

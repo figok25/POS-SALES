@@ -49,6 +49,8 @@
         </template>
     </div>
 
+    @include('sales._break-button')
+
     @push('scripts')
     <script>
         function salesTrackingStatus() {

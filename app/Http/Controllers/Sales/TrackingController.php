@@ -7,6 +7,7 @@ use App\Http\Controllers\Sales\Concerns\ResolvesCurrentSales;
 use App\Http\Requests\Sales\LocationUpdateRequest;
 use App\Http\Requests\Sales\TrackingStartRequest;
 use App\Http\Requests\Sales\TrackingStopRequest;
+use App\Models\SalesBreak;
 use App\Models\SalesCurrentLocation;
 use App\Models\SalesDevice;
 use App\Models\SalesLocationHistory;
@@ -204,6 +205,8 @@ class TrackingController extends Controller
             'status' => SalesTrackingSession::STATUS_COMPLETED,
         ]);
 
+        SalesBreak::endOpenFor($sales->id);
+
         SalesCurrentLocation::where('sales_id', $sales->id)->update([
             'status' => SalesCurrentLocation::STATUS_OFF_DUTY,
             'last_seen_at' => now(),
@@ -264,6 +267,9 @@ class TrackingController extends Controller
                     ->where('status', Visit::STATUS_ONGOING)
                     ->exists();
 
+                // Istirahat menang atas status lain: Sales istirahat tidak dianggap diam.
+                $onBreak = SalesBreak::open()->where('sales_id', $sales->id)->exists();
+
                 SalesCurrentLocation::updateOrCreate(
                     ['sales_id' => $sales->id],
                     [
@@ -273,7 +279,9 @@ class TrackingController extends Controller
                         'longitude' => $request->validated('longitude'),
                         'accuracy' => $request->validated('accuracy'),
                         'last_seen_at' => now(),
-                        'status' => $atCustomer ? SalesCurrentLocation::STATUS_AT_CUSTOMER : SalesCurrentLocation::STATUS_ACTIVE,
+                        'status' => $onBreak
+                            ? SalesCurrentLocation::STATUS_ON_BREAK
+                            : ($atCustomer ? SalesCurrentLocation::STATUS_AT_CUSTOMER : SalesCurrentLocation::STATUS_ACTIVE),
                     ]
                 );
             });

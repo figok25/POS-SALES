@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\SalesBreak;
 use App\Models\SalesCurrentLocation;
 use App\Models\SalesTask;
 use App\Models\SalesTrackingSession;
@@ -63,6 +64,8 @@ class TrackingSessionService
         $closed = SalesTrackingSession::where('sales_id', $salesId)
             ->where('status', SalesTrackingSession::STATUS_ACTIVE)
             ->update(['status' => SalesTrackingSession::STATUS_COMPLETED, 'ended_at' => now()]);
+
+        SalesBreak::endOpenFor($salesId);
 
         SalesCurrentLocation::where('sales_id', $salesId)->update([
             'status' => SalesCurrentLocation::STATUS_OFF_DUTY,

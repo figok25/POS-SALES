@@ -214,7 +214,7 @@ class BranchIsolationTest extends TestCase
     // 11-12: Live Monitoring & history endpoint (Scenario E).
     // ---------------------------------------------------------------
 
-    public function test_admin_a_live_monitoring_only_sees_branch_a_sales(): void
+    public function test_live_monitoring_is_closed_to_branch_admin_and_super_admin_can_filter_by_branch(): void
     {
         $branchA = $this->makeBranch('CBG-A', 'Cabang A');
         $branchB = $this->makeBranch('CBG-B', 'Cabang B');
@@ -232,13 +232,18 @@ class BranchIsolationTest extends TestCase
             'status' => SalesCurrentLocation::STATUS_ACTIVE,
         ]);
 
-        $adminA = $this->makeAdminUser($branchA);
+        // Live Monitoring khusus Super Admin: Admin Depo ditolak.
+        $this->actingAs($this->makeAdminUser($branchA))->getJson(route('api.admin.live-sales'))->assertForbidden();
 
-        $response = $this->actingAs($adminA)->getJson(route('api.admin.live-sales'))->assertOk();
-        $ids = collect($response->json('data'))->pluck('sales_id');
+        $super = $this->makeSuperAdminUser();
 
-        $this->assertTrue($ids->contains($salesA->id));
-        $this->assertFalse($ids->contains($salesB->id));
+        $all = collect($this->actingAs($super)->getJson(route('api.admin.live-sales'))->assertOk()->json('data'))->pluck('sales_id');
+        $this->assertTrue($all->contains($salesA->id));
+        $this->assertTrue($all->contains($salesB->id));
+
+        $onlyA = collect($this->actingAs($super)->getJson(route('api.admin.live-sales', ['branch' => $branchA->id]))->assertOk()->json('data'))->pluck('sales_id');
+        $this->assertTrue($onlyA->contains($salesA->id));
+        $this->assertFalse($onlyA->contains($salesB->id));
     }
 
     public function test_history_endpoint_rejects_sales_from_other_branch(): void
