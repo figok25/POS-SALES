@@ -23,11 +23,13 @@
             @php
                 $ecCount = $customers->filter(fn ($c) => ($visitStatus[$c->id] ?? null) === \App\Models\Visit::COVERAGE_EC)->count();
                 $cmCount = $customers->filter(fn ($c) => ($visitStatus[$c->id] ?? null) === \App\Models\Visit::COVERAGE_CALL_MEET)->count();
+                $closedCount = $customers->filter(fn ($c) => ($visitStatus[$c->id] ?? null) === \App\Models\Visit::COVERAGE_CLOSED)->count();
             @endphp
             <div class="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 pt-2 border-t text-xs text-gray-600">
                 <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-green-600 inline-block"></span> Call Meet ({{ $cmCount }})</span>
                 <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full inline-block" style="background:#d97706"></span> EC &ndash; kunjungan + transaksi ({{ $ecCount }})</span>
-                <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-indigo-600 inline-block"></span> Belum dikunjungi ({{ $customers->count() - $cmCount - $ecCount }})</span>
+                <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full inline-block" style="background:#dc2626"></span> Toko Tutup ({{ $closedCount }})</span>
+                <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-indigo-600 inline-block"></span> Belum dikunjungi ({{ $customers->count() - $cmCount - $ecCount - $closedCount }})</span>
             </div>
         @endif
     </div>
@@ -44,19 +46,20 @@
         @forelse ($customers as $customer)
             @php
                 $coverage  = $visitStatus[$customer->id] ?? null;
-                $isVisited = $coverage !== null;
+                $isClosed  = $coverage === \App\Models\Visit::COVERAGE_CLOSED;
+                $isVisited = $coverage !== null && ! $isClosed;
                 $isEc      = $coverage === \App\Models\Visit::COVERAGE_EC;
             @endphp
             <a href="{{ route('sales.map.show', $customer) }}" class="flex items-center justify-between px-4 py-3 text-sm">
                 <div class="flex items-center gap-2">
-                    <span class="w-2.5 h-2.5 rounded-full flex-shrink-0 {{ $isEc ? '' : ($isVisited ? 'bg-green-600' : 'bg-indigo-600') }}" @if ($isEc) style="background:#d97706" @endif title="{{ $isEc ? 'EC (kunjungan + transaksi)' : ($isVisited ? 'Call Meet (kunjungan)' : 'Belum dikunjungi') }}"></span>
+                    <span class="w-2.5 h-2.5 rounded-full flex-shrink-0 {{ ($isEc || $isClosed) ? '' : ($isVisited ? 'bg-green-600' : 'bg-indigo-600') }}" @if ($isEc) style="background:#d97706" @elseif ($isClosed) style="background:#dc2626" @endif title="{{ $isEc ? 'EC (kunjungan + transaksi)' : ($isClosed ? 'Toko Tutup' : ($isVisited ? 'Call Meet (kunjungan)' : 'Belum dikunjungi')) }}"></span>
                     <div>
                         <p class="font-medium">{{ $customer->name }}</p>
                         <p class="text-xs text-gray-500">{{ $customer->address ?? 'Alamat belum diisi' }}</p>
                     </div>
                 </div>
                 <div class="text-right">
-                    <p class="text-xs {{ $isEc ? 'text-amber-600' : ($isVisited ? 'text-green-600' : 'text-gray-400') }} font-medium">{{ $isEc ? '★ EC' : ($isVisited ? '✓ Call Meet' : 'Belum') }}</p>
+                    <p class="text-xs font-medium {{ $isEc ? 'text-amber-600' : ($isVisited ? 'text-green-600' : 'text-gray-400') }}" @if ($isClosed) style="color:#dc2626" @endif>{{ $isEc ? '★ EC' : ($isClosed ? '✕ Toko Tutup' : ($isVisited ? '✓ Call Meet' : 'Belum')) }}</p>
                     @if ($customer->hasLocation())
                         <span class="text-green-600 text-xs">📍 Ada Lokasi</span>
                     @else
@@ -77,7 +80,7 @@
                 'lat' => (float) $c->latitude,
                 'lng' => (float) $c->longitude,
                 'url' => route('sales.map.show', $c),
-                'coverage' => $visitStatus[$c->id] ?? null, // null | 'cm' | 'ec'
+                'coverage' => $visitStatus[$c->id] ?? null, // null | 'cm' | 'ec' | 'closed'
             ])->values();
         @endphp
         @push('styles')
@@ -104,11 +107,13 @@
                     //  - indigo polos  = belum dikunjungi
                     //  - hijau + ✓     = Call Meet (kunjungan, belum transaksi)
                     //  - oranye + ★    = EC (kunjungan + transaksi)
+                    //  - merah + ✕     = Toko Tutup
                     // Kontras warna DAN bentuk/isi (bukan cuma warna) supaya
                     // tetap terbaca oleh yang buta warna.
                     const isEc = c.coverage === 'ec';
                     const isCm = c.coverage === 'cm';
-                    const visited = isEc || isCm;
+                    const isClosed = c.coverage === 'closed';
+                    const visited = isEc || isCm || isClosed;
                     const el = document.createElement('a');
                     el.href = c.url;
                     el.style.display = 'flex';
@@ -117,18 +122,18 @@
                     el.style.width = visited ? '22px' : '14px';
                     el.style.height = visited ? '22px' : '14px';
                     el.style.borderRadius = '50%';
-                    el.style.background = isEc ? '#d97706' : (isCm ? '#16a34a' : '#4f46e5');
+                    el.style.background = isEc ? '#d97706' : (isClosed ? '#dc2626' : (isCm ? '#16a34a' : '#4f46e5'));
                     el.style.border = '2px solid white';
                     el.style.boxShadow = '0 1px 3px rgba(0,0,0,0.4)';
                     el.style.color = 'white';
                     el.style.fontSize = '11px';
                     el.style.fontWeight = 'bold';
-                    el.textContent = isEc ? '★' : (isCm ? '✓' : '');
+                    el.textContent = isEc ? '★' : (isClosed ? '✕' : (isCm ? '✓' : ''));
 
                     new maplibregl.Marker({ element: el })
                         .setLngLat([c.lng, c.lat])
                         .setPopup(new maplibregl.Popup({ offset: 12 }).setHTML(
-                            `<a href="${c.url}" class="text-sm font-medium">${c.name}</a><br><span class="text-xs ${isEc ? 'text-amber-600' : (isCm ? 'text-green-600' : 'text-gray-500')}">${isEc ? '★ EC (kunjungan + transaksi)' : (isCm ? '✓ Call Meet (kunjungan)' : 'Belum dikunjungi')}</span>`
+                            `<a href="${c.url}" class="text-sm font-medium">${c.name}</a><br><span class="text-xs ${isEc ? 'text-amber-600' : (isCm ? 'text-green-600' : 'text-gray-500')}" ${isClosed ? 'style="color:#dc2626"' : ''}>${isEc ? '★ EC (kunjungan + transaksi)' : (isClosed ? '✕ Toko Tutup' : (isCm ? '✓ Call Meet (kunjungan)' : 'Belum dikunjungi'))}</span>`
                         ))
                         .addTo(map);
 

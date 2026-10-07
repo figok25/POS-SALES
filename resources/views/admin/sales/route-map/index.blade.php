@@ -58,7 +58,8 @@
                 $total        = $customers->count();
                 $ecCount      = $customers->filter(fn ($c) => ($visitStatus[$c->id] ?? null) === \App\Models\Visit::COVERAGE_EC)->count();
                 $cmCount      = $customers->filter(fn ($c) => ($visitStatus[$c->id] ?? null) === \App\Models\Visit::COVERAGE_CALL_MEET)->count();
-                $visitedCount = $ecCount + $cmCount;
+                $closedCount  = $customers->filter(fn ($c) => ($visitStatus[$c->id] ?? null) === \App\Models\Visit::COVERAGE_CLOSED)->count();
+                $visitedCount = $ecCount + $cmCount + $closedCount;
                 $pendingCount = $total - $visitedCount;
                 $percent      = $total > 0 ? round($visitedCount / $total * 100) : 0;
                 $orderById    = $customers->pluck('id')->values()->flip();
@@ -97,6 +98,7 @@
                         <div class="frm-legend">
                             <span><i class="frm-dot is-visited"></i> Call Meet &ndash; kunjungan ({{ $cmCount }})</span>
                             <span><i class="frm-dot is-ec"></i> EC &ndash; kunjungan + transaksi ({{ $ecCount }})</span>
+                            <span><i class="frm-dot is-closed"></i> Toko Tutup ({{ $closedCount }})</span>
                             <span><i class="frm-dot"></i> Belum dikunjungi ({{ $pendingCount }})</span>
                             <span class="frm-legend-total">{{ $percent }}% selesai</span>
                         </div>
@@ -130,13 +132,16 @@
                         @foreach ($customers as $index => $customer)
                             @php
                                 $coverage  = $visitStatus[$customer->id] ?? null;
-                                $isVisited = $coverage !== null;
+                                $isClosed  = $coverage === \App\Models\Visit::COVERAGE_CLOSED;
+                                $isVisited = $coverage !== null && ! $isClosed;
                                 $isEc      = $coverage === \App\Models\Visit::COVERAGE_EC;
                             @endphp
                             <li class="row-item is-stop">
                                 <div class="frm-stop">
-                                    <span @class(['frm-stop-no', 'is-visited' => $isVisited && ! $isEc, 'is-ec' => $isEc])>
-                                        @if ($isEc)
+                                    <span @class(['frm-stop-no', 'is-visited' => $isVisited && ! $isEc, 'is-ec' => $isEc, 'is-closed' => $isClosed])>
+                                        @if ($isClosed)
+                                            <span aria-label="Toko Tutup">✕</span>
+                                        @elseif ($isEc)
                                             <span aria-label="EC (kunjungan + transaksi)">★</span>
                                         @elseif ($isVisited)
                                             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-label="Call Meet (kunjungan)"><path d="M20 6 9 17l-5-5"/></svg>
@@ -150,7 +155,7 @@
                                     </div>
                                 </div>
                                 <div class="row-side">
-                                    <span @class(['frm-status', 'is-on' => $isVisited && ! $isEc, 'is-warn' => $isEc, 'is-off' => ! $isVisited])>{{ $isEc ? 'EC' : ($isVisited ? 'Call Meet' : 'Belum Dikunjungi') }}</span>
+                                    <span @class(['frm-status', 'is-on' => $isVisited && ! $isEc, 'is-warn' => $isEc, 'is-danger' => $isClosed, 'is-off' => ! $isVisited && ! $isClosed])>{{ $isEc ? 'EC' : ($isClosed ? 'Toko Tutup' : ($isVisited ? 'Call Meet' : 'Belum Dikunjungi')) }}</span>
                                     <span @class(['frm-loc', 'is-set' => $customer->hasLocation()])>
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
                                         {{ $customer->hasLocation() ? 'Ada Lokasi' : 'Belum Ada Lokasi' }}
@@ -164,6 +169,15 @@
         @endif
     </div>
 
+    <style>
+        /* Penanda Toko Tutup (merah). Ditulis di halaman ini, bukan di form.css, supaya langsung berlaku
+           tanpa `npm run build` (public/build tidak ikut Git). */
+        .frm-marker.is-closed { background: #dc2626; }
+        .frm-dot.is-closed { background: #dc2626; }
+        .frm-stop-no.is-closed { color: #b91c1c; background: #fee2e2; }
+        .frm-popup-sub.is-closed { color: #b91c1c; }
+    </style>
+
     @if ($selectedSales && $customersWithLocation->isNotEmpty())
         @php
             $customerMarkersData = $customersWithLocation->map(fn ($c) => [
@@ -172,7 +186,7 @@
                 'order'   => ($orderById[$c->id] ?? 0) + 1,
                 'lat'     => (float) $c->latitude,
                 'lng'     => (float) $c->longitude,
-                'coverage' => $visitStatus[$c->id] ?? null, // null | 'cm' | 'ec'
+                'coverage' => $visitStatus[$c->id] ?? null, // null | 'cm' | 'ec' | 'closed'
             ])->values();
         @endphp
         @push('styles')
@@ -199,8 +213,8 @@
                     // Call Meet (kunjungan), oranye + bintang = EC (kunjungan + transaksi).
                     // Nomor mengikuti urutan di Daftar Toko. Gaya ada di .frm-marker (form.css).
                     const el = document.createElement('div');
-                    el.className = 'frm-marker' + (c.coverage === 'ec' ? ' is-ec' : (c.coverage === 'cm' ? ' is-visited' : ''));
-                    el.textContent = c.coverage === 'ec' ? '★' : (c.coverage === 'cm' ? '✓' : c.order);
+                    el.className = 'frm-marker' + (c.coverage === 'ec' ? ' is-ec' : (c.coverage === 'closed' ? ' is-closed' : (c.coverage === 'cm' ? ' is-visited' : '')));
+                    el.textContent = c.coverage === 'ec' ? '★' : (c.coverage === 'closed' ? '✕' : (c.coverage === 'cm' ? '✓' : c.order));
 
                     // Popup dibuat lewat DOM + textContent (bukan HTML string) agar nama toko aman.
                     const content = document.createElement('div');
@@ -208,9 +222,10 @@
                     title.className = 'frm-popup-title';
                     title.textContent = c.order + '. ' + c.name;
                     const sub = document.createElement('div');
-                    sub.className = 'frm-popup-sub' + (c.coverage === 'ec' ? ' is-ec' : (c.coverage === 'cm' ? ' is-visited' : ''));
+                    sub.className = 'frm-popup-sub' + (c.coverage === 'ec' ? ' is-ec' : (c.coverage === 'closed' ? ' is-closed' : (c.coverage === 'cm' ? ' is-visited' : '')));
                     sub.textContent = c.coverage === 'ec' ? '★ EC (kunjungan + transaksi)'
-                        : (c.coverage === 'cm' ? '✓ Call Meet (kunjungan)' : 'Belum dikunjungi');
+                        : (c.coverage === 'closed' ? '✕ Toko Tutup'
+                        : (c.coverage === 'cm' ? '✓ Call Meet (kunjungan)' : 'Belum dikunjungi'));
                     content.append(title, sub);
 
                     new maplibregl.Marker({ element: el })

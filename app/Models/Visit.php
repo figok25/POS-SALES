@@ -31,6 +31,8 @@ class Visit extends Model
      */
     public const COVERAGE_CALL_MADE = 'cm';
     public const COVERAGE_EC = 'ec';
+    /** Hanya ada kunjungan Toko Tutup hari itu (tidak ada kunjungan normal/transaksi). */
+    public const COVERAGE_CLOSED = 'closed';
 
     /**
      * @deprecated Istilah "Call Meet" diganti "Call Made". Alias ini hanya
@@ -40,7 +42,11 @@ class Visit extends Model
 
     public static function coverageLabel(string $coverage): string
     {
-        return $coverage === self::COVERAGE_EC ? 'EC (Kunjungan + Transaksi)' : 'Call Made (Kunjungan)';
+        return match ($coverage) {
+            self::COVERAGE_EC => 'EC (Kunjungan + Transaksi)',
+            self::COVERAGE_CLOSED => 'Toko Tutup',
+            default => 'Call Made (Kunjungan)',
+        };
     }
 
     /**

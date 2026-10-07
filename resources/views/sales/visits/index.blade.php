@@ -1,6 +1,22 @@
 <x-sales-layout>
     <x-slot name="header">Kunjungan</x-slot>
 
+    @php
+        // Penanda warna: Normal = hijau, Toko Tutup = MERAH, Kendala Lain = kuning.
+        $conditionBadge = fn ($c) => match ($c) {
+            'normal' => 'bg-green-100 text-green-800',
+            'closed' => 'bg-red-100 text-red-800',
+            default => 'bg-amber-100 text-amber-800',
+        };
+        // Hasil kunjungan: Toko Tutup = merah, Transaksi (EC) = hijau, Tanpa Transaksi = hijau.
+        $outcomeBadge = fn ($o) => match ($o) {
+            'closed' => 'bg-red-100 text-red-800',
+            'transaction' => 'bg-green-100 text-green-800',
+            'no_transaction' => 'bg-green-100 text-green-800',
+            default => 'bg-amber-100 text-amber-800',
+        };
+    @endphp
+
     @if (session('status'))
         <div class="mb-3 p-3 bg-green-100 text-green-800 rounded text-sm">{{ session('status') }}</div>
     @endif
@@ -20,7 +36,9 @@
             <p class="text-lg font-semibold">{{ $ongoing->customer->name ?? '-' }}</p>
             <p class="text-xs text-gray-500 mb-1">Check-in: {{ $ongoing->check_in_at->format('d M Y H:i') }}</p>
             @if ($ongoing->check_in_condition)
-                <p class="text-xs text-gray-600 mb-3">Kondisi outlet: <span class="font-medium">{{ \App\Models\Visit::conditionLabel($ongoing->check_in_condition) }}</span></p>
+                <p class="text-xs text-gray-600 mb-3">Kondisi outlet:
+                    <span class="inline-block text-xs px-2 py-0.5 rounded font-medium {{ $conditionBadge($ongoing->check_in_condition) }}">{{ \App\Models\Visit::conditionLabel($ongoing->check_in_condition) }}</span>
+                </p>
             @else
                 <div class="mb-2"></div>
             @endif
@@ -51,11 +69,14 @@
                 <div class="flex items-start justify-between gap-2">
                     <p class="font-medium">{{ $item->customer->name ?? '-' }}</p>
                     @if ($item->check_in_condition)
-                        <span class="shrink-0 text-xs px-2 py-0.5 rounded {{ $item->check_in_condition === 'normal' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800' }}">{{ \App\Models\Visit::conditionLabel($item->check_in_condition) }}</span>
+                        <span class="shrink-0 text-xs px-2 py-0.5 rounded {{ $conditionBadge($item->check_in_condition) }}">{{ \App\Models\Visit::conditionLabel($item->check_in_condition) }}</span>
                     @endif
                 </div>
                 <p class="text-xs text-gray-500">{{ $item->check_in_at->format('d M Y H:i') }} - {{ $item->check_out_at?->format('H:i') }}</p>
-                <p class="text-xs text-gray-600 mt-0.5">Hasil: <span class="font-medium">{{ \App\Models\Visit::outcomeLabel($item->outcome()) }}</span></p>
+                @php $outcome = $item->outcome(); @endphp
+                <p class="text-xs text-gray-600 mt-1">Hasil:
+                    <span class="inline-block px-2 py-0.5 rounded font-medium {{ $outcomeBadge($outcome) }}">{{ \App\Models\Visit::outcomeLabel($outcome) }}</span>
+                </p>
             </div>
         @empty
             <p class="text-center text-gray-500 text-sm py-6">Belum ada riwayat kunjungan.</p>

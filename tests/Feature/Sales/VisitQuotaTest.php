@@ -316,6 +316,57 @@ class VisitQuotaTest extends TestCase
         $this->assertSame('Tanpa Transaksi (Call Made)', Visit::outcomeLabel(Visit::OUTCOME_NO_TRANSACTION));
     }
 
+    public function test_sales_history_marks_closed_store_red_and_open_store_green(): void
+    {
+        [$user, , $a, $b] = $this->salesWithTwoStores();
+
+        // Toko Tutup -> merah.
+        $this->checkIn($user, $a, Visit::CONDITION_CLOSED)->assertSessionHasNoErrors();
+        $this->checkOut($user, $this->lastVisit());
+
+        // Toko buka, kunjungan saja tanpa transaksi -> hijau.
+        $this->checkIn($user, $b)->assertSessionHasNoErrors();
+        $this->checkOut($user, $this->lastVisit());
+
+        $html = $this->actingAs($user)->get(route('sales.visits.index'))->assertOk()->getContent();
+
+        $this->assertMatchesRegularExpression('/bg-red-100 text-red-800[^>]*>\s*Toko Tutup\s*</', $html, 'Kondisi Toko Tutup harus merah.');
+        $this->assertMatchesRegularExpression('/bg-green-100 text-green-800[^>]*>\s*Normal\s*</', $html, 'Kondisi Normal harus hijau.');
+        $this->assertMatchesRegularExpression('/bg-green-100 text-green-800[^>]*>\s*Tanpa Transaksi \(Call Made\)\s*</', $html, 'Kunjungan tanpa transaksi harus hijau.');
+        $this->assertDoesNotMatchRegularExpression('/bg-amber-100 text-amber-800[^>]*>\s*Toko Tutup\s*</', $html, 'Toko Tutup tidak boleh kuning.');
+    }
+
+    public function test_map_status_marks_closed_store_and_upgrades_after_a_normal_revisit(): void
+    {
+        [$user, $sales, $a, $b] = $this->salesWithTwoStores();
+        $service = app(\App\Services\SalesRouteMapService::class);
+
+        // Toko A tutup, toko B dikunjungi normal.
+        $this->checkIn($user, $a, Visit::CONDITION_CLOSED)->assertSessionHasNoErrors();
+        $this->checkOut($user, $this->lastVisit());
+        $this->checkIn($user, $b)->assertSessionHasNoErrors();
+        $this->checkOut($user, $this->lastVisit());
+
+        $status = $service->visitStatusByCustomer($sales->id, now());
+        $this->assertSame(Visit::COVERAGE_CLOSED, $status[$a->id]);
+        $this->assertSame(Visit::COVERAGE_CALL_MADE, $status[$b->id]);
+
+        // Peta Sales: toko tutup merah (legenda + penanda), bukan hijau "Call Meet".
+        $this->actingAs($user)
+            ->get(route('sales.map.index'))
+            ->assertOk()
+            ->assertSee('Toko Tutup (1)')
+            ->assertSee('#dc2626', false)
+            ->assertSee('✕ Toko Tutup', false);
+
+        // Kunjungan ulang yang normal di toko A -> berubah jadi hijau (Call Made).
+        $this->checkIn($user, $a)->assertSessionHasNoErrors();
+        $this->checkOut($user, $this->lastVisit());
+
+        $status = $service->visitStatusByCustomer($sales->id, now());
+        $this->assertSame(Visit::COVERAGE_CALL_MADE, $status[$a->id]);
+    }
+
     public function test_admin_visit_list_shows_the_outcome_column(): void
     {
         [$user, , $a] = $this->salesWithTwoStores();

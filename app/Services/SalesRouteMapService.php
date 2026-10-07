@@ -105,12 +105,14 @@ class SalesRouteMapService
 
     /**
      * Status cakupan per Customer pada 1 tanggal untuk 1 Sales:
-     * [customer_id => 'cm' | 'ec'] (lihat Visit::COVERAGE_*).
+     * [customer_id => 'cm' | 'ec' | 'closed'] (lihat Visit::COVERAGE_*).
      *
      *  - Customer yang TIDAK ada di hasil = belum dikunjungi.
      *  - 'cm' (Call Meet)      = ada check-in, belum ada transaksi selesai.
      *  - 'ec' (Effective Call) = ada check-in DAN transaksi selesai pada
      *    tanggal yang sama oleh Sales yang sama.
+     *  - 'closed' (Toko Tutup) = SEMUA kunjungan hari itu tercatat Toko Tutup.
+     *    Begitu ada kunjungan ulang yang normal, statusnya jadi 'cm'/'ec'.
      *
      * Read-only; dipakai peta Sales & peta Admin.
      */
@@ -118,7 +120,13 @@ class SalesRouteMapService
     {
         $day = $date->toDateString();
 
-        $visited = $this->visitedCustomerIds($salesId, $date);
+        // Kunjungan per toko hari itu: toko yang SEMUA kunjungannya Toko Tutup
+        // ditandai 'closed' (merah); satu saja kunjungan normal -> 'cm'/'ec'.
+        $closedOnly = Visit::where('sales_id', $salesId)
+            ->whereDate('check_in_at', $day)
+            ->get(['customer_id', 'check_in_condition'])
+            ->groupBy('customer_id')
+            ->map(fn ($visits) => $visits->every(fn ($v) => $v->check_in_condition === Visit::CONDITION_CLOSED));
 
         $transacted = SalesTransaction::where('sales_id', $salesId)
             ->where('status', SalesTransaction::STATUS_COMPLETED)
@@ -127,9 +135,13 @@ class SalesRouteMapService
             ->unique()
             ->values();
 
-        return $visited->mapWithKeys(fn ($customerId) => [
-            $customerId => $transacted->contains($customerId) ? Visit::COVERAGE_EC : Visit::COVERAGE_CALL_MEET,
-        ]);
+        return $closedOnly->mapWithKeys(function ($isClosedOnly, $customerId) use ($transacted) {
+            if ($transacted->contains($customerId)) {
+                return [$customerId => Visit::COVERAGE_EC];
+            }
+
+            return [$customerId => $isClosedOnly ? Visit::COVERAGE_CLOSED : Visit::COVERAGE_CALL_MADE];
+        });
     }
 
     /**
