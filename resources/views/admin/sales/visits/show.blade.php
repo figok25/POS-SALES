@@ -59,8 +59,58 @@
                     </div>
                     <div><dt>Durasi</dt><dd>{{ $duration }}</dd></div>
                 @endif
-                <div><dt>Catatan</dt><dd>{{ $visit->notes ?? '-' }}</dd></div>
+                <div>
+                    <dt>Kondisi Outlet</dt>
+                    <dd>
+                        @if ($visit->check_in_condition === 'normal')
+                            <span class="frm-status is-on">Normal</span>
+                        @elseif ($visit->check_in_condition === 'closed')
+                            <span class="frm-status is-danger">{{ \App\Models\Visit::conditionLabel($visit->check_in_condition) }}</span>
+                        @elseif ($visit->check_in_condition)
+                            <span class="frm-status is-warn">{{ \App\Models\Visit::conditionLabel($visit->check_in_condition) }}</span>
+                        @else
+                            -
+                        @endif
+                    </dd>
+                </div>
+                <div><dt>Keterangan Check-in</dt><dd>{{ $visit->notes ?? '-' }}</dd></div>
+                @if ($visit->check_out_at)
+                    <div><dt>Keterangan Check-out</dt><dd>{{ $visit->check_out_notes ?? '-' }}</dd></div>
+                @endif
             </dl>
         </section>
+
+        {{-- RevisiMinor #6: info Promosi/POSM hanya ada untuk kunjungan baru (diamati saat check-in) --}}
+        @if ($visit->check_in_condition)
+            <section class="panel">
+                <div class="panel-head">
+                    <h2 class="panel-title">Promosi &amp; POSM Outlet</h2>
+                </div>
+
+                @if ($visit->hasFacilityInfo())
+                    <dl class="frm-detail">
+                        @foreach (['has_promo' => 'Program promosi', 'has_posm' => 'POSM', 'has_banner' => 'Banner'] as $field => $label)
+                            <div>
+                                <dt>{{ $label }}</dt>
+                                <dd>
+                                    @if ($visit->{$field} === null)
+                                        -
+                                    @elseif ($visit->{$field})
+                                        <span class="frm-status is-on">Ada</span>
+                                    @else
+                                        <span class="frm-status is-off">Tidak ada</span>
+                                    @endif
+                                </dd>
+                            </div>
+                        @endforeach
+                        <div><dt>Keterangan</dt><dd>{{ $visit->facility_notes ?? '-' }}</dd></div>
+                    </dl>
+                @else
+                    <div class="frm-empty">
+                        <p class="frm-empty-text">Tidak diamati pada kunjungan ini ({{ \App\Models\Visit::conditionLabel($visit->check_in_condition) }}).</p>
+                    </div>
+                @endif
+            </section>
+        @endif
     </div>
 </x-admin-layout>

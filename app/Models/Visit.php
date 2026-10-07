@@ -42,6 +42,33 @@ class Visit extends Model
         return $coverage === self::COVERAGE_EC ? 'EC (Kunjungan + Transaksi)' : 'Call Made (Kunjungan)';
     }
 
+    /**
+     * Kondisi outlet saat check-in (RevisiMinor #5). Terstruktur supaya bisa
+     * difilter/dilaporkan; keterangan detailnya tetap di kolom `notes`.
+     *  - normal : outlet buka dan bisa dilayani.
+     *  - closed : toko tutup (RevisiMinor #1 akan memakai ini untuk status kunjungan).
+     *  - other  : kendala lain di lapangan (renovasi, pemilik tidak ada, dll).
+     */
+    public const CONDITION_NORMAL = 'normal';
+    public const CONDITION_CLOSED = 'closed';
+    public const CONDITION_OTHER = 'other';
+
+    public const CONDITIONS = [
+        self::CONDITION_NORMAL,
+        self::CONDITION_CLOSED,
+        self::CONDITION_OTHER,
+    ];
+
+    public static function conditionLabel(?string $condition): string
+    {
+        return match ($condition) {
+            self::CONDITION_NORMAL => 'Normal',
+            self::CONDITION_CLOSED => 'Toko Tutup',
+            self::CONDITION_OTHER => 'Kendala Lain',
+            default => '-',
+        };
+    }
+
     protected $fillable = [
         'sales_id',
         'customer_id',
@@ -57,6 +84,14 @@ class Visit extends Model
         'check_out_accuracy',
 
         'notes',
+        'check_in_condition',
+        'check_out_notes',
+
+        'has_promo',
+        'has_posm',
+        'has_banner',
+        'facility_notes',
+
         'status',
     ];
 
@@ -73,6 +108,10 @@ class Visit extends Model
             'check_out_latitude' => 'decimal:7',
             'check_out_longitude' => 'decimal:7',
             'check_out_accuracy' => 'decimal:2',
+
+            'has_promo' => 'boolean',
+            'has_posm' => 'boolean',
+            'has_banner' => 'boolean',
         ];
     }
 
@@ -98,5 +137,22 @@ class Visit extends Model
     public function isOngoing(): bool
     {
         return $this->status === self::STATUS_ONGOING;
+    }
+
+    /**
+     * Toko tutup saat check-in.
+     */
+    public function isOutletClosed(): bool
+    {
+        return $this->check_in_condition === self::CONDITION_CLOSED;
+    }
+
+    /**
+     * Apakah info Promosi/POSM diamati pada kunjungan ini (NULL = tidak
+     * diamati, mis. toko tutup atau data kunjungan lama).
+     */
+    public function hasFacilityInfo(): bool
+    {
+        return $this->has_promo !== null || $this->has_posm !== null || $this->has_banner !== null;
     }
 }

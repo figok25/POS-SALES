@@ -18,13 +18,19 @@
         <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
             <p class="text-sm font-medium text-yellow-800">Sedang berkunjung ke:</p>
             <p class="text-lg font-semibold">{{ $ongoing->customer->name ?? '-' }}</p>
-            <p class="text-xs text-gray-500 mb-3">Check-in: {{ $ongoing->check_in_at->format('d M Y H:i') }}</p>
+            <p class="text-xs text-gray-500 mb-1">Check-in: {{ $ongoing->check_in_at->format('d M Y H:i') }}</p>
+            @if ($ongoing->check_in_condition)
+                <p class="text-xs text-gray-600 mb-3">Kondisi outlet: <span class="font-medium">{{ \App\Models\Visit::conditionLabel($ongoing->check_in_condition) }}</span></p>
+            @else
+                <div class="mb-2"></div>
+            @endif
 
             <form method="POST" action="{{ route('sales.visits.check-out', $ongoing) }}" onsubmit="return isiLokasiCheckout(event)">
                 @csrf
                 <input type="hidden" name="latitude" id="co-latitude">
                 <input type="hidden" name="longitude" id="co-longitude">
-                <textarea name="notes" rows="2" placeholder="Catatan kunjungan (opsional)" class="w-full border rounded px-3 py-2 text-sm mb-2"></textarea>
+                <label for="co-notes" class="block text-sm text-gray-600 mb-1">Keterangan Check-out <span class="text-red-500">*</span></label>
+                <textarea id="co-notes" name="notes" rows="3" required minlength="3" maxlength="1000" placeholder="Hasil kunjungan / kondisi outlet saat selesai" class="w-full border rounded px-3 py-2 text-sm mb-2">{{ old('notes') }}</textarea>
                 <button type="submit" class="w-full bg-red-600 text-white px-3 py-2 rounded text-sm">Check-out</button>
             </form>
         </div>
@@ -36,7 +42,12 @@
     <div class="space-y-2">
         @forelse ($items as $item)
             <div class="bg-white rounded-lg shadow p-3 text-sm">
-                <p class="font-medium">{{ $item->customer->name ?? '-' }}</p>
+                <div class="flex items-start justify-between gap-2">
+                    <p class="font-medium">{{ $item->customer->name ?? '-' }}</p>
+                    @if ($item->check_in_condition)
+                        <span class="shrink-0 text-xs px-2 py-0.5 rounded {{ $item->check_in_condition === 'normal' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800' }}">{{ \App\Models\Visit::conditionLabel($item->check_in_condition) }}</span>
+                    @endif
+                </div>
                 <p class="text-xs text-gray-500">{{ $item->check_in_at->format('d M Y H:i') }} - {{ $item->check_out_at?->format('H:i') }}</p>
             </div>
         @empty

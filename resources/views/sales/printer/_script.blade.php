@@ -449,8 +449,12 @@ window.ThermalPrinter = window.ThermalPrinter || (function () {
         b.twoCol('No. Transaksi', payload.code || '-');
         b.twoCol('Tanggal', payload.date || '-');
         b.twoCol('Sales', payload.sales_name || '-');
-        // Nama + alamat TOKO di blok sendiri (nama tebal, dibungkus penuh) --
-        // sebelumnya hanya satu baris "Customer" rata kanan yang mudah terpotong.
+        // Nama + alamat TOKO sengaja TIDAK pakai twoCol seperti baris lain di
+        // atas -- twoCol tidak pernah membungkus teks sisi kanan, jadi nama
+        // toko yang panjang bisa overflow lebar kertas dan dipotong paksa oleh
+        // firmware printer (bisa putus di tengah kata). Dicetak di blok sendiri:
+        // nama BOLD + alamat, keduanya lewat wrap() (sama seperti nama produk
+        // di bawah) supaya selalu utuh & terbaca berapa pun panjangnya.
         b.divider();
         b.line('Toko:');
         b.bold(true).wrap(payload.customer_name || '-').bold(false);

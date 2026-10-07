@@ -10,7 +10,7 @@
         <div class="frm-head">
             <div>
                 <h1 class="frm-title">Stock</h1>
-                <p class="frm-sub">Posisi stok real-time di Warehouse (gudang utama). Read-only &mdash; perubahan hanya lewat BKB/BTB/Transaksi/Adjustment.</p>
+                <p class="frm-sub">Posisi stok real-time di Warehouse. Read-only &mdash; perubahan hanya lewat BKB/BTB/Transaksi/Adjustment.</p>
             </div>
         </div>
 
@@ -47,7 +47,7 @@
                         <a href="{{ route('admin.inventory.stock.index') }}" class="adm-btn adm-btn-ghost adm-btn-sm">Reset pencarian</a>
                     @else
                         <p class="frm-empty-title">Belum ada data stok</p>
-                        <p class="frm-empty-text">Stok akan muncul begitu ada penerimaan barang (BKB) atau transaksi.</p>
+                        <p class="frm-empty-text">Stok akan muncul begitu ada penerimaan barang (BKB) atau Branch Transfer.</p>
                     @endif
                 </div>
             @else
@@ -66,7 +66,7 @@
                                 <tr>
                                     <td><div class="frm-name">{{ $item->product->name ?? '-' }}</div></td>
                                     <td><span class="frm-code">{{ $item->product->sku ?? '-' }}</span></td>
-                                    <td data-label="Warehouse">{{ $item->locationLabel() }}</td>
+                                    <td data-label="Warehouse">{{ $item->locationName() }}</td>
                                     <td class="is-num" data-label="Quantity">
                                         <span class="frm-num is-strong {{ $item->quantity < 0 ? 'is-neg' : '' }}">{{ number_format($item->quantity, 2) }}</span>
                                     </td>
