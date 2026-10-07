@@ -76,6 +76,11 @@
             <span>Tagging Toko</span>
             <small>Tambah toko baru</small>
         </a>
+        <a href="{{ route('sales.kpi.index') }}" class="sls-quick tone-green">
+            <span class="sls-quick-icon">🎯</span>
+            <span>Target Saya</span>
+            <small>Lihat progres target</small>
+        </a>
         <a href="{{ route('sales.stock.index') }}" class="sls-quick tone-blue">
             <span class="sls-quick-icon">📦</span>
             <span>Sales Stock</span>

@@ -106,6 +106,7 @@
             ['Tagging Toko', 'admin.sales.customer-taggings.index'],
             ['Visit', 'admin.sales.visits.index'],
             ['Transaksi Penjualan', 'admin.sales.transactions.index'],
+            ['Target & Pencapaian', 'admin.sales.kpi.index'],
         ]],
         ['title' => 'Finance', 'items' => [
             ['Invoice', 'admin.sales.invoices.index'],

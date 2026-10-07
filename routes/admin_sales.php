@@ -13,6 +13,7 @@
 use App\Http\Controllers\Admin\Sales\CustomerAssignmentController;
 use App\Http\Controllers\Admin\Sales\CustomerTaggingController;
 use App\Http\Controllers\Admin\Sales\InvoiceController;
+use App\Http\Controllers\Admin\Sales\KpiController;
 use App\Http\Controllers\Admin\Sales\MapController as RouteMapController;
 use App\Http\Controllers\Admin\Sales\SalesTransactionController;
 use App\Http\Controllers\Admin\Sales\VisitController;
@@ -34,9 +35,21 @@ Route::middleware('permission:sales-management.view')->group(function () {
     Route::get('invoices', [InvoiceController::class, 'index'])->name('invoices.index');
     Route::get('invoices/{invoice}/print', [InvoiceController::class, 'print'])->name('invoices.print');
     Route::get('invoices/{invoice}', [InvoiceController::class, 'show'])->name('invoices.show');
+
+    // Target & Pencapaian (KPI) Sales
+    Route::get('kpi', [KpiController::class, 'index'])->name('kpi.index');
+    Route::get('kpi/{period}/export', [KpiController::class, 'export'])->name('kpi.export');
 });
 
 Route::middleware('permission:sales-management.manage')->group(function () {
+    Route::post('kpi/periods', [KpiController::class, 'storePeriod'])->name('kpi.periods.store');
+    Route::get('kpi/{period}/targets', [KpiController::class, 'editTargets'])->name('kpi.targets.edit');
+    Route::put('kpi/{period}/targets', [KpiController::class, 'updateTargets'])->name('kpi.targets.update');
+    Route::delete('kpi/{period}', [KpiController::class, 'destroyPeriod'])->name('kpi.periods.destroy');
+    Route::get('kpi-products', [KpiController::class, 'products'])->name('kpi.products.index');
+    Route::post('kpi-products', [KpiController::class, 'storeProduct'])->name('kpi.products.store');
+    Route::delete('kpi-products/{item}', [KpiController::class, 'destroyProduct'])->name('kpi.products.destroy');
+
     Route::post('customer-taggings/{tagging}/approve', [CustomerTaggingController::class, 'approve'])->name('customer-taggings.approve');
     Route::post('customer-taggings/{tagging}/reject', [CustomerTaggingController::class, 'reject'])->name('customer-taggings.reject');
     Route::post('customer-taggings/bulk-approve', [CustomerTaggingController::class, 'bulkApprove'])->name('customer-taggings.bulk-approve');

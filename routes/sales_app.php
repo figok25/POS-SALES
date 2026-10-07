@@ -10,6 +10,7 @@
 */
 
 use App\Http\Controllers\Sales\CustomerTaggingController;
+use App\Http\Controllers\Sales\KpiController;
 use App\Http\Controllers\Sales\MapController;
 use App\Http\Controllers\Sales\PaymentController;
 use App\Http\Controllers\Sales\PrinterController;
@@ -35,6 +36,9 @@ Route::middleware('permission:customer.view')->prefix('map')->name('map.')->grou
     Route::get('/', [MapController::class, 'index'])->name('index');
     Route::get('/{customer}', [MapController::class, 'show'])->name('show');
 });
+
+// Target & Pencapaian: Sales melihat target & progresnya sendiri.
+Route::middleware('permission:dashboard.sales.view')->get('kpi', [KpiController::class, 'index'])->name('kpi.index');
 
 // Fase 6 - Tagging Toko (Blueprint #12.3)
 Route::middleware(['permission:tagging-toko.manage', 'active_sales_task'])->prefix('tagging')->name('tagging.')->group(function () {
