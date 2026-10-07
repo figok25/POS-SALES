@@ -143,6 +143,12 @@ window.ThermalPrinter = window.ThermalPrinter || (function () {
     function toPrinterBytes(str) {
     str = String(str === null || str === undefined ? '' : str);
 
+    // Huruf berakson (mis. "e" + aksen, "n" + tilde) diubah ke huruf dasarnya
+    // supaya nama toko tidak tercetak sebagai "?" di printer CP437/1252.
+    if (str.normalize) {
+        str = str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    }
+
     var out = [];
 
     for (var i = 0; i < str.length; i++) {
@@ -443,7 +449,12 @@ window.ThermalPrinter = window.ThermalPrinter || (function () {
         b.twoCol('No. Transaksi', payload.code || '-');
         b.twoCol('Tanggal', payload.date || '-');
         b.twoCol('Sales', payload.sales_name || '-');
-        b.twoCol('Customer', payload.customer_name || '-');
+        // Nama + alamat TOKO di blok sendiri (nama tebal, dibungkus penuh) --
+        // sebelumnya hanya satu baris "Customer" rata kanan yang mudah terpotong.
+        b.divider();
+        b.line('Toko:');
+        b.bold(true).wrap(payload.customer_name || '-').bold(false);
+        if (payload.customer_address) b.wrap(payload.customer_address);
         b.divider();
         (payload.items || []).forEach(function (item) {
             b.wrap(item.name || '-');

@@ -79,6 +79,7 @@
         'date' => $transaction->created_at->format('d/m/Y H:i'),
         'sales_name' => $transaction->sales->name ?? null,
         'customer_name' => $transaction->customer->name ?? null,
+        'customer_address' => $transaction->customer->address ?? null,
         'subtotal' => $transaction->subtotal,
         'discount' => $transaction->discount,
         'tax' => $transaction->tax,

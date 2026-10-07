@@ -51,7 +51,7 @@
 
             <div class="a4-parties">
                 <div>
-                    <span class="a4-label">Kepada Yth</span>
+                    <span class="a4-label">Toko (Kepada Yth)</span>
                     <strong>{{ $transaction->customer->name ?? '-' }}</strong><br>
                     {{ $transaction->customer->address ?? '' }}<br>
                     {{ $transaction->customer->phone ?? '' }}
@@ -113,8 +113,13 @@
                 <tr><td>No. Transaksi</td><td class="r">{{ $transaction->code }}</td></tr>
                 <tr><td>Tanggal</td><td class="r">{{ $transaction->created_at->format('d/m/Y H:i') }}</td></tr>
                 <tr><td>Sales</td><td class="r">{{ $transaction->sales->name ?? '-' }}</td></tr>
-                <tr><td>Customer</td><td class="r">{{ $transaction->customer->name ?? '-' }}</td></tr>
             </table>
+            <hr>
+            <div class="struk-store" style="word-break: break-word; line-height: 1.35">
+                <div>Toko:</div>
+                <strong>{{ $transaction->customer->name ?? '-' }}</strong>
+                @if ($transaction->customer?->address)<div>{{ $transaction->customer->address }}</div>@endif
+            </div>
             <hr>
             <table class="struk-items">
                 @foreach ($transaction->items as $line)

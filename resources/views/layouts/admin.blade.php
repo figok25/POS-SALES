@@ -96,16 +96,15 @@
             ['BTB Distribusi', 'admin.distribution.btb.index'],
             ['Branch Transfer (BKB/BTB Cabang)', 'admin.distribution.branch-transfer.index'],
         ]],
+        // Menu "Sales Management", "Customer" dan "Invoice" SENGAJA tidak diulang di grup ini:
+        // Sales & Customer dikelola di Master Data, Invoice di Finance (satu pintu, tidak ganda).
         ['title' => 'Sales', 'items' => [
-            ['Sales Management', 'admin.master.sales.index'],
-            ['Customer', 'admin.master.customers.index'],
             ['Customer Assignment', 'admin.sales.customer-assignments.index'],
             ['Visit Plan (Rute Kanvas)', 'admin.sales.visit-plans.index'],
             ['Rute Toko per Sales', 'admin.sales.route-map.index'],
             ['Tagging Toko', 'admin.sales.customer-taggings.index'],
             ['Visit', 'admin.sales.visits.index'],
             ['Transaksi Penjualan', 'admin.sales.transactions.index'],
-            ['Invoice', 'admin.sales.invoices.index'],
         ]],
         ['title' => 'Finance', 'items' => [
             ['Invoice', 'admin.sales.invoices.index'],
@@ -118,7 +117,7 @@
             ['Live Monitoring Sales', 'admin.operations.live-monitoring.index'],
             ['Delivery Order', 'admin.operations.delivery-orders.index'],
             ['Manajemen Rute', 'admin.operations.routes.index'],
-            ['Vehicle', 'admin.master.vehicles.index'],
+            // "Vehicle" dikelola di Master Data (tidak diulang di Operations).
             ['Driver', 'admin.operations.drivers.index'],
             ['Monitoring', 'admin.operations.monitoring.index'],
         ]],
@@ -156,7 +155,8 @@
         $menu = array_values(array_filter($menu, fn ($group) => $group['title'] !== 'System' || ! empty($group['items'])));
     }
 
-    // Beberapa menu muncul di 2 grup (Customer, Invoice, Vehicle, Sales) --
+    // Menu ganda (Sales, Customer, Invoice, Vehicle) sudah dirapikan di atas.
+    // Pengaman ini tetap dipertahankan: kalau kelak ada item yang sama di 2 grup,
     // tandai aktif hanya pada kemunculan PERTAMA supaya tidak dobel.
     $activeTaken = false;
 
