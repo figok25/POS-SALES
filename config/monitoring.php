@@ -12,8 +12,8 @@ return [
     'signal_lost_minutes' => (int) env('MONITORING_SIGNAL_LOST_MINUTES', 5),
     'offline_minutes' => (int) env('MONITORING_OFFLINE_MINUTES', 30),
 
-    // Istirahat lebih lama dari ini ditandai "melewati batas".
-    'break_max_minutes' => (int) env('MONITORING_BREAK_MAX_MINUTES', 60),
+    // Batas maksimal Istirahat: lewat dari ini otomatis diakhiri.
+    'break_max_minutes' => (int) env('MONITORING_BREAK_MAX_MINUTES', 30),
 
     // Riwayat lokasi yang dibaca untuk menghitung lama diam.
     'history_window_minutes' => 120,

@@ -30,6 +30,8 @@ class LiveMonitoringService
         $now ??= now();
         $ids = $locations->pluck('sales_id')->all();
 
+        SalesBreak::expireOverdue();
+
         $breaks = SalesBreak::open()->whereIn('sales_id', $ids)->get()->keyBy('sales_id');
 
         $history = SalesLocationHistory::query()

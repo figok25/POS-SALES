@@ -153,15 +153,39 @@ class LiveMonitoringBreakTest extends TestCase
         $this->assertFalse($row['break_overdue']);
     }
 
-    public function test_break_longer_than_limit_is_flagged_overdue(): void
+    public function test_break_longer_than_30_minutes_is_ended_automatically(): void
     {
-        [$user, $sales] = $this->onDutySales();
+        [$user, $sales, $session] = $this->onDutySales();
+        $this->history($sales, $session, 10, 100);
         $this->actingAs($user)->postJson(route('api.sales.break.start'))->assertCreated();
-        SalesBreak::where('sales_id', $sales->id)->update(['started_at' => now()->subMinutes(75)]);
+        $startedAt = now()->subMinutes(45);
+        SalesBreak::where('sales_id', $sales->id)->update(['started_at' => $startedAt]);
 
         $row = $this->liveData($this->makeSuperAdminUser(), $sales->id);
 
-        $this->assertTrue($row['break_overdue']);
+        $this->assertNotSame('on_break', $row['effective_status']);
+        $this->assertNull(SalesBreak::open()->where('sales_id', $sales->id)->first());
+        $this->assertEqualsWithDelta(30, SalesBreak::first()->started_at->diffInMinutes(SalesBreak::first()->ended_at, true), 1);
+        $this->assertSame(SalesCurrentLocation::STATUS_ACTIVE, SalesCurrentLocation::where('sales_id', $sales->id)->value('status'));
+    }
+
+    public function test_sales_break_status_reports_ended_after_limit(): void
+    {
+        [$user, $sales] = $this->onDutySales();
+        $this->actingAs($user)->postJson(route('api.sales.break.start'))->assertCreated();
+        SalesBreak::where('sales_id', $sales->id)->update(['started_at' => now()->subMinutes(31)]);
+
+        $this->actingAs($user)->getJson(route('api.sales.break.status'))
+            ->assertOk()->assertJsonPath('on_break', false);
+    }
+
+    public function test_break_under_limit_stays_running(): void
+    {
+        [$user, $sales] = $this->onDutySales();
+        $this->actingAs($user)->postJson(route('api.sales.break.start'))->assertCreated();
+        SalesBreak::where('sales_id', $sales->id)->update(['started_at' => now()->subMinutes(25)]);
+
+        $this->actingAs($user)->getJson(route('api.sales.break.status'))->assertJsonPath('on_break', true);
     }
 
     public function test_break_start_is_idempotent_and_end_returns_to_active(): void

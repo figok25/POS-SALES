@@ -38,11 +38,11 @@
             if (onBreak) {
                 var since = s.started_at ? new Date(s.started_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '';
                 title.textContent = 'Sedang Istirahat';
-                note.textContent = 'Sejak ' + since + ' (' + (s.minutes || 0) + ' menit). Tekan saat sudah siap bekerja lagi.';
+                note.textContent = 'Sejak ' + since + ' (' + (s.minutes || 0) + ' menit, maks. ' + (s.max_minutes || 30) + ' menit). Tekan saat sudah siap bekerja lagi.';
                 btn.textContent = '✅ Selesai Istirahat';
             } else {
                 title.textContent = 'Istirahat';
-                note.textContent = 'Tekan saat berhenti untuk makan atau ibadah supaya tidak dianggap diam.';
+                note.textContent = 'Tekan saat berhenti untuk makan atau ibadah supaya tidak dianggap diam (maks. ' + (s.max_minutes || 30) + ' menit, lalu otomatis selesai).';
                 btn.textContent = '☕ Mulai Istirahat';
             }
         }

@@ -37,6 +37,32 @@ class SalesBreak extends Model
     }
 
     /**
+     * Istirahat dibatasi `monitoring.break_max_minutes` (default 30 menit). Yang melewati
+     * batas diakhiri otomatis dengan ended_at = started_at + batas, dan status lokasi
+     * kembali "active". Dipanggil lazy saat status/monitoring dibaca.
+     */
+    public static function expireOverdue(?int $salesId = null): int
+    {
+        $max = max(1, (int) config('monitoring.break_max_minutes'));
+
+        $query = static::open()->where('started_at', '<=', now()->subMinutes($max));
+        if ($salesId !== null) {
+            $query->where('sales_id', $salesId);
+        }
+
+        $count = 0;
+        foreach ($query->get() as $break) {
+            $break->update(['ended_at' => $break->started_at->copy()->addMinutes($max)]);
+            SalesCurrentLocation::where('sales_id', $break->sales_id)
+                ->where('status', SalesCurrentLocation::STATUS_ON_BREAK)
+                ->update(['status' => SalesCurrentLocation::STATUS_ACTIVE]);
+            $count++;
+        }
+
+        return $count;
+    }
+
+    /**
      * Akhiri istirahat yang masih terbuka (bila ada) dan kembalikan status
      * lokasi dari "on_break" ke "active".
      */

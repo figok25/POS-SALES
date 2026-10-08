@@ -31,6 +31,7 @@ class BreakController extends Controller
     public function start()
     {
         $sales = $this->currentSales();
+        SalesBreak::expireOverdue($sales->id);
 
         $session = SalesTrackingSession::where('sales_id', $sales->id)
             ->where('status', SalesTrackingSession::STATUS_ACTIVE)
@@ -82,6 +83,7 @@ class BreakController extends Controller
 
     private function payload(int $salesId): array
     {
+        SalesBreak::expireOverdue($salesId);
         $break = SalesBreak::openFor($salesId);
 
         return [
@@ -89,6 +91,7 @@ class BreakController extends Controller
             'tracking_active' => SalesTrackingSession::where('sales_id', $salesId)->where('status', SalesTrackingSession::STATUS_ACTIVE)->exists(),
             'on_break' => (bool) $break,
             'started_at' => $break?->started_at?->toIso8601String(),
+            'max_minutes' => (int) config('monitoring.break_max_minutes'),
             'minutes' => $break ? max(0, (int) floor(now()->diffInSeconds($break->started_at, true) / 60)) : 0,
         ];
     }
