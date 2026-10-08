@@ -7,11 +7,11 @@
     <div class="frm-page">
         <div class="frm-head">
             <div>
-                <h1 class="frm-title">Penjualan Langsung Depo</h1>
+                <h1 class="frm-title">Kasir Depo</h1>
                 <p class="frm-sub">Kasir Depo: jual langsung ke konsumen dari Gudang Depo dengan harga Konsumen. Bukan transaksi Customer/Outlet, tidak terkait Sales, tanpa Delivery Order.</p>
             </div>
             <div class="frm-head-actions">
-                <a href="{{ route('admin.sales.transactions.index') }}" class="adm-btn adm-btn-ghost adm-btn-sm">Kembali</a>
+                <a href="{{ route('admin.depo.transactions.index') }}" class="adm-btn adm-btn-ghost adm-btn-sm">Kembali</a>
             </div>
         </div>
 
@@ -28,7 +28,7 @@
         {{-- Langkah 1: Depo, Gudang, Kategori Harga, Customer --}}
         <section class="panel" style="margin-bottom:12px">
             <div class="panel-head"><h2 class="panel-title">1. Depo &amp; Gudang</h2></div>
-            <form method="GET" action="{{ route('admin.sales.transactions.create') }}" class="frm-toolbar" style="flex-wrap:wrap;gap:8px">
+            <form method="GET" action="{{ route('admin.depo.create') }}" class="frm-toolbar" style="flex-wrap:wrap;gap:8px">
                 @if ($isAll)
                     <select name="branch_id" class="frm-input is-select" aria-label="Depo" onchange="this.form.submit()">
                         <option value="">- Pilih Depo -</option>
@@ -56,7 +56,7 @@
             @if ($stocks->isEmpty())
                 <div class="panel" style="padding:16px">Gudang ini tidak punya stok yang bisa dijual.</div>
             @else
-                <form method="POST" action="{{ route('admin.sales.transactions.store') }}">
+                <form method="POST" action="{{ route('admin.depo.store') }}">
                     @csrf
                     <input type="hidden" name="branch_id" value="{{ $branchId }}">
                     <input type="hidden" name="warehouse_id" value="{{ $warehouseId }}">
@@ -107,7 +107,7 @@
 
                     <div class="frm-head-actions">
                         <button type="submit" class="adm-btn adm-btn-primary">Simpan Transaksi</button>
-                        <a href="{{ route('admin.sales.transactions.index') }}" class="adm-btn adm-btn-ghost">Batal</a>
+                        <a href="{{ route('admin.depo.transactions.index') }}" class="adm-btn adm-btn-ghost">Batal</a>
                     </div>
                 </form>
 

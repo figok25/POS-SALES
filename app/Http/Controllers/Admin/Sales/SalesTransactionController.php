@@ -42,16 +42,30 @@ class SalesTransactionController extends Controller
             ->orderBy('id', 'desc');
     }
 
+    /** Transaksi penjualan oleh Sales di lapangan. */
     public function index(Request $request)
     {
-        $salesId = $request->query('sales_id');
-        $source = in_array($request->query('source'), ['depo', 'sales'], true) ? $request->query('source') : null;
+        return $this->renderIndex($request, false);
+    }
+
+    /** Transaksi Toko Depo (kasir Admin) -- menu sendiri di luar menu Sales. */
+    public function depoIndex(Request $request)
+    {
+        return $this->renderIndex($request, true);
+    }
+
+    private function renderIndex(Request $request, bool $depoOnly)
+    {
+        $request->query->set('source', $depoOnly ? 'depo' : 'sales');
+
+        $salesId = $depoOnly ? null : $request->query('sales_id');
+        $source = $request->query('source');
 
         $items = $this->filteredQuery($request)->paginate(15)->withQueryString();
 
         $salesList = BranchContext::current()->applyTo(\App\Models\Sales::query())->orderBy('name')->get();
 
-        return view('admin.sales.transactions.index', compact('items', 'salesList', 'salesId', 'source'));
+        return view('admin.sales.transactions.index', compact('items', 'salesList', 'salesId', 'source', 'depoOnly'));
     }
 
     /**

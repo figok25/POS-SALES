@@ -97,6 +97,10 @@
             ['BTB Distribusi', 'admin.distribution.btb.index'],
             ['Branch Transfer (BKB/BTB Cabang)', 'admin.distribution.branch-transfer.index'],
         ]],
+        ['title' => 'Toko Depo', 'items' => [
+            ['Kasir Depo (Penjualan Baru)', 'admin.depo.create'],
+            ['Transaksi Depo', 'admin.depo.transactions.index'],
+        ]],
         // Menu "Sales Management", "Customer" dan "Invoice" SENGAJA tidak diulang di grup ini:
         // Sales & Customer dikelola di Master Data, Invoice di Finance (satu pintu, tidak ganda).
         ['title' => 'Sales', 'items' => [

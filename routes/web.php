@@ -67,6 +67,9 @@ Route::middleware(['auth', 'verified', 'role:admin|super_admin', 'branch_context
         // Sales Transaction, Invoice (Blueprint #14, #16, #22, #23, #47)
         Route::prefix('sales')->name('sales.')->group(base_path('routes/admin_sales.php'));
 
+        // Toko Depo (kasir): penjualan langsung Admin ke konsumen, di luar menu Sales
+        Route::prefix('depo')->name('depo.')->group(base_path('routes/admin_depo.php'));
+
         // Fase 8 - Operations: Delivery Order, Route, Driver, Monitoring
         // (Blueprint #38, #47)
         Route::prefix('operations')->name('operations.')->group(base_path('routes/admin_operations.php'));

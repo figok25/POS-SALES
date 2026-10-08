@@ -1,19 +1,25 @@
 <x-admin-layout>
-    @php $isFiltered = filled($salesId) || filled($source); @endphp
+    @php
+        $depoOnly = $depoOnly ?? false;
+        $isFiltered = filled($salesId);
+        $indexRoute = $depoOnly ? 'admin.depo.transactions.index' : 'admin.sales.transactions.index';
+    @endphp
 
     {{-- Kepala halaman --}}
     <div class="frm-head">
         <div>
-            <h1 class="frm-title">Transaksi Penjualan</h1>
-            <p class="frm-sub">Riwayat transaksi penjualan dari seluruh Sales.</p>
+            <h1 class="frm-title">{{ $depoOnly ? 'Transaksi Depo' : 'Transaksi Penjualan' }}</h1>
+            <p class="frm-sub">{{ $depoOnly ? 'Riwayat penjualan langsung Toko Depo (kasir), terpisah dari Sales.' : 'Riwayat transaksi penjualan dari seluruh Sales.' }}</p>
         </div>
         <div class="frm-head-actions">
+        @if ($depoOnly)
         @can('sales-management.manage')
-            <a href="{{ route('admin.sales.transactions.create') }}" class="adm-btn adm-btn-primary">
+            <a href="{{ route('admin.depo.create') }}" class="adm-btn adm-btn-primary">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
-                Penjualan Depo
+                Kasir Depo
             </a>
         @endcan
+        @endif
         <a href="{{ route('admin.sales.transactions.export', request()->query()) }}" class="adm-btn adm-btn-ghost">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg>
             Download Laporan
@@ -24,23 +30,19 @@
     <section class="panel">
         {{-- Filter --}}
         <form method="GET" class="frm-toolbar">
-            <select name="source" class="frm-input is-select is-filter" aria-label="Filter Sumber" onchange="this.form.submit()">
-                <option value="">Semua Sumber</option>
-                <option value="sales" @selected($source === 'sales')>Sales</option>
-                <option value="depo" @selected($source === 'depo')>Toko Depo</option>
-            </select>
-
+            @unless ($depoOnly)
             <select name="sales_id" class="frm-input is-select is-filter" aria-label="Filter Sales" onchange="this.form.submit()">
                 <option value="">Semua Sales</option>
                 @foreach ($salesList as $s)
                     <option value="{{ $s->id }}" @selected((string) $salesId === (string) $s->id)>{{ $s->name }}</option>
                 @endforeach
             </select>
+            @endunless
 
             <noscript><button type="submit" class="adm-btn adm-btn-primary adm-btn-sm">Filter</button></noscript>
 
             @if ($isFiltered)
-                <a href="{{ route('admin.sales.transactions.index') }}" class="adm-btn adm-btn-ghost adm-btn-sm">Reset</a>
+                <a href="{{ route($indexRoute) }}" class="adm-btn adm-btn-ghost adm-btn-sm">Reset</a>
             @endif
 
             <span class="frm-count">{{ number_format($items->total(), 0, ',', '.') }} transaksi</span>
@@ -53,8 +55,8 @@
                         <tr>
                             <th>Kode</th>
                             <th>Tanggal</th>
-                            <th>Sales</th>
-                            <th>Customer</th>
+                            @unless ($depoOnly)<th>Sales</th>@endunless
+                            <th>{{ $depoOnly ? 'Pembeli' : 'Customer' }}</th>
                             <th class="is-num">Total</th>
                             <th>Status</th>
                             <th class="is-end">Aksi</th>
@@ -65,7 +67,7 @@
                             <tr>
                                 <td><span class="frm-code">{{ $item->code }}</span>@if ($item->isDepoSale()) <span class="frm-status is-off" title="Penjualan langsung Depo (tanpa Sales)">Depo</span>@endif</td>
                                 <td data-label="Tanggal" class="frm-nowrap">{{ $item->created_at->format('d M Y H:i') }}</td>
-                                <td data-label="Sales">{{ $item->sales->name ?? 'Toko Depo' }}</td>
+                                @unless ($depoOnly)<td data-label="Sales">{{ $item->sales->name ?? 'Toko Depo' }}</td>@endunless
                                 <td data-label="Customer"><span class="frm-name">{{ $item->customerLabel() }}</span></td>
                                 <td data-label="Total" class="is-num"><span class="frm-num is-strong">Rp {{ number_format($item->total, 0, ',', '.') }}</span></td>
                                 <td class="frm-cell-status">
@@ -104,7 +106,7 @@
                 <p class="frm-empty-title">{{ $isFiltered ? 'Tidak ada hasil' : 'Belum ada data' }}</p>
                 <p class="frm-empty-text">{{ $isFiltered ? 'Sales ini belum punya transaksi.' : 'Transaksi penjualan akan tampil di sini.' }}</p>
                 @if ($isFiltered)
-                    <a href="{{ route('admin.sales.transactions.index') }}" class="adm-btn adm-btn-ghost adm-btn-sm">Reset Filter</a>
+                    <a href="{{ route($indexRoute) }}" class="adm-btn adm-btn-ghost adm-btn-sm">Reset Filter</a>
                 @endif
             </div>
         @endif

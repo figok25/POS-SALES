@@ -156,7 +156,7 @@
     @php
         $depoCards = [
             ['label' => 'Transaksi Depo', 'value' => number_format($depo['count']), 'tone' => 'blue', 'icon' => 'cart',
-                'href' => route('admin.sales.transactions.index', ['source' => 'depo']), 'hint' => 'Penjualan langsung dari Gudang'],
+                'href' => route('admin.depo.transactions.index'), 'hint' => 'Penjualan langsung dari Gudang'],
             ['label' => 'Penjualan Depo', 'value' => $fmtRp($depo['total']), 'tone' => 'green', 'icon' => 'trend', 'href' => null, 'hint' => null],
             ['label' => 'Kas Diterima (Depo)', 'value' => $fmtRp($depo['cash_in']), 'tone' => 'teal', 'icon' => 'dollar', 'href' => null,
                 'hint' => 'Pembayaran invoice Depo pada periode'],
@@ -168,6 +168,9 @@
     <section class="dash-section" id="depo-sales">
         <div class="dash-section-head">
             <h2 class="dash-section-title">Toko Depo</h2>
+            @can('sales-management.manage')
+                <a href="{{ route('admin.depo.create') }}" class="adm-btn adm-btn-primary adm-btn-sm">+ Kasir Depo</a>
+            @endcan
             <span class="dash-section-note">Penjualan langsung oleh Admin &middot; {{ $periodLabel }} &middot; tidak termasuk Sales</span>
         </div>
 
@@ -193,7 +196,7 @@
             <section class="panel" style="margin-top:12px">
                 <div class="panel-head">
                     <h2 class="panel-title">Transaksi Depo Terbaru</h2>
-                    <a href="{{ route('admin.sales.transactions.index', ['source' => 'depo']) }}" class="panel-link">Lihat Semua</a>
+                    <a href="{{ route('admin.depo.transactions.index') }}" class="panel-link">Lihat Semua</a>
                 </div>
                 <ul class="row-list">
                     @foreach ($depo['recent'] as $trx)

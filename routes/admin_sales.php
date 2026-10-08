@@ -20,12 +20,6 @@ use App\Http\Controllers\Admin\Sales\VisitController;
 use App\Http\Controllers\Admin\Sales\VisitPlanController;
 use Illuminate\Support\Facades\Route;
 
-// Harus di atas route transactions/{transaction} agar 'create' tidak dianggap ID.
-Route::middleware('permission:sales-management.manage')->group(function () {
-    Route::get('transactions/create', [SalesTransactionController::class, 'create'])->name('transactions.create');
-    Route::post('transactions', [SalesTransactionController::class, 'store'])->name('transactions.store');
-});
-
 Route::middleware('permission:sales-management.view')->group(function () {
     Route::get('customer-taggings', [CustomerTaggingController::class, 'index'])->name('customer-taggings.index');
     Route::get('customer-taggings/{tagging}', [CustomerTaggingController::class, 'show'])->name('customer-taggings.show');

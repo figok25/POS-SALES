@@ -47,11 +47,11 @@ class AdminCreatesTransactionTest extends TestCase
         $this->consumerPrice($product, 20000);
         $this->stockWarehouse($warehouse, $product, 10);
 
-        $this->actingAs($admin)->get(route('admin.sales.transactions.create', [
+        $this->actingAs($admin)->get(route('admin.depo.create', [
             'warehouse_id' => $warehouse->id,
         ]))->assertOk()->assertSee($product->name);
 
-        $this->actingAs($admin)->post(route('admin.sales.transactions.store'), $this->payload($warehouse, $product, 4))
+        $this->actingAs($admin)->post(route('admin.depo.store'), $this->payload($warehouse, $product, 4))
             ->assertSessionHasNoErrors();
 
         $trx = SalesTransaction::firstOrFail();
@@ -84,7 +84,7 @@ class AdminCreatesTransactionTest extends TestCase
         $this->consumerPrice($product, 20000);
         $this->stockWarehouse($warehouse, $product, 10);
 
-        $this->actingAs($admin)->post(route('admin.sales.transactions.store'), $this->payload($warehouse, $product, 3, [
+        $this->actingAs($admin)->post(route('admin.depo.store'), $this->payload($warehouse, $product, 3, [
             'pay_amount' => 60000, 'pay_method' => 'cash',
         ]))->assertSessionHasNoErrors();
 
@@ -106,7 +106,7 @@ class AdminCreatesTransactionTest extends TestCase
         $this->consumerPrice($product, 10000);
         $this->stockWarehouse($warehouse, $product, 10);
 
-        $this->actingAs($admin)->post(route('admin.sales.transactions.store'), $this->payload($warehouse, $product, 5, [
+        $this->actingAs($admin)->post(route('admin.depo.store'), $this->payload($warehouse, $product, 5, [
             'pay_amount' => 20000,
         ]));
 
@@ -127,7 +127,7 @@ class AdminCreatesTransactionTest extends TestCase
         $this->consumerPrice($product);
         $this->stockWarehouse($warehouse, $product, 2);
 
-        $this->actingAs($admin)->post(route('admin.sales.transactions.store'), $this->payload($warehouse, $product, 5))
+        $this->actingAs($admin)->post(route('admin.depo.store'), $this->payload($warehouse, $product, 5))
             ->assertSessionHasErrors('items');
 
         $this->assertDatabaseCount('sales_transactions', 0);
@@ -142,7 +142,7 @@ class AdminCreatesTransactionTest extends TestCase
         $product = $this->makeProduct(); // hanya harga Retail, belum ada harga Konsumen
         $this->stockWarehouse($warehouse, $product, 5);
 
-        $this->actingAs($admin)->post(route('admin.sales.transactions.store'), $this->payload($warehouse, $product, 1))
+        $this->actingAs($admin)->post(route('admin.depo.store'), $this->payload($warehouse, $product, 1))
             ->assertSessionHasErrors('items');
 
         $this->assertDatabaseCount('sales_transactions', 0);
@@ -156,7 +156,7 @@ class AdminCreatesTransactionTest extends TestCase
         $this->consumerPrice($product, 25000);
         $this->stockWarehouse($warehouse, $product, 5);
 
-        $this->actingAs($admin)->post(route('admin.sales.transactions.store'), $this->payload($warehouse, $product, 2, ['price_type' => 'retail']))
+        $this->actingAs($admin)->post(route('admin.depo.store'), $this->payload($warehouse, $product, 2, ['price_type' => 'retail']))
             ->assertSessionHasNoErrors();
 
         $trx = SalesTransaction::firstOrFail();
@@ -172,8 +172,8 @@ class AdminCreatesTransactionTest extends TestCase
         $this->consumerPrice($product, 10000);
         $this->stockWarehouse($warehouse, $product, 10);
 
-        $this->actingAs($admin)->post(route('admin.sales.transactions.store'), $this->payload($warehouse, $product, 1))->assertSessionHasNoErrors();
-        $this->actingAs($admin)->post(route('admin.sales.transactions.store'), $this->payload($warehouse, $product, 1, ['consumer_name' => 'Bu Rina']))->assertSessionHasNoErrors();
+        $this->actingAs($admin)->post(route('admin.depo.store'), $this->payload($warehouse, $product, 1))->assertSessionHasNoErrors();
+        $this->actingAs($admin)->post(route('admin.depo.store'), $this->payload($warehouse, $product, 1, ['consumer_name' => 'Bu Rina']))->assertSessionHasNoErrors();
 
         $anon = SalesTransaction::orderBy('id')->first();
         $named = SalesTransaction::orderByDesc('id')->first();
@@ -187,7 +187,7 @@ class AdminCreatesTransactionTest extends TestCase
             $this->actingAs($admin)->get(route('admin.sales.invoices.show', $trx->invoice))->assertOk();
         }
 
-        $this->actingAs($admin)->get(route('admin.sales.transactions.index'))->assertOk()->assertSee('Bu Rina');
+        $this->actingAs($admin)->get(route('admin.depo.transactions.index'))->assertOk()->assertSee('Bu Rina');
         $this->actingAs($admin)->get(route('admin.sales.invoices.index'))->assertOk();
     }
 
@@ -200,7 +200,7 @@ class AdminCreatesTransactionTest extends TestCase
         $this->consumerPrice($product);
         $this->stockWarehouse($warehouseB, $product, 5);
 
-        $this->actingAs($admin)->post(route('admin.sales.transactions.store'), $this->payload($warehouseB, $product, 1))
+        $this->actingAs($admin)->post(route('admin.depo.store'), $this->payload($warehouseB, $product, 1))
             ->assertSessionHasErrors('warehouse_id');
 
         $this->assertDatabaseCount('sales_transactions', 0);
@@ -216,10 +216,10 @@ class AdminCreatesTransactionTest extends TestCase
         $this->stockWarehouse($warehouseB, $product, 5);
 
         // Tanpa branch_id: ditolak.
-        $this->actingAs($superAdmin)->post(route('admin.sales.transactions.store'), $this->payload($warehouseB, $product, 1))
+        $this->actingAs($superAdmin)->post(route('admin.depo.store'), $this->payload($warehouseB, $product, 1))
             ->assertSessionHasErrors('branch_id');
 
-        $this->actingAs($superAdmin)->post(route('admin.sales.transactions.store'), $this->payload($warehouseB, $product, 1, ['branch_id' => $branchB->id]))
+        $this->actingAs($superAdmin)->post(route('admin.depo.store'), $this->payload($warehouseB, $product, 1, ['branch_id' => $branchB->id]))
             ->assertSessionHasNoErrors();
 
         $trx = SalesTransaction::firstOrFail();
@@ -228,7 +228,7 @@ class AdminCreatesTransactionTest extends TestCase
         // Admin Depo default tidak boleh melihat transaksi Depo B.
         $adminA = $this->makeAdminUser();
         $this->actingAs($adminA)->get(route('admin.sales.transactions.show', $trx))->assertForbidden();
-        $this->actingAs($adminA)->get(route('admin.sales.transactions.index'))->assertOk()->assertDontSee($trx->code);
+        $this->actingAs($adminA)->get(route('admin.depo.transactions.index'))->assertOk()->assertDontSee($trx->code);
         $this->actingAs($superAdmin)->get(route('admin.sales.transactions.show', $trx))->assertOk();
     }
 
@@ -240,7 +240,7 @@ class AdminCreatesTransactionTest extends TestCase
         $this->consumerPrice($product, 20000);
         $this->stockWarehouse($warehouse, $product, 10);
 
-        $this->actingAs($admin)->post(route('admin.sales.transactions.store'), $this->payload($warehouse, $product, 2, ['pay_amount' => 10000]));
+        $this->actingAs($admin)->post(route('admin.depo.store'), $this->payload($warehouse, $product, 2, ['pay_amount' => 10000]));
 
         $response = $this->actingAs($admin)->get(route('admin.dashboard'))->assertOk();
 
@@ -254,15 +254,36 @@ class AdminCreatesTransactionTest extends TestCase
         $this->assertSame(1, $depo['outstanding_count']);
         $this->assertEquals(30000, $depo['outstanding_amount']);
 
-        $this->actingAs($admin)->get(route('admin.sales.transactions.index', ['source' => 'depo']))->assertOk();
+        $this->actingAs($admin)->get(route('admin.depo.transactions.index'))->assertOk();
         $this->actingAs($admin)->get(route('admin.sales.invoices.index'))->assertOk();
+    }
+
+    public function test_depo_menu_is_outside_sales_and_lists_are_separated(): void
+    {
+        $admin = $this->makeAdminUser();
+        $warehouse = $this->makeWarehouse();
+        $product = $this->makeProduct();
+        $this->consumerPrice($product, 10000);
+        $this->stockWarehouse($warehouse, $product, 10);
+
+        $this->actingAs($admin)->post(route('admin.depo.store'), $this->payload($warehouse, $product, 1, ['consumer_name' => 'Pak Budi']));
+        $trx = SalesTransaction::firstOrFail();
+
+        // Menu "Toko Depo" tampil di sidebar + tombol di dashboard.
+        $this->actingAs($admin)->get(route('admin.depo.create'))->assertOk()
+            ->assertSee('Toko Depo')->assertSee('Kasir Depo');
+        $this->actingAs($admin)->get(route('admin.dashboard'))->assertOk()->assertSee(route('admin.depo.create'), false);
+
+        // Daftar Depo memuat transaksi kasir; daftar Sales tidak.
+        $this->actingAs($admin)->get(route('admin.depo.transactions.index'))->assertOk()->assertSee($trx->code);
+        $this->actingAs($admin)->get(route('admin.sales.transactions.index'))->assertOk()->assertDontSee($trx->code);
     }
 
     public function test_sales_user_cannot_use_depo_sale_page(): void
     {
         [$user] = $this->makeSalesUser();
 
-        $this->actingAs($user)->get(route('admin.sales.transactions.create'))->assertForbidden();
+        $this->actingAs($user)->get(route('admin.depo.create'))->assertForbidden();
     }
 
     public function test_sales_transaction_gets_branch_id_from_sales(): void
