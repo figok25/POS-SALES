@@ -130,7 +130,9 @@
         function detailText(item) {
             const status = item.effective_status || item.status;
             if (status === 'idle') return `Diam ${item.idle_minutes} menit`;
-            if (status === 'on_break') return `Istirahat ${item.break_minutes ?? 0} menit` + (item.break_overdue ? ' (melewati batas)' : '');
+            if (status === 'on_break') return (item.break_overdue
+                ? `🔴 Istirahat ${item.break_minutes ?? 0} menit - MELEWATI KUOTA`
+                : `Istirahat ${item.break_minutes ?? 0} menit (sisa kuota ${Math.ceil((item.break_remaining_seconds ?? 0) / 60)} menit)`);
             return STATUS_LABEL[status] || status;
         }
 
@@ -153,7 +155,7 @@
             }
             if (overdue.length) {
                 const names = overdue.map((i) => `${i.sales?.name || 'Sales #' + i.sales_id} (${i.break_minutes} menit)`).join(', ');
-                box.appendChild(el('div', null, `⏱️ Istirahat melewati batas: ${names}`));
+                box.appendChild(el('div', null, `🔴 Istirahat melewati kuota (otomatis selesai sebentar lagi): ${names}`));
             }
             box.hidden = false;
         }

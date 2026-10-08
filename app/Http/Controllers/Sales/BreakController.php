@@ -45,6 +45,14 @@ class BreakController extends Controller
             return response()->json($this->payload($sales->id)); // idempotent
         }
 
+        if (! SalesBreak::withinWindow()) {
+            return response()->json(['success' => false, 'message' => 'Istirahat hanya bisa dimulai pada jam '.SalesBreak::windowLabel().'.'] + $this->payload($sales->id), 422);
+        }
+
+        if (SalesBreak::remainingSeconds($sales->id) < 60) {
+            return response()->json(['success' => false, 'message' => 'Kuota istirahat hari ini sudah habis.'] + $this->payload($sales->id), 422);
+        }
+
         if (Visit::where('sales_id', $sales->id)->where('status', Visit::STATUS_ONGOING)->exists()) {
             return response()->json(['success' => false, 'message' => 'Selesaikan kunjungan (Check-out) dulu sebelum istirahat.'] + $this->payload($sales->id), 422);
         }
@@ -84,15 +92,28 @@ class BreakController extends Controller
     private function payload(int $salesId): array
     {
         SalesBreak::expireOverdue($salesId);
+
         $break = SalesBreak::openFor($salesId);
+        $quota = SalesBreak::quotaSeconds();
+        $remaining = SalesBreak::remainingSeconds($salesId);
+        $elapsed = $break ? max(0, now()->getTimestamp() - $break->started_at->getTimestamp()) : 0;
+        $atStart = $break ? $break->quotaAtStartSeconds() : 0;
+        $overdue = $break && $elapsed > $atStart;
 
         return [
             'success' => true,
             'tracking_active' => SalesTrackingSession::where('sales_id', $salesId)->where('status', SalesTrackingSession::STATUS_ACTIVE)->exists(),
             'on_break' => (bool) $break,
             'started_at' => $break?->started_at?->toIso8601String(),
-            'max_minutes' => (int) config('monitoring.break_max_minutes'),
-            'minutes' => $break ? max(0, (int) floor(now()->diffInSeconds($break->started_at, true) / 60)) : 0,
+            'minutes' => (int) floor($elapsed / 60),
+            'quota_minutes' => (int) floor($quota / 60),
+            'remaining_seconds' => $remaining,
+            'remaining_minutes' => (int) ceil($remaining / 60),
+            'overdue' => (bool) $overdue,
+            'grace_left_seconds' => $overdue ? max(0, $atStart + SalesBreak::graceSeconds() - $elapsed) : null,
+            'in_window' => SalesBreak::withinWindow(),
+            'window' => SalesBreak::windowLabel(),
+            'can_start' => ! $break && $remaining >= 60 && SalesBreak::withinWindow(),
         ];
     }
 }

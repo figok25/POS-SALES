@@ -10,6 +10,7 @@ use App\Models\SalesTask;
 use App\Models\SalesTrackingSession;
 use App\Models\Visit;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use Tests\Concerns\SetsUpSalesFixtures;
 use Tests\TestCase;
@@ -25,6 +26,19 @@ class LiveMonitoringBreakTest extends TestCase
 
     private const LAT = -7.9797;
     private const LNG = 112.6304;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        // Jam 11:00 = di dalam jendela Istirahat default (10:00-14:00).
+        Carbon::setTestNow(Carbon::parse('2026-10-08 11:00:00'));
+    }
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+        parent::tearDown();
+    }
 
     /** Sales yang sedang bertugas: Task working + sesi tracking aktif + posisi terakhir 1 menit lalu. */
     private function onDutySales(?string $status = SalesCurrentLocation::STATUS_ACTIVE): array
@@ -153,39 +167,98 @@ class LiveMonitoringBreakTest extends TestCase
         $this->assertFalse($row['break_overdue']);
     }
 
-    public function test_break_longer_than_30_minutes_is_ended_automatically(): void
+    public function test_break_past_quota_and_grace_is_ended_automatically(): void
     {
         [$user, $sales, $session] = $this->onDutySales();
         $this->history($sales, $session, 10, 100);
         $this->actingAs($user)->postJson(route('api.sales.break.start'))->assertCreated();
-        $startedAt = now()->subMinutes(45);
-        SalesBreak::where('sales_id', $sales->id)->update(['started_at' => $startedAt]);
 
+        Carbon::setTestNow(Carbon::parse('2026-10-08 11:45:00'));
         $row = $this->liveData($this->makeSuperAdminUser(), $sales->id);
 
         $this->assertNotSame('on_break', $row['effective_status']);
-        $this->assertNull(SalesBreak::open()->where('sales_id', $sales->id)->first());
-        $this->assertEqualsWithDelta(30, SalesBreak::first()->started_at->diffInMinutes(SalesBreak::first()->ended_at, true), 1);
+        $break = SalesBreak::first();
+        $this->assertNotNull($break->ended_at);
+        $this->assertSame(30 * 60 + 60, $break->ended_at->getTimestamp() - $break->started_at->getTimestamp());
         $this->assertSame(SalesCurrentLocation::STATUS_ACTIVE, SalesCurrentLocation::where('sales_id', $sales->id)->value('status'));
     }
 
-    public function test_sales_break_status_reports_ended_after_limit(): void
+    public function test_break_over_quota_within_grace_shows_red_alert_but_still_runs(): void
     {
         [$user, $sales] = $this->onDutySales();
         $this->actingAs($user)->postJson(route('api.sales.break.start'))->assertCreated();
-        SalesBreak::where('sales_id', $sales->id)->update(['started_at' => now()->subMinutes(31)]);
+
+        Carbon::setTestNow(Carbon::parse('2026-10-08 11:30:30'));
+
+        $row = $this->liveData($this->makeSuperAdminUser(), $sales->id);
+        $this->assertSame('on_break', $row['effective_status']);
+        $this->assertTrue($row['break_overdue']);
 
         $this->actingAs($user)->getJson(route('api.sales.break.status'))
-            ->assertOk()->assertJsonPath('on_break', false);
+            ->assertJsonPath('on_break', true)
+            ->assertJsonPath('overdue', true)
+            ->assertJsonPath('grace_left_seconds', 30);
     }
 
-    public function test_break_under_limit_stays_running(): void
+    public function test_break_quota_can_be_split_into_several_breaks(): void
     {
         [$user, $sales] = $this->onDutySales();
-        $this->actingAs($user)->postJson(route('api.sales.break.start'))->assertCreated();
-        SalesBreak::where('sales_id', $sales->id)->update(['started_at' => now()->subMinutes(25)]);
 
-        $this->actingAs($user)->getJson(route('api.sales.break.status'))->assertJsonPath('on_break', true);
+        $this->actingAs($user)->postJson(route('api.sales.break.start'))->assertCreated();
+        Carbon::setTestNow(Carbon::parse('2026-10-08 11:10:00'));
+        $this->actingAs($user)->postJson(route('api.sales.break.end'))->assertJsonPath('on_break', false)
+            ->assertJsonPath('remaining_minutes', 20)->assertJsonPath('can_start', true);
+
+        $this->actingAs($user)->postJson(route('api.sales.break.start'))->assertCreated();
+
+        Carbon::setTestNow(Carbon::parse('2026-10-08 11:25:00'));
+        $this->actingAs($user)->getJson(route('api.sales.break.status'))
+            ->assertJsonPath('on_break', true)->assertJsonPath('overdue', false);
+
+        Carbon::setTestNow(Carbon::parse('2026-10-08 11:30:30'));
+        $this->actingAs($user)->getJson(route('api.sales.break.status'))
+            ->assertJsonPath('on_break', true)->assertJsonPath('overdue', true);
+
+        Carbon::setTestNow(Carbon::parse('2026-10-08 11:32:00'));
+        $this->actingAs($user)->getJson(route('api.sales.break.status'))
+            ->assertJsonPath('on_break', false)->assertJsonPath('can_start', false);
+    }
+
+    public function test_cannot_start_break_when_quota_is_used_up(): void
+    {
+        [$user] = $this->onDutySales();
+
+        $this->actingAs($user)->postJson(route('api.sales.break.start'))->assertCreated();
+        Carbon::setTestNow(Carbon::parse('2026-10-08 11:30:00'));
+        $this->actingAs($user)->postJson(route('api.sales.break.end'))->assertJsonPath('remaining_seconds', 0);
+
+        $this->actingAs($user)->postJson(route('api.sales.break.start'))->assertStatus(422);
+        $this->assertSame(1, SalesBreak::count());
+    }
+
+    public function test_cannot_start_break_outside_window(): void
+    {
+        [$user] = $this->onDutySales();
+
+        Carbon::setTestNow(Carbon::parse('2026-10-08 09:00:00'));
+        $this->actingAs($user)->postJson(route('api.sales.break.start'))->assertStatus(422);
+
+        Carbon::setTestNow(Carbon::parse('2026-10-08 14:30:00'));
+        $this->actingAs($user)->postJson(route('api.sales.break.start'))->assertStatus(422);
+        $this->assertSame(0, SalesBreak::count());
+    }
+
+    public function test_quota_resets_on_the_next_day(): void
+    {
+        [$user] = $this->onDutySales();
+
+        $this->actingAs($user)->postJson(route('api.sales.break.start'))->assertCreated();
+        Carbon::setTestNow(Carbon::parse('2026-10-08 11:30:00'));
+        $this->actingAs($user)->postJson(route('api.sales.break.end'));
+
+        Carbon::setTestNow(Carbon::parse('2026-10-09 10:30:00'));
+        $this->actingAs($user)->getJson(route('api.sales.break.status'))
+            ->assertJsonPath('remaining_minutes', 30)->assertJsonPath('can_start', true);
     }
 
     public function test_break_start_is_idempotent_and_end_returns_to_active(): void

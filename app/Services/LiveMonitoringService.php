@@ -34,6 +34,11 @@ class LiveMonitoringService
 
         $breaks = SalesBreak::open()->whereIn('sales_id', $ids)->get()->keyBy('sales_id');
 
+        $usedBefore = [];
+        foreach ($breaks as $sid => $b) {
+            $usedBefore[$sid] = SalesBreak::closedSecondsToday((int) $sid, $b->started_at);
+        }
+
         $history = SalesLocationHistory::query()
             ->whereIn('sales_id', $ids)
             ->where('recorded_at', '>=', $now->copy()->subMinutes(config('monitoring.history_window_minutes')))
@@ -42,11 +47,11 @@ class LiveMonitoringService
             ->groupBy('sales_id');
 
         return $locations->map(
-            fn (SalesCurrentLocation $loc) => $this->describe($loc, $breaks->get($loc->sales_id), $history->get($loc->sales_id, collect()), $now)
+            fn (SalesCurrentLocation $loc) => $this->describe($loc, $breaks->get($loc->sales_id), $history->get($loc->sales_id, collect()), $now, $usedBefore[$loc->sales_id] ?? 0)
         )->values()->all();
     }
 
-    public function describe(SalesCurrentLocation $loc, ?SalesBreak $break, Collection $points, Carbon $now): array
+    public function describe(SalesCurrentLocation $loc, ?SalesBreak $break, Collection $points, Carbon $now, int $usedBeforeSeconds = 0): array
     {
         $out = $loc->toArray();
         $ageMinutes = $loc->last_seen_at ? ($now->getTimestamp() - $loc->last_seen_at->getTimestamp()) / 60 : PHP_INT_MAX;
@@ -54,13 +59,17 @@ class LiveMonitoringService
         $idleMinutes = null;
         $breakMinutes = null;
         $breakOverdue = false;
+        $breakRemaining = null;
 
         if ($loc->status === SalesCurrentLocation::STATUS_OFF_DUTY) {
             $effective = SalesCurrentLocation::STATUS_OFF_DUTY;
         } elseif ($break) {
             $effective = SalesCurrentLocation::STATUS_ON_BREAK;
             $breakMinutes = max(0, (int) floor(($now->getTimestamp() - $break->started_at->getTimestamp()) / 60));
-            $breakOverdue = $breakMinutes >= (int) config('monitoring.break_max_minutes');
+            $quotaAtStart = max(0, SalesBreak::quotaSeconds() - $usedBeforeSeconds);
+            $elapsed = max(0, $now->getTimestamp() - $break->started_at->getTimestamp());
+            $breakOverdue = $elapsed > $quotaAtStart;
+            $breakRemaining = max(0, $quotaAtStart - $elapsed);
         } elseif ($ageMinutes > config('monitoring.offline_minutes')) {
             $effective = SalesCurrentLocation::STATUS_OFFLINE;
         } elseif ($ageMinutes > config('monitoring.signal_lost_minutes')) {
@@ -81,6 +90,8 @@ class LiveMonitoringService
             'break_started_at' => $break?->started_at?->toIso8601String(),
             'break_minutes' => $breakMinutes,
             'break_overdue' => $breakOverdue,
+            'break_remaining_seconds' => $breakRemaining,
+            'break_quota_minutes' => (int) floor(SalesBreak::quotaSeconds() / 60),
         ];
     }
 

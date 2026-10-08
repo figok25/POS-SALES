@@ -9,6 +9,8 @@
     .brk-btn.is-end{background:#059669}
     .brk-btn[disabled]{opacity:.6}
     .brk-card.is-on{border:2px solid #f59e0b;background:#fffbeb}
+    .brk-card.is-over{border-color:#dc2626;background:#fef2f2}
+    .brk-card.is-over .sls-card-title{color:#b91c1c}
     .brk-err{color:#b91c1c;font-size:12px;margin-top:8px}
 </style>
 <section class="sls-card sls-card-pad brk-card" id="brk-card" hidden>
@@ -34,16 +36,31 @@
             card.hidden = !s.tracking_active;
             onBreak = !!s.on_break;
             card.classList.toggle('is-on', onBreak);
+            card.classList.toggle('is-over', onBreak && !!s.overdue);
             btn.classList.toggle('is-end', onBreak);
+            var left = (s.remaining_minutes || 0);
             if (onBreak) {
                 var since = s.started_at ? new Date(s.started_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '';
-                title.textContent = 'Sedang Istirahat';
-                note.textContent = 'Sejak ' + since + ' (' + (s.minutes || 0) + ' menit, maks. ' + (s.max_minutes || 30) + ' menit). Tekan saat sudah siap bekerja lagi.';
+                if (s.overdue) {
+                    title.textContent = '⚠️ Kuota Istirahat Habis';
+                    note.textContent = 'Segera kembali bekerja. Istirahat akan selesai otomatis dalam ' + (s.grace_left_seconds || 0) + ' detik.';
+                } else {
+                    title.textContent = 'Sedang Istirahat';
+                    note.textContent = 'Sejak ' + since + ' (' + (s.minutes || 0) + ' menit). Sisa kuota ' + left + ' menit.';
+                }
                 btn.textContent = '✅ Selesai Istirahat';
+                btn.disabled = false;
             } else {
                 title.textContent = 'Istirahat';
-                note.textContent = 'Tekan saat berhenti untuk makan atau ibadah supaya tidak dianggap diam (maks. ' + (s.max_minutes || 30) + ' menit, lalu otomatis selesai).';
+                if (!s.in_window) {
+                    note.textContent = 'Istirahat hanya bisa dimulai pukul ' + (s.window || '') + '.';
+                } else if ((s.remaining_seconds || 0) < 60) {
+                    note.textContent = 'Kuota istirahat hari ini sudah habis.';
+                } else {
+                    note.textContent = 'Sisa kuota istirahat hari ini ' + left + ' menit (dapat dipecah), pukul ' + (s.window || '') + '.';
+                }
                 btn.textContent = '☕ Mulai Istirahat';
+                btn.disabled = !s.can_start;
             }
         }
 
@@ -67,11 +84,11 @@
                 if (r.json) render(r.json);
             }).catch(function () {
                 err.textContent = 'Tidak ada koneksi. Coba lagi.'; err.hidden = false;
-            }).then(function () { busy = false; btn.disabled = false; });
+            }).then(function () { busy = false; refresh(); });
         });
 
         refresh();
-        setInterval(refresh, 30000);
+        setInterval(refresh, 10000);
         document.addEventListener('visibilitychange', function () { if (!document.hidden) refresh(); });
     })();
 </script>
