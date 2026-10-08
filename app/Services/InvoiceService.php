@@ -21,6 +21,7 @@ class InvoiceService
             'code' => 'TEMP',
             'sales_transaction_id' => $trx->id,
             'customer_id' => $trx->customer_id,
+            'consumer_name' => $trx->consumer_name,
             'sales_id' => $trx->sales_id,
             'branch_id' => $trx->branch_id,
             'date' => now()->toDateString(),

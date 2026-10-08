@@ -66,7 +66,7 @@
                                 <td><span class="frm-code">{{ $item->code }}</span>@if ($item->isDepoSale()) <span class="frm-status is-off" title="Penjualan langsung Depo (tanpa Sales)">Depo</span>@endif</td>
                                 <td data-label="Tanggal" class="frm-nowrap">{{ $item->created_at->format('d M Y H:i') }}</td>
                                 <td data-label="Sales">{{ $item->sales->name ?? 'Toko Depo' }}</td>
-                                <td data-label="Customer"><span class="frm-name">{{ $item->customer->name ?? '-' }}</span></td>
+                                <td data-label="Customer"><span class="frm-name">{{ $item->customerLabel() }}</span></td>
                                 <td data-label="Total" class="is-num"><span class="frm-num is-strong">Rp {{ number_format($item->total, 0, ',', '.') }}</span></td>
                                 <td class="frm-cell-status">
                                     @if ($item->status === 'completed')

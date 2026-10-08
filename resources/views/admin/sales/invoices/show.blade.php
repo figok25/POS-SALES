@@ -10,7 +10,7 @@
         <div class="frm-head">
             <div>
                 <h1 class="frm-title">Invoice {{ $invoice->code }}</h1>
-                <p class="frm-sub">{{ $invoice->customer->name ?? '-' }} &middot; {{ $invoice->date->format('d M Y') }}</p>
+                <p class="frm-sub">{{ $invoice->customerLabel() }} &middot; {{ $invoice->date->format('d M Y') }}</p>
             </div>
             <div class="frm-head-actions">
                 <a href="{{ route('admin.sales.invoices.print', $invoice) }}" target="_blank" rel="noopener" class="adm-btn adm-btn-ghost adm-btn-sm">
@@ -49,7 +49,7 @@
                         <dt>Sales Transaction</dt>
                         <dd><a href="{{ route('admin.sales.transactions.show', $invoice->salesTransaction) }}" class="panel-link">{{ $invoice->salesTransaction->code }}</a></dd>
                     </div>
-                    <div><dt>Customer</dt><dd>{{ $invoice->customer->name ?? '-' }}</dd></div>
+                    <div><dt>Customer</dt><dd>{{ $invoice->customerLabel() }}</dd></div>
                     <div><dt>Sales</dt><dd>{{ $invoice->sales->name ?? '-' }}</dd></div>
                     <div>
                         <dt>Outstanding</dt>

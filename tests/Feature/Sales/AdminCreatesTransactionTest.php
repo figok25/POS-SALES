@@ -31,12 +31,10 @@ class AdminCreatesTransactionTest extends TestCase
         app(StockService::class)->increase($product->id, Stock::LOCATION_WAREHOUSE, $warehouse->id, $qty, 'adjustment_in');
     }
 
-    private function payload($customer, $warehouse, $product, float $qty, array $extra = []): array
+    private function payload($warehouse, $product, float $qty, array $extra = []): array
     {
         return array_merge([
             'warehouse_id' => $warehouse->id,
-            'customer_id' => $customer->id,
-            'price_type' => Price::TYPE_CONSUMER,
             'items' => [['product_id' => $product->id, 'quantity' => $qty]],
         ], $extra);
     }
@@ -45,20 +43,20 @@ class AdminCreatesTransactionTest extends TestCase
     {
         $admin = $this->makeAdminUser();
         $warehouse = $this->makeWarehouse();
-        $customer = $this->makeCustomer();
         $product = $this->makeProduct();
         $this->consumerPrice($product, 20000);
         $this->stockWarehouse($warehouse, $product, 10);
 
         $this->actingAs($admin)->get(route('admin.sales.transactions.create', [
-            'warehouse_id' => $warehouse->id, 'customer_id' => $customer->id, 'price_type' => 'consumer',
+            'warehouse_id' => $warehouse->id,
         ]))->assertOk()->assertSee($product->name);
 
-        $this->actingAs($admin)->post(route('admin.sales.transactions.store'), $this->payload($customer, $warehouse, $product, 4))
+        $this->actingAs($admin)->post(route('admin.sales.transactions.store'), $this->payload($warehouse, $product, 4))
             ->assertSessionHasNoErrors();
 
         $trx = SalesTransaction::firstOrFail();
         $this->assertNull($trx->sales_id);
+        $this->assertNull($trx->customer_id); // konsumen umum, bukan Customer/Outlet
         $this->assertSame($admin->branch_id, $trx->branch_id);
         $this->assertSame($warehouse->id, $trx->warehouse_id);
         $this->assertSame(SalesTransaction::SOURCE_ADMIN, $trx->source);
@@ -82,12 +80,11 @@ class AdminCreatesTransactionTest extends TestCase
     {
         $admin = $this->makeAdminUser();
         $warehouse = $this->makeWarehouse();
-        $customer = $this->makeCustomer();
         $product = $this->makeProduct();
         $this->consumerPrice($product, 20000);
         $this->stockWarehouse($warehouse, $product, 10);
 
-        $this->actingAs($admin)->post(route('admin.sales.transactions.store'), $this->payload($customer, $warehouse, $product, 3, [
+        $this->actingAs($admin)->post(route('admin.sales.transactions.store'), $this->payload($warehouse, $product, 3, [
             'pay_amount' => 60000, 'pay_method' => 'cash',
         ]))->assertSessionHasNoErrors();
 
@@ -105,12 +102,11 @@ class AdminCreatesTransactionTest extends TestCase
     {
         $admin = $this->makeAdminUser();
         $warehouse = $this->makeWarehouse();
-        $customer = $this->makeCustomer();
         $product = $this->makeProduct();
         $this->consumerPrice($product, 10000);
         $this->stockWarehouse($warehouse, $product, 10);
 
-        $this->actingAs($admin)->post(route('admin.sales.transactions.store'), $this->payload($customer, $warehouse, $product, 5, [
+        $this->actingAs($admin)->post(route('admin.sales.transactions.store'), $this->payload($warehouse, $product, 5, [
             'pay_amount' => 20000,
         ]));
 
@@ -127,12 +123,11 @@ class AdminCreatesTransactionTest extends TestCase
     {
         $admin = $this->makeAdminUser();
         $warehouse = $this->makeWarehouse();
-        $customer = $this->makeCustomer();
         $product = $this->makeProduct();
         $this->consumerPrice($product);
         $this->stockWarehouse($warehouse, $product, 2);
 
-        $this->actingAs($admin)->post(route('admin.sales.transactions.store'), $this->payload($customer, $warehouse, $product, 5))
+        $this->actingAs($admin)->post(route('admin.sales.transactions.store'), $this->payload($warehouse, $product, 5))
             ->assertSessionHasErrors('items');
 
         $this->assertDatabaseCount('sales_transactions', 0);
@@ -140,21 +135,60 @@ class AdminCreatesTransactionTest extends TestCase
         $this->assertEquals(2, app(StockService::class)->getQuantity($product->id, Stock::LOCATION_WAREHOUSE, $warehouse->id));
     }
 
-    public function test_missing_price_for_chosen_category_is_rejected(): void
+    public function test_missing_consumer_price_is_rejected(): void
     {
         $admin = $this->makeAdminUser();
         $warehouse = $this->makeWarehouse();
-        $customer = $this->makeCustomer();
-        $product = $this->makeProduct(); // hanya harga Retail
+        $product = $this->makeProduct(); // hanya harga Retail, belum ada harga Konsumen
         $this->stockWarehouse($warehouse, $product, 5);
 
-        $this->actingAs($admin)->post(route('admin.sales.transactions.store'), $this->payload($customer, $warehouse, $product, 1))
+        $this->actingAs($admin)->post(route('admin.sales.transactions.store'), $this->payload($warehouse, $product, 1))
             ->assertSessionHasErrors('items');
 
-        $this->actingAs($admin)->post(route('admin.sales.transactions.store'), $this->payload($customer, $warehouse, $product, 1, ['price_type' => 'retail']))
+        $this->assertDatabaseCount('sales_transactions', 0);
+    }
+
+    public function test_price_is_always_consumer_even_if_other_category_is_sent(): void
+    {
+        $admin = $this->makeAdminUser();
+        $warehouse = $this->makeWarehouse();
+        $product = $this->makeProduct(); // Retail 10.000
+        $this->consumerPrice($product, 25000);
+        $this->stockWarehouse($warehouse, $product, 5);
+
+        $this->actingAs($admin)->post(route('admin.sales.transactions.store'), $this->payload($warehouse, $product, 2, ['price_type' => 'retail']))
             ->assertSessionHasNoErrors();
 
-        $this->assertEquals(10000, SalesTransaction::firstOrFail()->total);
+        $trx = SalesTransaction::firstOrFail();
+        $this->assertSame('consumer', $trx->price_type);
+        $this->assertEquals(50000, $trx->total);
+    }
+
+    public function test_consumer_name_is_optional_and_shown_instead_of_customer(): void
+    {
+        $admin = $this->makeAdminUser();
+        $warehouse = $this->makeWarehouse();
+        $product = $this->makeProduct();
+        $this->consumerPrice($product, 10000);
+        $this->stockWarehouse($warehouse, $product, 10);
+
+        $this->actingAs($admin)->post(route('admin.sales.transactions.store'), $this->payload($warehouse, $product, 1))->assertSessionHasNoErrors();
+        $this->actingAs($admin)->post(route('admin.sales.transactions.store'), $this->payload($warehouse, $product, 1, ['consumer_name' => 'Bu Rina']))->assertSessionHasNoErrors();
+
+        $anon = SalesTransaction::orderBy('id')->first();
+        $named = SalesTransaction::orderByDesc('id')->first();
+        $this->assertSame('Konsumen', $anon->customerLabel());
+        $this->assertSame('Bu Rina', $named->customerLabel());
+        $this->assertSame('Bu Rina', $named->invoice->customerLabel());
+
+        foreach ([$anon, $named] as $trx) {
+            $this->actingAs($admin)->get(route('admin.sales.transactions.show', $trx))->assertOk()->assertSee($trx->customerLabel());
+            $this->actingAs($admin)->get(route('admin.sales.transactions.print', $trx))->assertOk();
+            $this->actingAs($admin)->get(route('admin.sales.invoices.show', $trx->invoice))->assertOk();
+        }
+
+        $this->actingAs($admin)->get(route('admin.sales.transactions.index'))->assertOk()->assertSee('Bu Rina');
+        $this->actingAs($admin)->get(route('admin.sales.invoices.index'))->assertOk();
     }
 
     public function test_warehouse_of_another_branch_is_rejected(): void
@@ -162,12 +196,11 @@ class AdminCreatesTransactionTest extends TestCase
         $admin = $this->makeAdminUser();
         $branchB = $this->makeBranch('CBG-B', 'Cabang B');
         $warehouseB = $this->makeWarehouse($branchB);
-        $customer = $this->makeCustomer();
         $product = $this->makeProduct();
         $this->consumerPrice($product);
         $this->stockWarehouse($warehouseB, $product, 5);
 
-        $this->actingAs($admin)->post(route('admin.sales.transactions.store'), $this->payload($customer, $warehouseB, $product, 1))
+        $this->actingAs($admin)->post(route('admin.sales.transactions.store'), $this->payload($warehouseB, $product, 1))
             ->assertSessionHasErrors('warehouse_id');
 
         $this->assertDatabaseCount('sales_transactions', 0);
@@ -178,16 +211,15 @@ class AdminCreatesTransactionTest extends TestCase
         $superAdmin = $this->makeSuperAdminUser();
         $branchB = $this->makeBranch('CBG-B', 'Cabang B');
         $warehouseB = $this->makeWarehouse($branchB);
-        $customer = $this->makeCustomer(null, $branchB);
         $product = $this->makeProduct();
         $this->consumerPrice($product);
         $this->stockWarehouse($warehouseB, $product, 5);
 
         // Tanpa branch_id: ditolak.
-        $this->actingAs($superAdmin)->post(route('admin.sales.transactions.store'), $this->payload($customer, $warehouseB, $product, 1))
+        $this->actingAs($superAdmin)->post(route('admin.sales.transactions.store'), $this->payload($warehouseB, $product, 1))
             ->assertSessionHasErrors('branch_id');
 
-        $this->actingAs($superAdmin)->post(route('admin.sales.transactions.store'), $this->payload($customer, $warehouseB, $product, 1, ['branch_id' => $branchB->id]))
+        $this->actingAs($superAdmin)->post(route('admin.sales.transactions.store'), $this->payload($warehouseB, $product, 1, ['branch_id' => $branchB->id]))
             ->assertSessionHasNoErrors();
 
         $trx = SalesTransaction::firstOrFail();
@@ -204,12 +236,11 @@ class AdminCreatesTransactionTest extends TestCase
     {
         $admin = $this->makeAdminUser();
         $warehouse = $this->makeWarehouse();
-        $customer = $this->makeCustomer();
         $product = $this->makeProduct();
         $this->consumerPrice($product, 20000);
         $this->stockWarehouse($warehouse, $product, 10);
 
-        $this->actingAs($admin)->post(route('admin.sales.transactions.store'), $this->payload($customer, $warehouse, $product, 2, ['pay_amount' => 10000]));
+        $this->actingAs($admin)->post(route('admin.sales.transactions.store'), $this->payload($warehouse, $product, 2, ['pay_amount' => 10000]));
 
         $response = $this->actingAs($admin)->get(route('admin.dashboard'))->assertOk();
 

@@ -50,7 +50,7 @@
                             @foreach ($invoices as $inv)
                                 <tr>
                                     <td data-label="Kode"><a href="{{ route('admin.sales.invoices.show', $inv) }}" class="frm-name">{{ $inv->code }}</a></td>
-                                    <td data-label="Customer">{{ $inv->customer->name ?? '—' }}</td>
+                                    <td data-label="Customer">{{ $inv->customerLabel() }}</td>
                                     <td data-label="Sales">{{ $inv->sales->name ?? 'Toko Depo' }}</td>
                                     <td data-label="Tanggal" class="frm-nowrap">{{ $inv->date?->format('d/m/Y') }}</td>
                                     <td data-label="Status" class="frm-cell-status"><span class="frm-status {{ $inv->status === 'partial' ? 'is-warn' : 'is-danger' }}">{{ ucfirst($inv->status) }}</span></td>

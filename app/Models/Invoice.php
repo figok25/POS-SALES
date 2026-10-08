@@ -20,7 +20,7 @@ class Invoice extends Model
     public const STATUS_PAID = 'paid';
 
     protected $fillable = [
-        'code', 'sales_transaction_id', 'customer_id', 'sales_id', 'branch_id',
+        'code', 'sales_transaction_id', 'customer_id', 'consumer_name', 'sales_id', 'branch_id',
         'date', 'subtotal', 'discount', 'tax', 'grand_total', 'paid_amount', 'status',
     ];
 
@@ -48,6 +48,12 @@ class Invoice extends Model
     public function branch(): BelongsTo
     {
         return $this->belongsTo(Branch::class);
+    }
+
+    /** Nama pembeli untuk tampilan: Customer/Outlet, atau konsumen umum (kasir). */
+    public function customerLabel(): string
+    {
+        return $this->customer?->name ?: ($this->consumer_name ?: ($this->isDepoSale() ? 'Konsumen' : '-'));
     }
 
     public function isDepoSale(): bool

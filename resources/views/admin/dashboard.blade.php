@@ -200,7 +200,7 @@
                         <li class="row-item">
                             <div class="row-main">
                                 <a href="{{ route('admin.sales.transactions.show', $trx) }}" class="row-code">{{ $trx->code }}</a>
-                                <p class="row-sub">{{ $trx->customer->name ?? '-' }} · {{ $trx->created_at->format('d M, H:i') }}</p>
+                                <p class="row-sub">{{ $trx->customerLabel() }} · {{ $trx->created_at->format('d M, H:i') }}</p>
                             </div>
                             <div class="row-side"><span class="row-amount">{{ $fmtRp($trx->total) }}</span></div>
                         </li>
@@ -481,7 +481,7 @@
                     <li class="row-item">
                         <div class="row-main">
                             <a href="{{ route('admin.sales.transactions.show', $trx) }}" class="row-code">{{ $trx->code }}</a>
-                            <p class="row-sub">{{ $trx->customer->name ?? '-' }} · {{ $trx->created_at->format('d M, H:i') }}</p>
+                            <p class="row-sub">{{ $trx->customerLabel() }} · {{ $trx->created_at->format('d M, H:i') }}</p>
                         </div>
                         <div class="row-side">
                             <span class="row-amount">{{ $fmtRp($trx->total) }}</span>
@@ -508,7 +508,7 @@
                     <li class="row-item">
                         <div class="row-main">
                             <a href="{{ route('admin.sales.invoices.show', $inv) }}" class="row-code">{{ $inv->code }}</a>
-                            <p class="row-sub">{{ $inv->customer->name ?? '-' }}@if ($inv->date) · {{ $inv->date->format('d M Y') }}@endif</p>
+                            <p class="row-sub">{{ $inv->customerLabel() }}@if ($inv->date) · {{ $inv->date->format('d M Y') }}@endif</p>
                         </div>
                         <div class="row-side">
                             <span class="row-amount">{{ $fmtRp($inv->grand_total) }}</span>

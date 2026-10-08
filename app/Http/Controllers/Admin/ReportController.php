@@ -91,7 +91,7 @@ class ReportController extends Controller
         if ($export = $this->exportResponse($request, 'delivery-report', ['Kode', 'Customer', 'Vehicle', 'Driver', 'Route', 'Status'],
             $recent->map(fn ($do) => [
                 $do->code,
-                $do->salesTransaction->customer->name ?? '-',
+                $do->salesTransaction?->customerLabel() ?? '-',
                 $do->vehicle->name ?? '-',
                 $do->driver->name ?? '-',
                 $do->route->name ?? '-',
@@ -146,7 +146,7 @@ class ReportController extends Controller
         if ($export = $this->exportResponse($request, 'outstanding-invoice', ['Kode', 'Customer', 'Sales', 'Tanggal', 'Status', 'Outstanding'],
             $invoices->map(fn ($inv) => [
                 $inv->code,
-                $inv->customer->name ?? '-',
+                $inv->customerLabel(),
                 $inv->sales->name ?? 'Toko Depo',
                 optional($inv->date)->format('d/m/Y'),
                 ucfirst($inv->status),

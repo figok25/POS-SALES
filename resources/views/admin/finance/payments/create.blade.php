@@ -35,7 +35,7 @@
                 </div>
                 <dl class="frm-detail">
                     <div><dt>Invoice</dt><dd><span class="frm-code">{{ $invoice->code }}</span></dd></div>
-                    <div><dt>Customer</dt><dd>{{ $invoice->customer->name ?? '-' }}</dd></div>
+                    <div><dt>Customer</dt><dd>{{ $invoice->customerLabel() }}</dd></div>
                     <div><dt>Grand Total</dt><dd class="frm-num">Rp {{ number_format($invoice->grand_total, 0, ',', '.') }}</dd></div>
                     <div class="is-total"><dt>Outstanding</dt><dd class="frm-num">Rp {{ number_format($outstanding, 0, ',', '.') }}</dd></div>
                 </dl>

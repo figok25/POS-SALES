@@ -9,7 +9,7 @@
         <div class="frm-head">
             <div>
                 <h1 class="frm-title">Transaksi {{ $transaction->code }}</h1>
-                <p class="frm-sub">{{ $transaction->customer->name ?? '-' }} &middot; {{ $transaction->created_at->format('d M Y H:i') }}</p>
+                <p class="frm-sub">{{ $transaction->customerLabel() }} &middot; {{ $transaction->created_at->format('d M Y H:i') }}</p>
             </div>
             <div class="frm-head-actions">
                 <a href="{{ route('admin.sales.transactions.print', $transaction) }}" target="_blank" rel="noopener" class="adm-btn adm-btn-ghost adm-btn-sm">
@@ -46,7 +46,7 @@
                     @else
                         <div><dt>Sales</dt><dd>{{ $transaction->sales->name ?? '-' }}</dd></div>
                     @endif
-                    <div><dt>Customer</dt><dd>{{ $transaction->customer->name ?? '-' }}</dd></div>
+                    <div><dt>Customer</dt><dd>{{ $transaction->customerLabel() }}</dd></div>
                     @if ($transaction->invoice)
                         <div>
                             <dt>Invoice</dt>

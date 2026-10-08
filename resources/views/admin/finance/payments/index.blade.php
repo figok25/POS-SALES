@@ -69,7 +69,7 @@
                                         <span class="frm-dash">—</span>
                                     @endif
                                 </td>
-                                <td data-label="Customer">{{ $payment->invoice->customer->name ?? '-' }}</td>
+                                <td data-label="Customer">{{ $payment->invoice->customerLabel() }}</td>
                                 <td data-label="Sales">{{ $payment->invoice->sales->name ?? 'Toko Depo' }}</td>
                                 <td data-label="Metode">{{ $methodLabels[$payment->method] ?? ucfirst($payment->method) }}</td>
                                 <td data-label="Jumlah" class="is-num"><span class="frm-num is-strong">Rp {{ number_format($payment->amount, 0, ',', '.') }}</span></td>

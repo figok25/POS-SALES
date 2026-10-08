@@ -19,7 +19,7 @@ class SalesTransaction extends Model
     public const SOURCE_ADMIN = 'admin';
 
     protected $fillable = [
-        'code', 'sales_id', 'branch_id', 'warehouse_id', 'customer_id',
+        'code', 'sales_id', 'branch_id', 'warehouse_id', 'customer_id', 'consumer_name',
         'subtotal', 'discount', 'tax', 'total',
         'status', 'source', 'price_type', 'notes', 'created_by',
     ];
@@ -67,6 +67,12 @@ class SalesTransaction extends Model
     public function isCreatedByAdmin(): bool
     {
         return $this->source === self::SOURCE_ADMIN;
+    }
+
+    /** Nama pembeli untuk tampilan: Customer/Outlet, atau konsumen umum (kasir). */
+    public function customerLabel(): string
+    {
+        return $this->customer?->name ?: ($this->consumer_name ?: ($this->isDepoSale() ? 'Konsumen' : '-'));
     }
 
     public function priceTypeLabel(): string

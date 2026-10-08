@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Admin\Sales;
 
 use App\Http\Controllers\Controller;
 use App\Models\Branch;
-use App\Models\Customer;
 use App\Models\Payment;
 use App\Models\Price;
 use App\Models\SalesTransaction;
@@ -56,8 +55,8 @@ class SalesTransactionController extends Controller
     }
 
     /**
-     * Penjualan langsung Depo: pilih Depo (Super Admin) -> Gudang, Kategori
-     * Harga, Customer -> isi produk dari stok Gudang itu.
+     * Penjualan langsung Depo (kasir): pilih Depo (Super Admin) -> Gudang ->
+     * isi produk dari stok Gudang itu. Pembeli = konsumen umum, harga Konsumen.
      */
     public function create(Request $request)
     {
@@ -79,18 +78,8 @@ class SalesTransactionController extends Controller
             $warehouseId = $warehouses->count() === 1 ? $warehouses->first()->id : null;
         }
 
-        $customers = $branchId
-            ? Customer::where('is_active', true)
-                ->where(fn ($q) => $q->where('branch_id', $branchId)->orWhereNull('branch_id'))
-                ->orderBy('name')->get(['id', 'code', 'name'])
-            : collect();
-
-        $customerId = $customers->contains('id', (int) $request->query('customer_id')) ? (int) $request->query('customer_id') : null;
-
-        $priceTypes = Price::types();
-        $priceType = array_key_exists((string) $request->query('price_type'), $priceTypes)
-            ? $request->query('price_type')
-            : Price::TYPE_CONSUMER;
+        // Penjualan Depo = konsumen umum (kasir): harga otomatis kategori Konsumen.
+        $priceType = Price::TYPE_CONSUMER;
 
         $stocks = collect();
         $prices = collect();
@@ -112,8 +101,7 @@ class SalesTransactionController extends Controller
         }
 
         return view('admin.sales.transactions.create', compact(
-            'isAll', 'branches', 'branchId', 'warehouses', 'warehouseId', 'customers', 'customerId',
-            'priceTypes', 'priceType', 'stocks', 'prices'
+            'isAll', 'branches', 'branchId', 'warehouses', 'warehouseId', 'priceType', 'stocks', 'prices'
         ));
     }
 
@@ -124,8 +112,7 @@ class SalesTransactionController extends Controller
         $data = $request->validate([
             'branch_id' => [$context->isAll() ? 'required' : 'nullable', 'exists:branches,id'],
             'warehouse_id' => ['required', 'exists:warehouses,id'],
-            'customer_id' => ['required', 'exists:customers,id'],
-            'price_type' => ['required', 'in:'.implode(',', array_keys(Price::types()))],
+            'consumer_name' => ['nullable', 'string', 'max:120'],
             'notes' => ['nullable', 'string', 'max:1000'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.product_id' => ['required', 'exists:products,id'],

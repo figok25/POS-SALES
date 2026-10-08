@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Exceptions\InsufficientStockException;
-use App\Models\Customer;
 use App\Models\Payment;
 use App\Models\Price;
 use App\Models\Product;
@@ -15,8 +14,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Penjualan langsung Depo (toko Depo): Admin menjual ke customer/konsumen
- * langsung dari Gudang Depo. Berdiri sendiri -- tanpa Sales, tanpa
+ * Penjualan langsung Depo (toko Depo / kasir): Admin menjual ke konsumen umum
+ * (bukan Customer/Outlet) langsung dari Gudang Depo, harga kategori Konsumen. Berdiri sendiri -- tanpa Sales, tanpa
  * Delivery Order, tidak masuk KPI/Settlement Sales. Stok dipotong dari
  * Gudang, invoice terbit, dan pembayaran (bila diisi) masuk Buku Kas Depo.
  */
@@ -30,7 +29,7 @@ class DepoSaleService
     }
 
     /**
-     * @param  array{customer_id:int, price_type:string, notes?:?string, items: array<int, array{product_id:int, quantity:float}>, pay_amount?:mixed, pay_method?:?string}  $data
+     * @param  array{consumer_name?:?string, notes?:?string, items: array<int, array{product_id:int, quantity:float}>, pay_amount?:mixed, pay_method?:?string}  $data
      */
     public function create(int $branchId, int $warehouseId, ?int $userId, array $data): SalesTransaction
     {
@@ -40,21 +39,10 @@ class DepoSaleService
             throw ValidationException::withMessages(['warehouse_id' => 'Gudang tidak valid untuk Depo ini.']);
         }
 
-        $customer = Customer::find($data['customer_id']);
-
-        if (! $customer || ! $customer->is_active) {
-            throw ValidationException::withMessages(['customer_id' => 'Customer tidak ditemukan atau sudah nonaktif.']);
-        }
-
-        if ($customer->branch_id !== null && (int) $customer->branch_id !== $branchId) {
-            throw ValidationException::withMessages(['customer_id' => 'Customer ini terdaftar di Depo lain.']);
-        }
-
-        $priceType = $data['price_type'] ?? null;
-
-        if (! array_key_exists($priceType, Price::types())) {
-            throw ValidationException::withMessages(['price_type' => 'Kategori harga tidak valid.']);
-        }
+        // Konsumen umum (seperti kasir): harga selalu kategori Konsumen.
+        $priceType = Price::TYPE_CONSUMER;
+        $consumerName = isset($data['consumer_name']) ? trim((string) $data['consumer_name']) : null;
+        $consumerName = $consumerName === '' ? null : mb_substr($consumerName, 0, 120);
 
         if (empty($data['items'])) {
             throw ValidationException::withMessages(['items' => 'Transaksi harus memiliki minimal 1 produk.']);
@@ -109,13 +97,14 @@ class DepoSaleService
         }
 
         try {
-            return DB::transaction(function () use ($branchId, $warehouse, $userId, $customer, $lines, $data, $priceType, $total, $payAmount, $payMethod) {
+            return DB::transaction(function () use ($branchId, $warehouse, $userId, $consumerName, $lines, $data, $priceType, $total, $payAmount, $payMethod) {
                 $trx = SalesTransaction::create([
                     'code' => 'TEMP',
                     'sales_id' => null,
                     'branch_id' => $branchId,
                     'warehouse_id' => $warehouse->id,
-                    'customer_id' => $customer->id,
+                    'customer_id' => null,
+                    'consumer_name' => $consumerName,
                     'subtotal' => $total,
                     'discount' => 0,
                     'tax' => 0,
@@ -160,7 +149,7 @@ class DepoSaleService
                     ], $userId);
                 }
 
-                $result = $trx->fresh(['items.product', 'customer', 'invoice', 'warehouse']);
+                $result = $trx->fresh(['items.product', 'invoice', 'warehouse']);
 
                 AuditLogger::log(
                     action: 'create',

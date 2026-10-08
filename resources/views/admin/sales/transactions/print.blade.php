@@ -52,7 +52,7 @@
             <div class="a4-parties">
                 <div>
                     <span class="a4-label">Toko (Kepada Yth)</span>
-                    <strong>{{ $transaction->customer->name ?? '-' }}</strong><br>
+                    <strong>{{ $transaction->customerLabel() }}</strong><br>
                     {{ $transaction->customer->address ?? '' }}<br>
                     {{ $transaction->customer->phone ?? '' }}
                 </div>
@@ -117,7 +117,7 @@
             <hr>
             <div class="struk-store" style="word-break: break-word; line-height: 1.35">
                 <div>Toko:</div>
-                <strong>{{ $transaction->customer->name ?? '-' }}</strong>
+                <strong>{{ $transaction->customerLabel() }}</strong>
                 @if ($transaction->customer?->address)<div>{{ $transaction->customer->address }}</div>@endif
             </div>
             <hr>
