@@ -152,6 +152,64 @@
         </section>
     @endforeach
 
+    {{-- Toko Depo: penjualan langsung Admin dari Gudang, terpisah dari Sales --}}
+    @php
+        $depoCards = [
+            ['label' => 'Transaksi Depo', 'value' => number_format($depo['count']), 'tone' => 'blue', 'icon' => 'cart',
+                'href' => route('admin.sales.transactions.index', ['source' => 'depo']), 'hint' => 'Penjualan langsung dari Gudang'],
+            ['label' => 'Penjualan Depo', 'value' => $fmtRp($depo['total']), 'tone' => 'green', 'icon' => 'trend', 'href' => null, 'hint' => null],
+            ['label' => 'Kas Diterima (Depo)', 'value' => $fmtRp($depo['cash_in']), 'tone' => 'teal', 'icon' => 'dollar', 'href' => null,
+                'hint' => 'Pembayaran invoice Depo pada periode'],
+            ['label' => 'Piutang Depo', 'value' => $fmtRp($depo['outstanding_amount']), 'tone' => 'blue', 'icon' => 'alert', 'href' => null,
+                'danger' => $depo['outstanding_count'] > 0, 'hint' => number_format($depo['outstanding_count']).' invoice belum lunas'],
+        ];
+    @endphp
+
+    <section class="dash-section" id="depo-sales">
+        <div class="dash-section-head">
+            <h2 class="dash-section-title">Toko Depo</h2>
+            <span class="dash-section-note">Penjualan langsung oleh Admin &middot; {{ $periodLabel }} &middot; tidak termasuk Sales</span>
+        </div>
+
+        <div class="kpi-grid">
+            @foreach ($depoCards as $card)
+                @php $tag = $card['href'] ? 'a' : 'div'; @endphp
+                <{{ $tag }} @if ($card['href']) href="{{ $card['href'] }}" @endif class="kpi tone-{{ $card['tone'] }}">
+                    <span class="kpi-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">{!! $icons[$card['icon']] !!}</svg>
+                    </span>
+                    <span class="kpi-body">
+                        <p class="kpi-label">{{ $card['label'] }}</p>
+                        <p class="kpi-value {{ ! empty($card['danger']) ? 'is-danger' : '' }}">{{ $card['value'] }}</p>
+                        @if (! empty($card['hint']))
+                            <p class="kpi-hint">{{ $card['hint'] }}</p>
+                        @endif
+                    </span>
+                </{{ $tag }}>
+            @endforeach
+        </div>
+
+        @if ($depo['recent']->isNotEmpty())
+            <section class="panel" style="margin-top:12px">
+                <div class="panel-head">
+                    <h2 class="panel-title">Transaksi Depo Terbaru</h2>
+                    <a href="{{ route('admin.sales.transactions.index', ['source' => 'depo']) }}" class="panel-link">Lihat Semua</a>
+                </div>
+                <ul class="row-list">
+                    @foreach ($depo['recent'] as $trx)
+                        <li class="row-item">
+                            <div class="row-main">
+                                <a href="{{ route('admin.sales.transactions.show', $trx) }}" class="row-code">{{ $trx->code }}</a>
+                                <p class="row-sub">{{ $trx->customer->name ?? '-' }} · {{ $trx->created_at->format('d M, H:i') }}</p>
+                            </div>
+                            <div class="row-side"><span class="row-amount">{{ $fmtRp($trx->total) }}</span></div>
+                        </li>
+                    @endforeach
+                </ul>
+            </section>
+        @endif
+    </section>
+
     @php
         $fmtQty = fn ($n) => rtrim(rtrim(number_format($n, 2, ',', '.'), '0'), ',');
         $perfRows = $salesPerformance['rows'];

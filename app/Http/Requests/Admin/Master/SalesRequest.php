@@ -31,7 +31,7 @@ class SalesRequest extends FormRequest
             'branch_id' => ['nullable', 'exists:branches,id'],
             'code' => ['required', 'string', 'max:255', Rule::unique('sales', 'code')->ignore($salesItem)],
             'name' => ['required', 'string', 'max:255'],
-            'type' => ['required', Rule::in(array_keys(Price::types()))],
+            'type' => ['required', Rule::in(array_keys(Price::salesTypes()))],
             'phone' => ['nullable', 'string', 'max:255'],
             'is_active' => ['boolean'],
 

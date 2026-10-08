@@ -1,5 +1,5 @@
 <x-admin-layout>
-    @php $isFiltered = filled($salesId); @endphp
+    @php $isFiltered = filled($salesId) || filled($source); @endphp
 
     {{-- Kepala halaman --}}
     <div class="frm-head">
@@ -7,15 +7,29 @@
             <h1 class="frm-title">Transaksi Penjualan</h1>
             <p class="frm-sub">Riwayat transaksi penjualan dari seluruh Sales.</p>
         </div>
+        <div class="frm-head-actions">
+        @can('sales-management.manage')
+            <a href="{{ route('admin.sales.transactions.create') }}" class="adm-btn adm-btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                Penjualan Depo
+            </a>
+        @endcan
         <a href="{{ route('admin.sales.transactions.export', request()->query()) }}" class="adm-btn adm-btn-ghost">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg>
             Download Laporan
         </a>
+        </div>
     </div>
 
     <section class="panel">
         {{-- Filter --}}
         <form method="GET" class="frm-toolbar">
+            <select name="source" class="frm-input is-select is-filter" aria-label="Filter Sumber" onchange="this.form.submit()">
+                <option value="">Semua Sumber</option>
+                <option value="sales" @selected($source === 'sales')>Sales</option>
+                <option value="depo" @selected($source === 'depo')>Toko Depo</option>
+            </select>
+
             <select name="sales_id" class="frm-input is-select is-filter" aria-label="Filter Sales" onchange="this.form.submit()">
                 <option value="">Semua Sales</option>
                 @foreach ($salesList as $s)
@@ -49,9 +63,9 @@
                     <tbody>
                         @foreach ($items as $item)
                             <tr>
-                                <td><span class="frm-code">{{ $item->code }}</span></td>
+                                <td><span class="frm-code">{{ $item->code }}</span>@if ($item->isDepoSale()) <span class="frm-status is-off" title="Penjualan langsung Depo (tanpa Sales)">Depo</span>@endif</td>
                                 <td data-label="Tanggal" class="frm-nowrap">{{ $item->created_at->format('d M Y H:i') }}</td>
-                                <td data-label="Sales">{{ $item->sales->name ?? '-' }}</td>
+                                <td data-label="Sales">{{ $item->sales->name ?? 'Toko Depo' }}</td>
                                 <td data-label="Customer"><span class="frm-name">{{ $item->customer->name ?? '-' }}</span></td>
                                 <td data-label="Total" class="is-num"><span class="frm-num is-strong">Rp {{ number_format($item->total, 0, ',', '.') }}</span></td>
                                 <td class="frm-cell-status">

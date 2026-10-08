@@ -221,7 +221,7 @@
                         <label class="frm-label" for="slsType">Jenis Sales <span class="frm-req">*</span></label>
                         <select id="slsType" name="type" required
                             class="frm-input is-select @error('type') is-invalid @enderror" @error('type') aria-invalid="true" @enderror>
-                            @foreach (\App\Models\Price::types() as $val => $label)
+                            @foreach (\App\Models\Price::salesTypes() as $val => $label)
                                 <option value="{{ $val }}" @selected(old('type', 'retail') === $val)>{{ $label }}</option>
                             @endforeach
                         </select>

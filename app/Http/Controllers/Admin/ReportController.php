@@ -44,6 +44,7 @@ class ReportController extends Controller
             SalesTransaction::query()
                 ->select('sales_id', DB::raw('COUNT(*) as total_transaksi'), DB::raw('SUM(total) as total_penjualan'))
                 ->where('status', SalesTransaction::STATUS_COMPLETED)
+                ->whereNotNull('sales_id') // penjualan Depo dilaporkan terpisah (dashboard Depo)
                 ->whereBetween(DB::raw('DATE(created_at)'), [$from, $to])
                 ->with('sales'),
             fn ($q, $branchId) => $q->whereHas('sales', fn ($qq) => $qq->where('branch_id', $branchId))
@@ -137,7 +138,7 @@ class ReportController extends Controller
     {
         $invoices = BranchContext::current()->applyVia(
             Invoice::with(['customer', 'sales'])->whereIn('status', [Invoice::STATUS_UNPAID, Invoice::STATUS_PARTIAL]),
-            fn ($q, $branchId) => $q->whereHas('sales', fn ($qq) => $qq->where('branch_id', $branchId))
+            fn ($q, $branchId) => $q->where('branch_id', $branchId)
         )
             ->orderBy('date')
             ->get();
@@ -146,7 +147,7 @@ class ReportController extends Controller
             $invoices->map(fn ($inv) => [
                 $inv->code,
                 $inv->customer->name ?? '-',
-                $inv->sales->name ?? '-',
+                $inv->sales->name ?? 'Toko Depo',
                 optional($inv->date)->format('d/m/Y'),
                 ucfirst($inv->status),
                 (float) $inv->outstanding(),

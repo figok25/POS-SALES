@@ -89,7 +89,7 @@ class CustomerMapPageTest extends TestCase
         $this->actingAs($user)
             ->get(route('sales.map.show', $customer))
             ->assertOk()
-            ->assertSee('Hitung Route', false)
+            ->assertSee('Mulai Route Real-time', false)
             ->assertSee('maplibre-gl', false);
     }
 

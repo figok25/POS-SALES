@@ -17,9 +17,9 @@ class InvoiceController extends Controller
     {
         $status = $request->query('status');
 
-        $items = BranchContext::current()->applyVia(
+        $items = BranchContext::current()->applyTo(
             Invoice::query()->with(['customer', 'sales']),
-            fn ($q, $branchId) => $q->whereHas('sales', fn ($qq) => $qq->where('branch_id', $branchId))
+            'branch_id'
         )
             ->when($status, fn ($q) => $q->where('status', $status))
             ->orderBy('id', 'desc')
@@ -31,7 +31,7 @@ class InvoiceController extends Controller
 
     public function show(Invoice $invoice)
     {
-        if (! BranchContext::current()->allows($invoice->sales->branch_id)) {
+        if (! BranchContext::current()->allows($invoice->branch_id)) {
             abort(403, 'Anda tidak memiliki akses ke Invoice ini.');
         }
 
@@ -48,14 +48,14 @@ class InvoiceController extends Controller
      */
     public function print(Request $request, Invoice $invoice)
     {
-        if (! BranchContext::current()->allows($invoice->sales->branch_id)) {
+        if (! BranchContext::current()->allows($invoice->branch_id)) {
             abort(403, 'Anda tidak memiliki akses ke Invoice ini.');
         }
 
-        $invoice->load(['customer', 'sales.branch.company', 'items.product']);
+        $invoice->load(['customer', 'sales', 'branch.company', 'items.product']);
 
         $format = $request->query('format') === 'a4' ? 'a4' : 'struk';
-        $company = $invoice->sales?->branch?->company;
+        $company = $invoice->branch?->company;
 
         return view('admin.sales.invoices.print', compact('invoice', 'format', 'company'));
     }

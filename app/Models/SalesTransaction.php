@@ -15,10 +15,13 @@ class SalesTransaction extends Model
     public const STATUS_COMPLETED = 'completed';
     public const STATUS_CANCELLED = 'cancelled';
 
+    public const SOURCE_SALES = 'sales';
+    public const SOURCE_ADMIN = 'admin';
+
     protected $fillable = [
-        'code', 'sales_id', 'customer_id',
+        'code', 'sales_id', 'branch_id', 'warehouse_id', 'customer_id',
         'subtotal', 'discount', 'tax', 'total',
-        'status', 'price_type', 'notes', 'created_by',
+        'status', 'source', 'price_type', 'notes', 'created_by',
     ];
 
     protected function casts(): array
@@ -29,6 +32,41 @@ class SalesTransaction extends Model
             'tax' => 'decimal:2',
             'total' => 'decimal:2',
         ];
+    }
+
+    /**
+     * Konsistensi Depo: transaksi Sales mengisi branch_id dari Depo Sales-nya
+     * (kolom tetap terisi walau dibuat lewat jalur mana pun); penjualan
+     * langsung Depo mengisi branch_id sendiri.
+     */
+    protected static function booted(): void
+    {
+        static::creating(function (self $trx) {
+            if ($trx->branch_id === null && $trx->sales_id !== null) {
+                $trx->branch_id = Sales::query()->whereKey($trx->sales_id)->value('branch_id');
+            }
+        });
+    }
+
+    public function branch(): BelongsTo
+    {
+        return $this->belongsTo(Branch::class);
+    }
+
+    public function warehouse(): BelongsTo
+    {
+        return $this->belongsTo(Warehouse::class);
+    }
+
+    /** Penjualan langsung Depo (tanpa Sales). */
+    public function isDepoSale(): bool
+    {
+        return $this->sales_id === null;
+    }
+
+    public function isCreatedByAdmin(): bool
+    {
+        return $this->source === self::SOURCE_ADMIN;
     }
 
     public function priceTypeLabel(): string

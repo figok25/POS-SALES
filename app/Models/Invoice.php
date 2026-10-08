@@ -20,7 +20,7 @@ class Invoice extends Model
     public const STATUS_PAID = 'paid';
 
     protected $fillable = [
-        'code', 'sales_transaction_id', 'customer_id', 'sales_id',
+        'code', 'sales_transaction_id', 'customer_id', 'sales_id', 'branch_id',
         'date', 'subtotal', 'discount', 'tax', 'grand_total', 'paid_amount', 'status',
     ];
 
@@ -34,6 +34,25 @@ class Invoice extends Model
             'grand_total' => 'decimal:2',
             'paid_amount' => 'decimal:2',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $invoice) {
+            if ($invoice->branch_id === null && $invoice->sales_id !== null) {
+                $invoice->branch_id = Sales::query()->whereKey($invoice->sales_id)->value('branch_id');
+            }
+        });
+    }
+
+    public function branch(): BelongsTo
+    {
+        return $this->belongsTo(Branch::class);
+    }
+
+    public function isDepoSale(): bool
+    {
+        return $this->sales_id === null;
     }
 
     public function salesTransaction(): BelongsTo

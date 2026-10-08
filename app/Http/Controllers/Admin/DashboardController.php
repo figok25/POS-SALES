@@ -7,6 +7,7 @@ use App\Models\Branch;
 use App\Models\Customer;
 use App\Models\DeliveryOrder;
 use App\Models\Invoice;
+use App\Models\Payment;
 use App\Models\Product;
 use App\Models\Sales;
 use App\Models\SalesTask;
@@ -111,6 +112,7 @@ class DashboardController extends Controller
 
         $transactions = fn () => $branchContext->applyVia(
             SalesTransaction::where('status', SalesTransaction::STATUS_COMPLETED)
+                ->whereNotNull('sales_id')
                 ->whereBetween('created_at', [$dateFrom, $dateTo])
                 ->when($salesId, fn ($q) => $q->where('sales_id', $salesId)),
             fn ($q, $branchId) => $q->whereHas('sales', fn ($qq) => $qq->where('branch_id', $branchId))
@@ -118,6 +120,7 @@ class DashboardController extends Controller
 
         $invoiceBacklog = fn () => $branchContext->applyVia(
             Invoice::whereIn('status', [Invoice::STATUS_UNPAID, Invoice::STATUS_PARTIAL])
+                ->whereNotNull('sales_id')
                 ->when($salesId, fn ($q) => $q->where('sales_id', $salesId)),
             fn ($q, $branchId) => $q->whereHas('sales', fn ($qq) => $qq->where('branch_id', $branchId))
         );
@@ -171,6 +174,7 @@ class DashboardController extends Controller
 
         $transactionCalls = $branchContext->applyVia(
             SalesTransaction::where('status', SalesTransaction::STATUS_COMPLETED)
+                ->whereNotNull('sales_id')
                 ->whereBetween('created_at', [$dateFrom, $dateTo])
                 ->when($salesId, fn ($q) => $q->where('sales_id', $salesId)),
             fn ($q, $branchId) => $q->whereHas('sales', fn ($qq) => $qq->where('branch_id', $branchId))
@@ -226,6 +230,7 @@ class DashboardController extends Controller
         // tetap bisa lihat transaksi/invoice cancelled dalam periode itu.
         $recentTransactions = $branchContext->applyVia(
             SalesTransaction::with(['customer', 'sales'])
+                ->whereNotNull('sales_id')
                 ->whereBetween('created_at', [$dateFrom, $dateTo])
                 ->when($salesId, fn ($q) => $q->where('sales_id', $salesId)),
             fn ($q, $branchId) => $q->whereHas('sales', fn ($qq) => $qq->where('branch_id', $branchId))
@@ -233,13 +238,51 @@ class DashboardController extends Controller
 
         $recentInvoices = $branchContext->applyVia(
             Invoice::with(['customer'])
+                ->whereNotNull('sales_id')
                 ->whereBetween('date', [$dateFrom->toDateString(), $dateTo->toDateString()])
                 ->when($salesId, fn ($q) => $q->where('sales_id', $salesId)),
             fn ($q, $branchId) => $q->whereHas('sales', fn ($qq) => $qq->where('branch_id', $branchId))
         )->latest()->limit(5)->get();
 
+        // ---- Toko Depo: penjualan langsung Admin dari Gudang (tanpa Sales) ----
+        // Terpisah dari semua angka Sales di atas. Mengikuti filter tanggal &
+        // Branch context; filter Sales tidak berlaku.
+        $depoTransactions = fn () => $branchContext->applyTo(
+            SalesTransaction::whereNull('sales_id')
+                ->where('status', SalesTransaction::STATUS_COMPLETED)
+                ->whereBetween('created_at', [$dateFrom, $dateTo]),
+            'branch_id'
+        );
+
+        $depoOutstanding = fn () => $branchContext->applyTo(
+            Invoice::whereNull('sales_id')
+                ->whereIn('status', [Invoice::STATUS_UNPAID, Invoice::STATUS_PARTIAL]),
+            'branch_id'
+        );
+
+        $depoCashIn = $branchContext->applyVia(
+            Payment::whereBetween('paid_at', [$dateFrom->toDateString(), $dateTo->toDateString()])
+                ->whereHas('invoice', fn ($q) => $q->whereNull('sales_id')),
+            fn ($q, $branchId) => $q->whereHas('invoice', fn ($qq) => $qq->where('branch_id', $branchId))
+        )->sum('amount');
+
+        $depo = [
+            'count' => $depoTransactions()->count(),
+            'total' => $depoTransactions()->sum('total'),
+            'cash_in' => $depoCashIn,
+            'outstanding_count' => $depoOutstanding()->count(),
+            'outstanding_amount' => $depoOutstanding()->get()->sum(fn ($i) => $i->outstanding()),
+            'recent' => $branchContext->applyTo(
+                SalesTransaction::with('customer')
+                    ->whereNull('sales_id')
+                    ->whereBetween('created_at', [$dateFrom, $dateTo]),
+                'branch_id'
+            )->latest()->limit(5)->get(),
+        ];
+
         return view('admin.dashboard', [
             'kpi' => $kpi,
+            'depo' => $depo,
             'recentTransactions' => $recentTransactions,
             'recentInvoices' => $recentInvoices,
             'salesList' => $salesList,

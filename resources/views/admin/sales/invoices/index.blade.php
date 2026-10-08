@@ -52,7 +52,7 @@
                                 <td><span class="frm-code">{{ $item->code }}</span></td>
                                 <td data-label="Tanggal" class="frm-nowrap">{{ $item->date->format('d M Y') }}</td>
                                 <td data-label="Customer"><span class="frm-name">{{ $item->customer->name ?? '-' }}</span></td>
-                                <td data-label="Sales">{{ $item->sales->name ?? '-' }}</td>
+                                <td data-label="Sales">{{ $item->sales->name ?? 'Toko Depo' }}</td>
                                 <td data-label="Total" class="is-num"><span class="frm-num is-strong">Rp {{ number_format($item->grand_total, 0, ',', '.') }}</span></td>
                                 <td class="frm-cell-status">
                                     @if ($item->status === 'paid')

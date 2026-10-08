@@ -22,6 +22,7 @@ class InvoiceService
             'sales_transaction_id' => $trx->id,
             'customer_id' => $trx->customer_id,
             'sales_id' => $trx->sales_id,
+            'branch_id' => $trx->branch_id,
             'date' => now()->toDateString(),
             'subtotal' => $trx->subtotal,
             'discount' => $trx->discount,

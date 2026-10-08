@@ -65,6 +65,7 @@ class DeliveryOrderController extends Controller
             SalesTransaction::query()
                 ->where('status', SalesTransaction::STATUS_COMPLETED)
                 ->whereDoesntHave('deliveryOrder')
+                ->whereNotNull('sales_id') // penjualan Depo tidak memakai Delivery Order
                 ->with('customer'),
             fn ($q, $branchId) => $q->whereHas('sales', fn ($qq) => $qq->where('branch_id', $branchId))
         )
@@ -84,6 +85,10 @@ class DeliveryOrderController extends Controller
         $data = $request->validated();
 
         $transaction = SalesTransaction::with(['items', 'sales'])->findOrFail($data['sales_transaction_id']);
+
+        if ($transaction->isDepoSale()) {
+            return back()->withInput()->withErrors(['sales_transaction_id' => 'Penjualan langsung Depo tidak memakai Delivery Order.']);
+        }
 
         if (! BranchContext::current()->allows($transaction->sales->branch_id)) {
             return back()->withInput()->withErrors(['sales_transaction_id' => 'Transaksi ini berada di Branch lain.']);

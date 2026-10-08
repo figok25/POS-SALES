@@ -82,6 +82,19 @@ class PaymentService
                 userId: $receivedByUserId,
             );
 
+            // Penjualan langsung Depo (tanpa Sales): uang langsung masuk Buku Kas
+            // Depo, tidak lewat Settlement Sales.
+            if ($invoice->sales_id === null) {
+                app(CashLedgerService::class)->create([
+                    'branch_id' => $invoice->branch_id,
+                    'type' => \App\Models\CashLedger::TYPE_INCOME,
+                    'category' => 'Penjualan Depo',
+                    'amount' => $amount,
+                    'date' => $payment->paid_at->toDateString(),
+                    'description' => "Pembayaran {$payment->code} untuk invoice {$invoice->code} (".$payment->method.')',
+                ], $receivedByUserId);
+            }
+
             return $payment->fresh('invoice');
         });
     }

@@ -23,7 +23,7 @@ class PaymentController extends Controller
 
         $items = BranchContext::current()->applyVia(
             Payment::query()->with(['invoice.customer', 'invoice.sales', 'receivedBy']),
-            fn ($q, $branchId) => $q->whereHas('invoice.sales', fn ($qq) => $qq->where('branch_id', $branchId))
+            fn ($q, $branchId) => $q->whereHas('invoice', fn ($qq) => $qq->where('branch_id', $branchId))
         )
             ->when($method, fn ($q) => $q->where('method', $method))
             ->orderBy('id', 'desc')
@@ -35,7 +35,7 @@ class PaymentController extends Controller
 
     public function create(Invoice $invoice)
     {
-        if (! BranchContext::current()->allows($invoice->sales->branch_id)) {
+        if (! BranchContext::current()->allows($invoice->branch_id)) {
             abort(403, 'Anda tidak memiliki akses ke invoice ini.');
         }
 
@@ -48,7 +48,7 @@ class PaymentController extends Controller
 
     public function store(Request $request, Invoice $invoice)
     {
-        if (! BranchContext::current()->allows($invoice->sales->branch_id)) {
+        if (! BranchContext::current()->allows($invoice->branch_id)) {
             abort(403, 'Anda tidak memiliki akses ke invoice ini.');
         }
 

@@ -39,7 +39,13 @@
                 <dl class="frm-detail">
                     <div><dt>Tanggal</dt><dd>{{ $transaction->created_at->format('d M Y H:i') }}</dd></div>
                     <div><dt>Kategori Harga</dt><dd>{{ $transaction->priceTypeLabel() }}</dd></div>
-                    <div><dt>Sales</dt><dd>{{ $transaction->sales->name ?? '-' }}</dd></div>
+                    <div><dt>Sumber</dt><dd>{{ $transaction->isDepoSale() ? 'Penjualan langsung Depo' : 'Sales (lapangan)' }}</dd></div>
+                    @if ($transaction->isDepoSale())
+                        <div><dt>Depo</dt><dd>{{ $transaction->branch->name ?? '-' }}</dd></div>
+                        <div><dt>Gudang</dt><dd>{{ $transaction->warehouse->name ?? '-' }}</dd></div>
+                    @else
+                        <div><dt>Sales</dt><dd>{{ $transaction->sales->name ?? '-' }}</dd></div>
+                    @endif
                     <div><dt>Customer</dt><dd>{{ $transaction->customer->name ?? '-' }}</dd></div>
                     @if ($transaction->invoice)
                         <div>
