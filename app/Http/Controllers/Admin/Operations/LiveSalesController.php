@@ -93,16 +93,26 @@ class LiveSalesController extends Controller
             'tracking_session_id' => ['nullable', 'integer'],
             'from' => ['nullable', 'date'],
             'to' => ['nullable', 'date'],
-            'limit' => ['nullable', 'integer', 'min:1', 'max:2000'],
+            'limit' => ['nullable', 'integer', 'min:1', 'max:10000'],
         ]);
 
+        // Tanpa filter tanggal/sesi = jejak HARI INI saja. Sebelumnya semua
+        // hari diambil urut terlama & dipotong 500 titik, sehingga setelah
+        // beberapa jam titik terbaru terpotong dan jejak "hilang".
+        $hasRange = ! empty($validated['from']) || ! empty($validated['to']) || ! empty($validated['tracking_session_id']);
+        $limit = $validated['limit'] ?? 5000;
+
+        // Ambil titik TERBARU sebanyak $limit (desc), lalu dibalik ke urutan waktu.
         $histories = SalesLocationHistory::where('sales_id', $sales->id)
             ->when($validated['tracking_session_id'] ?? null, fn ($q, $v) => $q->where('tracking_session_id', $v))
             ->when($validated['from'] ?? null, fn ($q, $v) => $q->whereDate('recorded_at', '>=', $v))
             ->when($validated['to'] ?? null, fn ($q, $v) => $q->whereDate('recorded_at', '<=', $v))
-            ->orderBy('recorded_at')
-            ->limit($validated['limit'] ?? 500)
-            ->get();
+            ->when(! $hasRange, fn ($q) => $q->where('recorded_at', '>=', now()->startOfDay()))
+            ->orderBy('recorded_at', 'desc')
+            ->limit($limit)
+            ->get()
+            ->reverse()
+            ->values();
 
         return response()->json(['success' => true, 'data' => $histories]);
     }
