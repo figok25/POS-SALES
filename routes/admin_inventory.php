@@ -32,3 +32,8 @@ Route::middleware('permission:inventory.manage')->group(function () {
     Route::post('adjustments/{item}/apply', [StockAdjustmentController::class, 'apply'])->name('adjustments.apply');
     Route::delete('adjustments/{item}', [StockAdjustmentController::class, 'destroy'])->name('adjustments.destroy');
 });
+
+// Koreksi jumlah stok -- khusus Super Admin.
+Route::middleware(['permission:inventory.view', 'role:super_admin'])->group(function () {
+    Route::put('stock/{stock}', [StockController::class, 'update'])->name('stock.update');
+});

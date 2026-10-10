@@ -1,4 +1,5 @@
 @php
+    $canEdit = auth()->user()?->hasRole('super_admin');
     $hasSearch = filled($search);
     $total = method_exists($items, 'total') ? $items->total() : $items->count();
 @endphp
@@ -10,9 +11,16 @@
         <div class="frm-head">
             <div>
                 <h1 class="frm-title">Stock</h1>
-                <p class="frm-sub">Posisi stok real-time di Warehouse. Read-only &mdash; perubahan hanya lewat BKB/BTB/Transaksi/Adjustment.</p>
+                <p class="frm-sub">Posisi stok real-time di Warehouse. {{ $canEdit ? 'Super Admin dapat mengoreksi jumlah stok (tercatat di Stock Movement & Audit Log).' : 'Read-only — perubahan hanya lewat BKB/BTB/Transaksi/Adjustment.' }}</p>
             </div>
         </div>
+
+        @if (session('status'))
+            <div class="panel" style="padding:.75rem 1rem;margin-bottom:.75rem;color:#166534">{{ session('status') }}</div>
+        @endif
+        @if ($errors->any())
+            <div class="panel" style="padding:.75rem 1rem;margin-bottom:.75rem;color:#b91c1c">{{ $errors->first() }}</div>
+        @endif
 
         <div class="panel">
             {{-- Pencarian --}}
@@ -59,6 +67,7 @@
                                 <th>SKU</th>
                                 <th>Warehouse</th>
                                 <th class="is-num">Quantity</th>
+                                @if ($canEdit)<th></th>@endif
                             </tr>
                         </thead>
                         <tbody>
@@ -70,7 +79,29 @@
                                     <td class="is-num" data-label="Quantity">
                                         <span class="frm-num is-strong {{ $item->quantity < 0 ? 'is-neg' : '' }}">{{ number_format($item->quantity, 2) }}</span>
                                     </td>
+                                    @if ($canEdit)
+                                        <td class="is-num">
+                                            <button type="button" class="adm-btn adm-btn-ghost adm-btn-sm" onclick="document.getElementById('edit-{{ $item->id }}').hidden = !document.getElementById('edit-{{ $item->id }}').hidden">Edit</button>
+                                        </td>
+                                    @endif
                                 </tr>
+                                @if ($canEdit)
+                                    <tr id="edit-{{ $item->id }}" hidden>
+                                        <td colspan="5">
+                                            <form method="POST" action="{{ route('admin.inventory.stock.update', $item) }}" style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">
+                                                @csrf
+                                                @method('PUT')
+                                                <label>Jumlah baru
+                                                    <input type="number" name="quantity" step="0.01" min="0" value="{{ $item->quantity }}" required class="frm-input" style="width:8rem">
+                                                </label>
+                                                <label style="flex:1;min-width:12rem">Alasan
+                                                    <input type="text" name="reason" maxlength="255" required placeholder="mis. hasil stok opname / salah input" class="frm-input" style="width:100%">
+                                                </label>
+                                                <button type="submit" class="adm-btn adm-btn-sm">Simpan</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                @endif
                             @endforeach
                         </tbody>
                     </table>

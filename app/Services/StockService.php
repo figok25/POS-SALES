@@ -143,6 +143,53 @@ class StockService
     }
 
     /**
+     * Koreksi stok ke jumlah absolut baru (khusus Super Admin). Tetap lewat
+     * jalur resmi: row lock + baris stock_movements (movement_type
+     * `stock_correction`) berisi selisih & alasan. Mengembalikan null bila
+     * jumlah tidak berubah.
+     */
+    public function correctTo(
+        int $productId,
+        string $locationType,
+        int $locationId,
+        float $newQuantity,
+        ?string $notes = null,
+    ): ?StockMovement {
+        if ($newQuantity < 0) {
+            throw new \InvalidArgumentException('Jumlah stok tidak boleh negatif.');
+        }
+
+        return DB::transaction(function () use ($productId, $locationType, $locationId, $newQuantity, $notes) {
+            $stock = $this->lockOrCreateStock($productId, $locationType, $locationId);
+            $old = round((float) $stock->quantity, 2);
+            $new = round($newQuantity, 2);
+            $delta = round($new - $old, 2);
+
+            if ($delta == 0.0) {
+                return null;
+            }
+
+            $stock->quantity = $new;
+            $stock->save();
+
+            return StockMovement::create([
+                'product_id' => $productId,
+                'location_type' => $locationType,
+                'location_id' => $locationId,
+                'direction' => $delta > 0 ? 'in' : 'out',
+                'quantity' => abs($delta),
+                'balance_after' => $new,
+                'movement_type' => 'stock_correction',
+                'document_type' => null,
+                'document_id' => null,
+                'user_id' => Auth::id(),
+                'notes' => $notes,
+                'created_at' => now(),
+            ]);
+        });
+    }
+
+    /**
      * Ambil quantity stok saat ini (0 bila belum pernah ada record).
      */
     public function getQuantity(int $productId, string $locationType, int $locationId): float
