@@ -36,7 +36,7 @@
     <div class="bg-white rounded-lg shadow divide-y text-sm mb-4">
         @foreach ($transaction->items as $line)
             <div class="flex justify-between px-3 py-2">
-                <span>{{ $line->product->name ?? '-' }} &times; {{ rtrim(rtrim(number_format($line->quantity, 2, '.', ''), '0'), '.') }}</span>
+                <span>{{ $line->product->name ?? '-' }}@if ($line->is_free) <em>(GRATIS)</em>@endif &times; {{ rtrim(rtrim(number_format($line->quantity, 2, '.', ''), '0'), '.') }}</span>
                 <span>Rp {{ number_format($line->subtotal, 0, ',', '.') }}</span>
             </div>
         @endforeach
@@ -88,7 +88,7 @@
         'outstanding_label' => $outstandingLabel,
         'items' => $transaction->items->map(function ($line) {
             return [
-                'name' => $line->product->name ?? '-',
+                'name' => ($line->product->name ?? '-').($line->is_free ? ' (GRATIS)' : ''),
                 'quantity' => $line->quantity,
                 'price' => $line->price,
                 'subtotal' => $line->subtotal,

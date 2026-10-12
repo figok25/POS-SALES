@@ -15,12 +15,16 @@ use Illuminate\Support\Facades\Route;
 
 Route::middleware('permission:inventory.view')->group(function () {
     Route::get('stock', [StockController::class, 'index'])->name('stock.index');
+    Route::get('stock/sales', [StockController::class, 'sales'])->name('stock.sales');
     Route::get('movements', [StockMovementController::class, 'index'])->name('movements.index');
 
     Route::get('adjustments', [StockAdjustmentController::class, 'index'])->name('adjustments.index');
 });
 
 Route::middleware('permission:inventory.manage')->group(function () {
+    // Koreksi stok yang dibawa Sales (Admin & Super Admin).
+    Route::put('stock/sales/{stock}', [StockController::class, 'updateSales'])->name('stock.sales.update');
+
     Route::post('adjustments', [StockAdjustmentController::class, 'store'])->name('adjustments.store');
     Route::post('adjustments/bulk-apply', [StockAdjustmentController::class, 'bulkApply'])->name('adjustments.bulk-apply');
 

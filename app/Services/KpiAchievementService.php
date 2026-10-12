@@ -96,7 +96,7 @@ class KpiAchievementService
         $kpiProductIds = $kpiProducts->pluck('product_id')->all();
 
         SalesTransaction::query()
-            ->with('items:id,sales_transaction_id,product_id,quantity')
+            ->with('items:id,sales_transaction_id,product_id,quantity,is_free')
             ->whereIn('sales_id', $salesIds)
             ->where('status', SalesTransaction::STATUS_COMPLETED)
             ->whereBetween('created_at', [$startDate, $endDate])
@@ -109,6 +109,11 @@ class KpiAchievementService
                 }
 
                 foreach ($trx->items as $item) {
+                    // Barang gratis program (Beli X Gratis Y) tidak dihitung ke volume/target KPI.
+                    if ($item->is_free) {
+                        continue;
+                    }
+
                     $qty = (float) $item->quantity;
                     $volume[$trx->sales_id] = ($volume[$trx->sales_id] ?? 0) + $qty;
 

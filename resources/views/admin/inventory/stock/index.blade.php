@@ -13,6 +13,7 @@
                 <h1 class="frm-title">Stock</h1>
                 <p class="frm-sub">Posisi stok real-time di Warehouse. {{ $canEdit ? 'Super Admin dapat mengoreksi jumlah stok (tercatat di Stock Movement & Audit Log).' : 'Read-only — perubahan hanya lewat BKB/BTB/Transaksi/Adjustment.' }}</p>
             </div>
+            <a href="{{ route('admin.inventory.stock.sales') }}" class="adm-btn adm-btn-ghost">Stok Sales</a>
         </div>
 
         @if (session('status'))

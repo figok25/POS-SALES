@@ -28,7 +28,11 @@ use Illuminate\Validation\ValidationException;
  */
 class SalesTransactionService
 {
-    public function __construct(protected StockService $stockService, protected InvoiceService $invoiceService) {}
+    public function __construct(
+        protected StockService $stockService,
+        protected InvoiceService $invoiceService,
+        protected PromoService $promoService,
+    ) {}
 
     /**
      * @param  array{customer_id:int, notes?:string, items: array<int, array{product_id:int, quantity:float}>}  $data
@@ -116,8 +120,11 @@ class SalesTransactionService
             ];
         }
 
+        // Program Beli X Gratis Y: hitung barang gratis (dibatasi stok Sales).
+        $freeLines = $this->promoService->freeLinesFor($salesId, $lines);
+
         try {
-            return DB::transaction(function () use ($salesId, $createdByUserId, $customer, $lines, $data, $priceType) {
+            return DB::transaction(function () use ($salesId, $createdByUserId, $customer, $lines, $freeLines, $data, $priceType) {
                 $subtotal = round(array_sum(array_column($lines, 'subtotal')), 2);
 
                 $trx = SalesTransaction::create([
@@ -159,6 +166,29 @@ class SalesTransactionService
                         'quantity' => $line['quantity'],
                         'price' => $line['price'],
                         'subtotal' => $line['subtotal'],
+                    ]);
+                }
+
+                // Barang gratis program: stok Sales berkurang, item berharga 0.
+                foreach ($freeLines as $free) {
+                    $this->stockService->decrease(
+                        $free['product_id'],
+                        Stock::LOCATION_SALES,
+                        $salesId,
+                        $free['quantity'],
+                        'sales_transaction',
+                        SalesTransaction::class,
+                        $trx->id,
+                        "Gratis program: {$free['promo']->name} ({$trx->code})",
+                    );
+
+                    $trx->items()->create([
+                        'product_id' => $free['product_id'],
+                        'quantity' => $free['quantity'],
+                        'price' => 0,
+                        'subtotal' => 0,
+                        'is_free' => true,
+                        'buy_get_promo_id' => $free['promo']->id,
                     ]);
                 }
 

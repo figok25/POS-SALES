@@ -51,6 +51,9 @@ Route::middleware('permission:master-data.manage')->group(function () {
         // Item Promosi/POSM untuk checklist Kunjungan: boleh dikelola Admin (daftar dipakai bersama
         // semua Depo). Tanpa hapus -- cukup nonaktifkan -- supaya riwayat kunjungan lama utuh.
         Route::resource('promo-items', \App\Http\Controllers\Admin\Master\PromoItemController::class)->parameters(['promo-items' => 'item'])->only(['index', 'store', 'update']);
+
+        // Program "Beli X Gratis Y" dari distributor (barang gratis memotong stok Sales). Tanpa hapus.
+        Route::resource('buy-get-promos', \App\Http\Controllers\Admin\Master\BuyGetPromoController::class)->parameters(['buy-get-promos' => 'promo'])->only(['index', 'store', 'update']);
 });
 
 // --- Ubah struktur (WAJIB Super Admin) ---

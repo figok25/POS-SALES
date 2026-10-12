@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Sales;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Sales\Concerns\ResolvesCurrentSales;
 use App\Http\Requests\Sales\SalesTransactionRequest;
+use App\Models\BuyGetPromo;
 use App\Models\Price;
 use App\Models\Product;
 use App\Models\SalesTransaction;
@@ -77,7 +78,22 @@ class TransactionController extends Controller
             ->orderBy('id')
             ->pluck('amount', 'product_id');
 
-        return view('sales.transactions.create', compact('visit', 'myStock', 'prices', 'sales'));
+        // Program Beli X Gratis Y yang sedang berlaku (untuk pratinjau di form).
+        $promos = BuyGetPromo::query()
+            ->runningOn()
+            ->with(['buyProduct:id,name', 'freeProduct:id,name'])
+            ->get()
+            ->map(fn (BuyGetPromo $p) => [
+                'buy_id' => $p->buy_product_id,
+                'buy_name' => $p->buyProduct->name ?? '-',
+                'buy_qty' => (float) $p->buy_qty,
+                'free_id' => $p->free_product_id,
+                'free_name' => $p->freeProduct->name ?? '-',
+                'free_qty' => (float) $p->free_qty,
+            ])
+            ->values();
+
+        return view('sales.transactions.create', compact('visit', 'myStock', 'prices', 'sales', 'promos'));
     }
 
     public function store(SalesTransactionRequest $request)

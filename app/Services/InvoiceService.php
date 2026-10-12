@@ -41,6 +41,7 @@ class InvoiceService
                 'quantity' => $line->quantity,
                 'price' => $line->price,
                 'subtotal' => $line->subtotal,
+                'is_free' => (bool) $line->is_free,
             ]);
         }
 

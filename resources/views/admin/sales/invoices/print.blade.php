@@ -76,7 +76,7 @@
                 <tbody>
                     @foreach ($invoice->items as $line)
                         <tr>
-                            <td>{{ $line->product->name ?? '-' }}</td>
+                            <td>{{ $line->product->name ?? '-' }}@if ($line->is_free) <em>(GRATIS)</em>@endif</td>
                             <td class="r">{{ $qty($line->quantity) }}</td>
                             <td class="r">{{ $rp($line->price) }}</td>
                             <td class="r">{{ $rp($line->subtotal) }}</td>
@@ -121,7 +121,7 @@
             <hr>
             <table class="struk-items">
                 @foreach ($invoice->items as $line)
-                    <tr><td colspan="2">{{ $line->product->name ?? '-' }}</td></tr>
+                    <tr><td colspan="2">{{ $line->product->name ?? '-' }}@if ($line->is_free) <em>(GRATIS)</em>@endif</td></tr>
                     <tr>
                         <td>{{ $qty($line->quantity) }} x {{ $rp($line->price) }}</td>
                         <td class="r">{{ $rp($line->subtotal) }}</td>

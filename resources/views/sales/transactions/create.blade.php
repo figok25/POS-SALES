@@ -69,6 +69,19 @@
                 </template>
             </div>
 
+            <template x-if="freeLines().length || promoHints().length">
+                <div class="rounded border border-green-200 bg-green-50 p-2 text-xs text-green-800 space-y-1">
+                    <template x-for="f in freeLines()" :key="f.key">
+                        <div>🎁 <strong>GRATIS</strong> <span x-text="f.qty"></span> &times; <span x-text="f.name"></span>
+                            <span x-show="f.short" class="text-amber-700" x-text="'(stok gratis hanya ' + f.qty + ', seharusnya ' + f.wanted + ')'"></span>
+                        </div>
+                    </template>
+                    <template x-for="h in promoHints()" :key="h.key">
+                        <div class="text-gray-600" x-text="h.text"></div>
+                    </template>
+                </div>
+            </template>
+
             <div class="text-right text-sm font-semibold border-t pt-2">
                 Total: Rp <span x-text="formatRupiah(grandTotal())"></span>
             </div>
@@ -91,8 +104,42 @@
                 @endforeach
             };
 
+            const stockQty = {
+                @foreach ($myStock as $stock)
+                    "{{ $stock->product_id }}": {{ (float) $stock->quantity }},
+                @endforeach
+            };
+            const promos = @json($promos);
+            const fmt = (n) => (Math.round(n * 100) / 100).toString();
+
             return {
                 rows: [{ product_id: '', quantity: null }],
+                boughtQty(productId) {
+                    return this.rows.reduce((sum, r) => sum + (String(r.product_id) === String(productId) ? (Number(r.quantity) || 0) : 0), 0);
+                },
+                // Pratinjau barang gratis (hitungan final dilakukan server, dibatasi stok Sales).
+                freeLines() {
+                    const left = {};
+                    const out = [];
+                    promos.forEach((p, i) => {
+                        const bought = this.boughtQty(p.buy_id);
+                        const wanted = Math.floor(Math.round(bought / p.buy_qty * 1e6) / 1e6) * p.free_qty;
+                        if (wanted <= 0) return;
+                        if (left[p.free_id] === undefined) left[p.free_id] = (stockQty[p.free_id] || 0) - this.boughtQty(p.free_id);
+                        const give = Math.min(wanted, Math.max(0, left[p.free_id]));
+                        if (give <= 0) return;
+                        left[p.free_id] -= give;
+                        out.push({ key: 'f' + i, name: p.free_name, qty: fmt(give), wanted: fmt(wanted), short: give < wanted });
+                    });
+                    return out;
+                },
+                // Petunjuk program untuk produk yang sudah dipilih tapi belum cukup kelipatan.
+                promoHints() {
+                    return promos
+                        .map((p, i) => ({ p, i, bought: this.boughtQty(p.buy_id) }))
+                        .filter((x) => x.bought > 0 && x.bought < x.p.buy_qty)
+                        .map((x) => ({ key: 'h' + x.i, text: 'Program: beli ' + fmt(x.p.buy_qty) + ' ' + x.p.buy_name + ' gratis ' + fmt(x.p.free_qty) + ' ' + x.p.free_name }));
+                },
                 addRow() {
                     this.rows.push({ product_id: '', quantity: null });
                 },

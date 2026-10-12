@@ -85,9 +85,11 @@
             ['Vehicle', 'admin.master.vehicles.index'],
             ['Supplier', 'admin.master.suppliers.index'],
             ['Item Promosi / POSM', 'admin.master.promo-items.index'],
+            ['Program Beli Gratis', 'admin.master.buy-get-promos.index'],
         ]],
         ['title' => 'Inventory', 'items' => [
             ['Stock', 'admin.inventory.stock.index'],
+            ['Stok Sales', 'admin.inventory.stock.sales'],
             ['Stock Movement', 'admin.inventory.movements.index'],
             ['Stock Adjustment', 'admin.inventory.adjustments.index'],
         ]],

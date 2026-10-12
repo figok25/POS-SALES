@@ -77,7 +77,7 @@
                         <tbody>
                             @foreach ($invoice->items as $line)
                                 <tr>
-                                    <td><span class="frm-name">{{ $line->product->name ?? '-' }}</span></td>
+                                    <td><span class="frm-name">{{ $line->product->name ?? '-' }}@if ($line->is_free) <em>(GRATIS)</em>@endif</span></td>
                                     <td data-label="Qty" class="is-num"><span class="frm-num">{{ $qty($line->quantity) }}</span></td>
                                     <td data-label="Harga" class="is-num"><span class="frm-num">Rp {{ $rp($line->price) }}</span></td>
                                     <td data-label="Subtotal" class="is-num"><span class="frm-num is-strong">Rp {{ $rp($line->subtotal) }}</span></td>
