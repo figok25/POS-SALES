@@ -511,6 +511,39 @@ window.ThermalPrinter = window.ThermalPrinter || (function () {
         b.twoCol('Sales', payload.sales_name || '-');
         b.twoCol('Dicetak', payload.printed_at || '-');
         b.divider('=');
+        b.bold(true).line('PENJUALAN PRODUK').bold(false);
+        var prods = payload.products || [];
+        if (!prods.length) b.line('(tidak ada penjualan)');
+        prods.forEach(function (p) {
+            b.wrap(p.name || '-');
+            b.twoCol('  ' + qty(p.sold) + ' x', 'Rp ' + money(p.amount));
+            if (Number(p.free) > 0) b.line('  + Gratis ' + qty(p.free));
+        });
+        b.divider('=');
+        b.bold(true).twoCol('TOTAL JUAL', 'Rp ' + money(sum.total_sales)).bold(false);
+        if (Number(sum.free_qty) > 0) b.twoCol('Barang Gratis', qty(sum.free_qty));
+        b.divider();
+        b.twoCol('Total Kunjungan', String(sum.visits || 0));
+        b.twoCol('EC', String(sum.ec || 0));
+        b.twoCol('  EC Toko Baru', String(sum.ec_new || 0));
+        b.twoCol('  EC Toko Repeat', String(sum.ec_repeat || 0));
+        b.divider();
+        b.align('center').line('Dicetak dari Sales App').feed(1);
+        b.cut();
+        return b.toBytes();
+    }
+
+    // Laporan penjualan harian Sales: ringkasan, detail tiap transaksi, rekap produk, pembayaran.
+    function buildDaily(payload, width) {
+        var b = new Builder(width);
+        var sum = payload.summary || {};
+        b.init().align('center').bold(true).line(payload.company_name || 'POS & Sales').bold(false);
+        b.bold(true).line('LAPORAN PENJUALAN HARIAN').bold(false);
+        b.align('left').divider();
+        b.twoCol('Tanggal', payload.date || '-');
+        b.twoCol('Sales', payload.sales_name || '-');
+        b.twoCol('Dicetak', payload.printed_at || '-');
+        b.divider('=');
         b.bold(true).line('RINGKASAN').bold(false);
         b.twoCol('Transaksi', String(sum.transactions || 0));
         b.twoCol('Toko', String(sum.customers || 0));

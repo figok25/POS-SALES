@@ -3,9 +3,9 @@
 namespace Tests\Feature\Sales;
 
 use App\Models\BuyGetPromo;
-use App\Models\Payment;
 use App\Models\SalesTransaction;
 use App\Models\Stock;
+use App\Models\Visit;
 use App\Services\SalesTransactionService;
 use App\Services\StockService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -34,7 +34,17 @@ class DailySalesReportTest extends TestCase
         app(StockService::class)->increase($product->id, Stock::LOCATION_SALES, $sales->id, $qty, 'bkb_apply');
     }
 
-    public function test_report_contains_only_own_transactions_for_the_day(): void
+    private function visit($sales, $customer): void
+    {
+        Visit::create([
+            'sales_id' => $sales->id,
+            'customer_id' => $customer->id,
+            'check_in_at' => now(),
+            'status' => Visit::STATUS_COMPLETED,
+        ]);
+    }
+
+    public function test_report_contains_only_own_product_sales_for_the_day(): void
     {
         [$user, $sales] = $this->makeSalesUser();
         [$otherUser, $otherSales] = $this->makeSalesUser();
@@ -44,17 +54,17 @@ class DailySalesReportTest extends TestCase
         $this->stock($sales, $product, 20);
         $this->stock($otherSales, $product, 20);
 
-        $mine = $this->sell($user, $sales, $customer, $product, 3);
+        $this->sell($user, $sales, $customer, $product, 3);
         $this->sell($otherUser, $otherSales, $otherCustomer, $product, 5);
 
         $this->actingAs($user)->get(route('sales.transactions.daily'))
             ->assertOk()
-            ->assertSee($mine->code)
-            ->assertViewHas('report', function (array $r) use ($mine) {
-                return $r['summary']['transactions'] === 1
-                    && (float) $r['summary']['total_sales'] === 30000.0
-                    && $r['transactions'][0]['code'] === $mine->code
-                    && (float) $r['products'][0]['sold'] === 3.0;
+            ->assertViewHas('report', function (array $r) use ($product) {
+                return (float) $r['summary']['total_sales'] === 30000.0
+                    && count($r['products']) === 1
+                    && $r['products'][0]['name'] === $product->name
+                    && (float) $r['products'][0]['sold'] === 3.0
+                    && (float) $r['products'][0]['amount'] === 30000.0;
             });
     }
 
@@ -75,14 +85,13 @@ class DailySalesReportTest extends TestCase
 
         $this->actingAs($user)->get(route('sales.transactions.daily'))
             ->assertOk()
-            ->assertSee('(GRATIS)')
             ->assertViewHas('report', function (array $r) {
                 return (float) $r['summary']['total_sales'] === 20000.0
                     && (float) $r['summary']['free_qty'] === 2.0;
             });
     }
 
-    public function test_other_dates_are_excluded_and_date_filter_works(): void
+    public function test_date_filter_excludes_other_dates(): void
     {
         [$user, $sales] = $this->makeSalesUser();
         $customer = $this->makeCustomer($sales->id);
@@ -91,38 +100,40 @@ class DailySalesReportTest extends TestCase
 
         $old = $this->sell($user, $sales, $customer, $product, 1);
         $old->forceFill(['created_at' => now()->subDays(2)])->save();
-        $today = $this->sell($user, $sales, $customer, $product, 2);
+        $this->sell($user, $sales, $customer, $product, 2);
 
         $this->actingAs($user)->get(route('sales.transactions.daily'))
-            ->assertViewHas('report', fn (array $r) => $r['summary']['transactions'] === 1
-                && $r['transactions'][0]['code'] === $today->code);
+            ->assertViewHas('report', fn (array $r) => (float) $r['summary']['total_sales'] === 20000.0);
 
         $this->actingAs($user)->get(route('sales.transactions.daily', ['date' => now()->subDays(2)->toDateString()]))
-            ->assertViewHas('report', fn (array $r) => $r['summary']['transactions'] === 1
-                && $r['transactions'][0]['code'] === $old->code);
+            ->assertViewHas('report', fn (array $r) => (float) $r['summary']['total_sales'] === 10000.0);
     }
 
-    public function test_payments_received_today_are_included(): void
+    public function test_report_includes_total_visits_and_ec_split(): void
     {
         [$user, $sales] = $this->makeSalesUser();
-        $customer = $this->makeCustomer($sales->id);
         $product = $this->makeProduct(10000);
-        $this->stock($sales, $product, 10);
+        $this->stock($sales, $product, 20);
 
-        $trx = $this->sell($user, $sales, $customer, $product, 2);
+        $newStore = $this->makeCustomer($sales->id);
+        $repeatStore = $this->makeCustomer($sales->id);
+        $visitOnly = $this->makeCustomer($sales->id);
 
-        Payment::create([
-            'code' => 'PAY-TEST-1',
-            'invoice_id' => $trx->invoice->id,
-            'amount' => 15000,
-            'method' => Payment::METHOD_CASH,
-            'paid_at' => now()->toDateString(),
-            'received_by' => $user->id,
-        ]);
+        $old = $this->sell($user, $sales, $repeatStore, $product, 1);
+        $old->forceFill(['created_at' => now()->subDays(3)])->save();
+
+        foreach ([$newStore, $repeatStore, $visitOnly] as $c) {
+            $this->visit($sales, $c);
+        }
+        $this->sell($user, $sales, $newStore, $product, 1);
+        $this->sell($user, $sales, $repeatStore, $product, 1);
 
         $this->actingAs($user)->get(route('sales.transactions.daily'))
-            ->assertViewHas('report', fn (array $r) => (float) $r['summary']['received'] === 15000.0
-                && $r['payments_by_method'][0]['method'] === 'Tunai');
+            ->assertOk()
+            ->assertViewHas('report', fn (array $r) => $r['summary']['visits'] === 3
+                && $r['summary']['ec'] === 2
+                && $r['summary']['ec_new'] === 1
+                && $r['summary']['ec_repeat'] === 1);
     }
 
     public function test_empty_day_renders_without_error(): void
@@ -131,6 +142,6 @@ class DailySalesReportTest extends TestCase
 
         $this->actingAs($user)->get(route('sales.transactions.daily'))
             ->assertOk()
-            ->assertSee('Belum ada transaksi');
+            ->assertSee('Belum ada penjualan');
     }
 }

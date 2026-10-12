@@ -6,12 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Sales\Concerns\ResolvesCurrentSales;
 use App\Http\Requests\Sales\SalesTransactionRequest;
 use App\Models\BuyGetPromo;
-use App\Models\Payment;
 use App\Models\Price;
 use App\Models\Product;
 use App\Models\SalesTransaction;
 use App\Models\Stock;
 use App\Models\Visit;
+use App\Services\EffectiveCallService;
 use App\Services\SalesRouteMapService;
 use App\Services\SalesTransactionService;
 use App\Services\StockService;
@@ -148,112 +148,72 @@ class TransactionController extends Controller
             $date = now()->startOfDay();
         }
 
+        $day = $date->toDateString();
+
         $transactions = SalesTransaction::query()
             ->where('sales_id', $sales->id)
             ->where('status', SalesTransaction::STATUS_COMPLETED)
-            ->whereDate('created_at', $date->toDateString())
-            ->with(['items.product', 'customer', 'invoice'])
-            ->orderBy('created_at')
+            ->whereDate('created_at', $day)
+            ->with('items.product')
             ->get();
 
-        $methodLabels = [
-            Payment::METHOD_CASH => 'Tunai',
-            Payment::METHOD_TRANSFER => 'Transfer',
-            Payment::METHOD_OTHER => 'Lainnya',
-        ];
-
-        $trxRows = [];
+        // Detail penjualan per produk (barang gratis program dipisah, tidak dihitung sebagai penjualan).
         $products = [];
-        $customerIds = [];
         $totalSales = 0.0;
         $totalFreeQty = 0.0;
-        $outstanding = 0.0;
+        $transactedCustomers = [];
 
         foreach ($transactions as $trx) {
-            $customerIds[$trx->customer_id] = true;
             $totalSales += (float) $trx->total;
+            $transactedCustomers[$trx->customer_id] = true;
 
-            $invoice = $trx->invoice;
-            $statusLabel = $invoice ? match ($invoice->status) {
-                'paid' => 'Lunas',
-                'partial' => 'Sebagian',
-                default => 'Belum Bayar',
-            } : '-';
-            $left = $invoice && ! $invoice->isFullyPaid() ? $invoice->outstanding() : 0.0;
-            $outstanding += $left;
-
-            $items = [];
             foreach ($trx->items as $line) {
-                $name = ($line->product->name ?? '-').($line->is_free ? ' (GRATIS)' : '');
-                $items[] = [
-                    'name' => $name,
-                    'quantity' => (float) $line->quantity,
-                    'price' => (float) $line->price,
-                    'subtotal' => (float) $line->subtotal,
-                    'is_free' => (bool) $line->is_free,
-                ];
-
-                $key = $line->product_id;
-                $products[$key] ??= ['name' => $line->product->name ?? '-', 'sold' => 0.0, 'free' => 0.0, 'amount' => 0.0];
+                $products[$line->product_id] ??= ['name' => $line->product->name ?? '-', 'sold' => 0.0, 'free' => 0.0, 'amount' => 0.0];
                 if ($line->is_free) {
-                    $products[$key]['free'] += (float) $line->quantity;
+                    $products[$line->product_id]['free'] += (float) $line->quantity;
                     $totalFreeQty += (float) $line->quantity;
                 } else {
-                    $products[$key]['sold'] += (float) $line->quantity;
-                    $products[$key]['amount'] += (float) $line->subtotal;
+                    $products[$line->product_id]['sold'] += (float) $line->quantity;
+                    $products[$line->product_id]['amount'] += (float) $line->subtotal;
                 }
             }
-
-            $trxRows[] = [
-                'code' => $trx->code,
-                'time' => $trx->created_at->format('H:i'),
-                'customer' => $trx->customer->name ?? '-',
-                'items' => $items,
-                'total' => (float) $trx->total,
-                'status' => $statusLabel,
-                'outstanding' => $left,
-            ];
         }
 
-        // Pembayaran yang DITERIMA Sales ini pada tanggal tsb (termasuk penagihan invoice hari lain).
-        $payments = Payment::query()
-            ->where('received_by', auth()->id())
-            ->whereDate('paid_at', $date->toDateString())
-            ->with('invoice.customer')
-            ->orderBy('id')
-            ->get();
+        // Kunjungan & EC (definisi sama dengan dashboard): 1 toko dikunjungi = 1 call;
+        // EC = toko yang dikunjungi (bukan Toko Tutup) DAN ada transaksi selesai hari itu.
+        $visits = Visit::query()
+            ->where('sales_id', $sales->id)
+            ->whereDate('check_in_at', $day)
+            ->get(['customer_id', 'check_in_condition'])
+            ->groupBy('customer_id');
 
-        $byMethod = [];
-        $paymentRows = [];
-        foreach ($payments as $pay) {
-            $label = $methodLabels[$pay->method] ?? ucfirst((string) $pay->method);
-            $byMethod[$label] = ($byMethod[$label] ?? 0) + (float) $pay->amount;
-            $paymentRows[] = [
-                'invoice' => $pay->invoice->code ?? '-',
-                'customer' => $pay->invoice?->customer?->name ?? '-',
-                'method' => $label,
-                'amount' => (float) $pay->amount,
-            ];
-        }
+        $openCustomers = $visits
+            ->filter(fn ($rows) => $rows->contains(fn ($v) => $v->check_in_condition !== Visit::CONDITION_CLOSED))
+            ->keys();
+        $visitCount = config('kpi.call_made_includes_closed') ? $visits->count() : $openCustomers->count();
+
+        $ecKeys = $openCustomers
+            ->filter(fn ($customerId) => isset($transactedCustomers[$customerId]))
+            ->map(fn ($customerId) => $customerId.'|'.$day)
+            ->values();
+        $ecSplit = app(EffectiveCallService::class)->split($ecKeys);
 
         $report = [
             'company_name' => $sales->branch?->company?->name,
             'sales_name' => $sales->name,
             'date' => $date->format('d/m/Y'),
-            'date_iso' => $date->toDateString(),
+            'date_iso' => $day,
             'printed_at' => now()->format('d/m/Y H:i'),
             'summary' => [
-                'transactions' => count($trxRows),
-                'customers' => count($customerIds),
+                'transactions' => $transactions->count(),
                 'total_sales' => round($totalSales, 2),
                 'free_qty' => round($totalFreeQty, 2),
-                'received' => round(array_sum($byMethod), 2),
-                'outstanding' => round($outstanding, 2),
+                'visits' => $visitCount,
+                'ec' => $ecKeys->count(),
+                'ec_new' => $ecSplit['new'],
+                'ec_repeat' => $ecSplit['repeat'],
             ],
-            'transactions' => $trxRows,
-            'products' => array_values($products),
-            'payments' => $paymentRows,
-            'payments_by_method' => collect($byMethod)->map(fn ($amount, $label) => ['method' => $label, 'amount' => $amount])->values()->all(),
+            'products' => collect($products)->sortByDesc('amount')->values()->all(),
         ];
 
         return view('sales.transactions.daily', compact('report', 'date'));
