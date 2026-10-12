@@ -283,12 +283,13 @@
                             <th class="is-num">Stok Dibawa</th>
                             <th class="is-num">Produk Terjual</th>
                             <th class="is-num">Nilai Produk Terjual</th>
+                            <th class="is-num">Stok Kembali (Sisa)</th>
                             <th class="is-num">Total Transaksi</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach ($perfRows as $row)
-                            @php $idle = $row['carried_qty'] == 0 && $row['trx_count'] == 0; @endphp
+                            @php $idle = $row['carried_qty'] == 0 && $row['trx_count'] == 0 && $row['remaining_qty'] == 0; @endphp
                             <tr @if ($idle) style="opacity: .6" @endif>
                                 <td>
                                     <div class="perf-name">
@@ -319,6 +320,7 @@
                                     @endif
                                 </td>
                                 <td data-label="Nilai Produk" class="is-num"><span class="frm-num">{{ $fmtRp($row['sold_value']) }}</span></td>
+                                <td data-label="Stok Kembali" class="is-num"><span class="frm-num">{{ $fmtQty($row['remaining_qty']) }}</span></td>
                                 <td data-label="Total Transaksi" class="is-num">
                                     <span class="frm-num is-strong">{{ $fmtRp($row['trx_total']) }}</span>
                                     <p class="frm-meta">{{ number_format($row['trx_count'], 0, ',', '.') }} transaksi</p>
@@ -327,7 +329,7 @@
                             @if (count($row['products']))
                                 {{-- Rincian per produk: dibawa, terjual, dan nilai terjual. --}}
                                 <tr class="perf-detail" data-perf-detail="{{ $row['id'] }}" hidden style="display: none">
-                                    <td colspan="5">
+                                    <td colspan="6">
                                         <table class="perf-sub">
                                             <thead>
                                                 <tr>
@@ -335,6 +337,7 @@
                                                     <th class="is-num">Dibawa</th>
                                                     <th class="is-num">Terjual</th>
                                                     <th class="is-num">Nilai Terjual</th>
+                                                    <th class="is-num">Sisa</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -344,6 +347,7 @@
                                                         <td class="is-num">{{ $fmtQty($p['carried_qty']) }}</td>
                                                         <td class="is-num">{{ $fmtQty($p['sold_qty']) }}</td>
                                                         <td class="is-num">{{ $fmtRp($p['sold_value']) }}</td>
+                                                        <td class="is-num">{{ $fmtQty($p['remaining_qty']) }}</td>
                                                     </tr>
                                                 @endforeach
                                             </tbody>
@@ -359,6 +363,7 @@
                             <th class="is-num"><span class="frm-num">{{ $fmtQty($perfTotals['carried_qty']) }}</span></th>
                             <th class="is-num"><span class="frm-num">{{ $fmtQty($perfTotals['sold_qty']) }}</span></th>
                             <th class="is-num"><span class="frm-num">{{ $fmtRp($perfTotals['sold_value']) }}</span></th>
+                            <th class="is-num"><span class="frm-num">{{ $fmtQty($perfTotals['remaining_qty']) }}</span></th>
                             <th class="is-num">
                                 <span class="frm-num">{{ $fmtRp($perfTotals['trx_total']) }}</span>
                                 <p class="frm-meta">{{ number_format($perfTotals['trx_count'], 0, ',', '.') }} transaksi</p>

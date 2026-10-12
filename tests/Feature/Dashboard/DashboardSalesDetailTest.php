@@ -175,7 +175,7 @@ class DashboardSalesDetailTest extends TestCase
         $coverage = $response->viewData('visitCoverage');
         $row = $coverage['rows']->firstWhere('id', $sales->id);
 
-        $this->assertSame(3, $row['call_made']);    // total kunjungan (termasuk EC): c1, c2, c4
+        $this->assertSame(3, $row['call_made']);    // Call Made = total kunjungan: c1, c2, c4
         $this->assertSame(1, $row['ec']);           // kunjungan + transaksi: c1
         $this->assertSame(3, $row['total_calls']);  // c1, c2, c4
         $this->assertSame(33, $row['ec_pct']);      // 1 dari 3
@@ -288,5 +288,29 @@ class DashboardSalesDetailTest extends TestCase
         $ids = $response->viewData('visitCoverage')['rows']->pluck('id')->sort()->values()->all();
         $this->assertSame([$salesA->id, $salesB->id], $ids);
         $this->assertSame(2, $response->viewData('visitCoverage')['totals']['total_calls']);
+    }
+
+    public function test_sales_performance_shows_remaining_sales_stock_per_sales_and_product(): void
+    {
+        $branch = $this->makeBranch('CBG-R', 'Depo R');
+        [, $sales] = $this->makeSalesUser($branch);
+        $productA = $this->makeProduct(5000);
+        $productB = $this->makeProduct(2000);
+
+        app(\App\Services\StockService::class)->increase($productA->id, \App\Models\Stock::LOCATION_SALES, $sales->id, 7, 'bkb_apply');
+        app(\App\Services\StockService::class)->increase($productB->id, \App\Models\Stock::LOCATION_SALES, $sales->id, 3, 'bkb_apply');
+
+        $response = $this->actingAs($this->makeAdminUser($branch))
+            ->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertSee('Stok Kembali');
+
+        $perf = $response->viewData('salesPerformance');
+        $row = $perf['rows']->firstWhere('id', $sales->id);
+
+        $this->assertEquals(10, $row['remaining_qty']);
+        $this->assertEquals(10, $perf['totals']['remaining_qty']);
+        $this->assertEquals(7, collect($row['products'])->firstWhere('product_id', $productA->id)['remaining_qty']);
+        $this->assertEquals(3, collect($row['products'])->firstWhere('product_id', $productB->id)['remaining_qty']);
     }
 }

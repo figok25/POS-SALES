@@ -14,6 +14,7 @@ use App\Models\SalesTask;
 use App\Models\SalesTransaction;
 use App\Models\SalesTransactionItem;
 use App\Models\Settlement;
+use App\Models\Stock;
 use App\Models\SalesTaskStock;
 use App\Models\SettlementItem;
 use App\Models\Visit;
@@ -399,7 +400,18 @@ class DashboardController extends Controller
             ->selectRaw('SUM(sales_transaction_items.subtotal) as sold_value')
             ->get();
 
+        // Stok kembali / sisa = stok yang SAAT INI masih ada di tangan Sales
+        // (stok Sales sebenarnya, sudah termasuk barang program yang tertinggal).
+        $remainingByProduct = Stock::query()
+            ->where('location_type', Stock::LOCATION_SALES)
+            ->whereIn('location_id', $ids)
+            ->where('quantity', '>', 0)
+            ->get(['location_id', 'product_id', 'quantity']);
+
         $productLines = [];
+        foreach ($remainingByProduct as $r) {
+            $productLines[$r->location_id][$r->product_id]['remaining_qty'] = (float) $r->quantity;
+        }
         foreach ($carriedByProduct as $r) {
             $productLines[$r->sales_id][$r->product_id]['carried_qty'] = (float) $r->qty;
         }
@@ -423,6 +435,7 @@ class DashboardController extends Controller
                     'carried_qty' => (float) ($line['carried_qty'] ?? 0),
                     'sold_qty' => (float) ($line['sold_qty'] ?? 0),
                     'sold_value' => (float) ($line['sold_value'] ?? 0),
+                    'remaining_qty' => (float) ($line['remaining_qty'] ?? 0),
                 ])
                 ->sortBy(fn (array $p) => mb_strtolower($p['name']))
                 ->values()
@@ -431,6 +444,7 @@ class DashboardController extends Controller
             'carried_products' => (int) ($carried[$s->id]->products ?? 0),
             'sold_qty' => (float) ($sold[$s->id]->qty ?? 0),
             'sold_value' => (float) ($sold[$s->id]->sold_value ?? 0),
+            'remaining_qty' => (float) collect($remainingByProduct)->where('location_id', $s->id)->sum('quantity'),
             'trx_count' => (int) ($trx[$s->id]->trx_count ?? 0),
             'trx_total' => (float) ($trx[$s->id]->trx_total ?? 0),
         ])->sortBy([['trx_total', 'desc'], ['name', 'asc']])->values();
@@ -441,6 +455,7 @@ class DashboardController extends Controller
                 'carried_qty' => $rows->sum('carried_qty'),
                 'sold_qty' => $rows->sum('sold_qty'),
                 'sold_value' => $rows->sum('sold_value'),
+                'remaining_qty' => $rows->sum('remaining_qty'),
                 'trx_count' => $rows->sum('trx_count'),
                 'trx_total' => $rows->sum('trx_total'),
             ],
