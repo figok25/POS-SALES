@@ -290,15 +290,34 @@ class DashboardSalesDetailTest extends TestCase
         $this->assertSame(2, $response->viewData('visitCoverage')['totals']['total_calls']);
     }
 
-    public function test_sales_performance_shows_remaining_sales_stock_per_sales_and_product(): void
+    public function test_sales_performance_shows_returned_stock_from_btb(): void
     {
         $branch = $this->makeBranch('CBG-R', 'Depo R');
-        [, $sales] = $this->makeSalesUser($branch);
+        [$user, $sales] = $this->makeSalesUser($branch);
         $productA = $this->makeProduct(5000);
         $productB = $this->makeProduct(2000);
 
-        app(\App\Services\StockService::class)->increase($productA->id, \App\Models\Stock::LOCATION_SALES, $sales->id, 7, 'bkb_apply');
-        app(\App\Services\StockService::class)->increase($productB->id, \App\Models\Stock::LOCATION_SALES, $sales->id, 3, 'bkb_apply');
+        $warehouse = $this->makeWarehouse($branch);
+        $makeBtb = function (string $status, array $lines) use ($sales, $user, $warehouse) {
+            static $n = 0;
+            $n++;
+            $btb = \App\Models\BtbDistribusi::create([
+                'code' => "BTB-RET-{$n}",
+                'sales_id' => $sales->id,
+                'warehouse_id' => $warehouse->id,
+                'status' => $status,
+                'source' => \App\Models\BtbDistribusi::SOURCE_RETURN_STOCK,
+                'created_by' => $user->id,
+            ]);
+            foreach ($lines as [$product, $qty]) {
+                $btb->items()->create(['product_id' => $product->id, 'quantity' => $qty]);
+            }
+        };
+
+        $makeBtb(\App\Models\BtbDistribusi::STATUS_APPLIED, [[$productA, 7], [$productB, 3]]);
+        $makeBtb(\App\Models\BtbDistribusi::STATUS_DRAFT, [[$productA, 2]]);
+        // BTB dibatalkan TIDAK dihitung.
+        $makeBtb(\App\Models\BtbDistribusi::STATUS_CANCELLED, [[$productA, 50]]);
 
         $response = $this->actingAs($this->makeAdminUser($branch))
             ->get(route('admin.dashboard'))
@@ -308,9 +327,9 @@ class DashboardSalesDetailTest extends TestCase
         $perf = $response->viewData('salesPerformance');
         $row = $perf['rows']->firstWhere('id', $sales->id);
 
-        $this->assertEquals(10, $row['remaining_qty']);
-        $this->assertEquals(10, $perf['totals']['remaining_qty']);
-        $this->assertEquals(7, collect($row['products'])->firstWhere('product_id', $productA->id)['remaining_qty']);
-        $this->assertEquals(3, collect($row['products'])->firstWhere('product_id', $productB->id)['remaining_qty']);
+        $this->assertEquals(12, $row['returned_qty']);
+        $this->assertEquals(12, $perf['totals']['returned_qty']);
+        $this->assertEquals(9, collect($row['products'])->firstWhere('product_id', $productA->id)['returned_qty']);
+        $this->assertEquals(3, collect($row['products'])->firstWhere('product_id', $productB->id)['returned_qty']);
     }
 }
