@@ -33,6 +33,21 @@
             <p class="sls-stat-label">Toko Dikunjungi</p>
             <p class="sls-stat-value">{{ $tokoHariIni }}</p>
         </div>
+        <div class="sls-stat tone-green">
+            <div class="sls-stat-top"><span class="sls-stat-icon">⭐</span><span class="sls-stat-trend">Hari ini</span></div>
+            <p class="sls-stat-label">EC (Kunjungan + Transaksi)</p>
+            <p class="sls-stat-value">{{ $ecHariIni }}</p>
+        </div>
+        <div class="sls-stat tone-violet">
+            <div class="sls-stat-top"><span class="sls-stat-icon">🆕</span><span class="sls-stat-trend">Toko baru</span></div>
+            <p class="sls-stat-label">EC Toko Baru</p>
+            <p class="sls-stat-value">{{ $ecBaruHariIni }}</p>
+        </div>
+        <div class="sls-stat tone-blue">
+            <div class="sls-stat-top"><span class="sls-stat-icon">🔁</span><span class="sls-stat-trend">Repeat</span></div>
+            <p class="sls-stat-label">EC Toko Repeat</p>
+            <p class="sls-stat-value">{{ $ecRepeatHariIni }}</p>
+        </div>
         <div class="sls-stat tone-violet">
             <div class="sls-stat-top"><span class="sls-stat-icon">🧾</span><span class="sls-stat-trend">Hari ini</span></div>
             <p class="sls-stat-label">Transaksi</p>
@@ -62,6 +77,11 @@
             <span class="sls-quick-icon">🧾</span>
             <span>Buat Transaksi</span>
             <small>Catat penjualan baru</small>
+        </a>
+        <a href="{{ route('sales.transactions.daily') }}" class="sls-quick tone-amber">
+            <span class="sls-quick-icon">🖨️</span>
+            <span>Laporan Harian</span>
+            <small>Cetak hasil penjualan</small>
         </a>
         <a href="{{ route('sales.tracking.show') }}" class="sls-quick tone-teal">
             <span class="sls-quick-icon">🛰️</span>

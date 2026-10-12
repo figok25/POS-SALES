@@ -62,6 +62,8 @@ Route::middleware(['permission:sales-transaction.create', 'active_sales_task'])-
 });
 Route::middleware('permission:sales-transaction.view')->prefix('transactions')->name('transactions.')->group(function () {
     Route::get('/', [TransactionController::class, 'index'])->name('index');
+    // Laporan penjualan harian (cetak) -- harus di atas '/{transaction}'.
+    Route::get('/daily-report', [TransactionController::class, 'dailyReport'])->name('daily');
     Route::get('/{transaction}', [TransactionController::class, 'show'])->name('show');
 });
 

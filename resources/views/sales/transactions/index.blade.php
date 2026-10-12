@@ -6,6 +6,8 @@
         <a href="{{ route('sales.transactions.create') }}" class="bg-indigo-600 text-white text-sm px-3 py-1.5 rounded">+ Transaksi</a>
     </div>
 
+    <a href="{{ route('sales.transactions.daily') }}" class="block text-center bg-white border border-indigo-200 text-indigo-700 text-sm px-3 py-2 rounded-lg mb-3">🖨️ Laporan Penjualan Hari Ini (cetak)</a>
+
     @if (session('status'))
         <div class="mb-3 p-3 bg-green-100 text-green-800 rounded text-sm">{{ session('status') }}</div>
     @endif

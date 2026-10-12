@@ -17,6 +17,7 @@ use App\Models\Settlement;
 use App\Models\SalesTaskStock;
 use App\Models\SettlementItem;
 use App\Models\Visit;
+use App\Services\EffectiveCallService;
 use App\Support\BranchContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -185,13 +186,17 @@ class DashboardController extends Controller
         $openVisitKeys = $visitCalls->filter(fn ($row) => ! (int) $row->all_closed)->map($callKey)->unique()->values();
         $visitKeys = $includeClosed ? $visitCalls->map($callKey)->unique()->values() : $openVisitKeys;
         $transactionKeys = $transactionCalls->map($callKey)->unique()->values();
-        $ecCount = $openVisitKeys->intersect($transactionKeys)->count();
+        $ecKeys = $openVisitKeys->intersect($transactionKeys)->values();
+        $ecCount = $ecKeys->count();
+        $ecSplit = app(EffectiveCallService::class)->split($ecKeys);
 
         $kpi = [
             'visit_total' => $visitKeys->count(),
             'visit_stores' => $visitCalls->pluck('customer_id')->unique()->count(),
             'call_made' => $visitKeys->count(),
             'effective_call' => $ecCount,
+            'ec_new' => $ecSplit['new'],
+            'ec_repeat' => $ecSplit['repeat'],
             'total_products' => Product::count(),
             'total_customers' => $branchContext->applyTo(
                 Customer::when($salesId, fn ($q) => $q->where('sales_id', $salesId))
@@ -490,13 +495,18 @@ class DashboardController extends Controller
         $visitsBySales = $visits->groupBy('sales_id');
         $trxKeysBySales = $transactions->groupBy('sales_id')->map(fn ($g) => $g->map($callKey)->unique()->values());
 
-        $rows = $salesRows->map(function (Sales $s) use ($visitsBySales, $trxKeysBySales, $callKey) {
+        $ecService = app(EffectiveCallService::class);
+        $firstDays = $ecService->firstOrderDays($transactions->pluck('customer_id')->all());
+
+        $rows = $salesRows->map(function (Sales $s) use ($visitsBySales, $trxKeysBySales, $callKey, $ecService, $firstDays) {
             $salesVisits = $visitsBySales[$s->id] ?? collect();
             $includeClosed = (bool) config('kpi.call_made_includes_closed');
             $openCalls = $salesVisits->filter(fn ($r) => ! (int) $r->all_closed)->map($callKey)->unique()->values();
             $calls = $includeClosed ? $salesVisits->map($callKey)->unique()->values() : $openCalls;
             $totalCalls = $calls->count();
-            $ec = $openCalls->intersect($trxKeysBySales[$s->id] ?? collect())->count();
+            $ecKeys = $openCalls->intersect($trxKeysBySales[$s->id] ?? collect())->values();
+            $ec = $ecKeys->count();
+            $ecSplit = $ecService->split($ecKeys, $firstDays);
 
             return [
                 'id' => $s->id,
@@ -504,6 +514,8 @@ class DashboardController extends Controller
                 'code' => $s->code,
                 'call_made' => $totalCalls,
                 'ec' => $ec,
+                'ec_new' => $ecSplit['new'],
+                'ec_repeat' => $ecSplit['repeat'],
                 'total_calls' => $totalCalls,
                 'ec_pct' => $totalCalls > 0 ? (int) round($ec / $totalCalls * 100) : 0,
                 'stores' => $salesVisits->pluck('customer_id')->unique()->count(),
@@ -519,6 +531,8 @@ class DashboardController extends Controller
             'totals' => [
                 'call_made' => $sumCallMade,
                 'ec' => $sumEc,
+                'ec_new' => (int) $rows->sum('ec_new'),
+                'ec_repeat' => (int) $rows->sum('ec_repeat'),
                 'total_calls' => $sumTotal,
                 'ec_pct' => $sumTotal > 0 ? (int) round($sumEc / $sumTotal * 100) : 0,
             ],

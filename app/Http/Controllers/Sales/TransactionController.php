@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Sales\Concerns\ResolvesCurrentSales;
 use App\Http\Requests\Sales\SalesTransactionRequest;
 use App\Models\BuyGetPromo;
+use App\Models\Payment;
 use App\Models\Price;
 use App\Models\Product;
 use App\Models\SalesTransaction;
@@ -15,6 +16,8 @@ use App\Services\SalesRouteMapService;
 use App\Services\SalesTransactionService;
 use App\Services\StockService;
 use App\Services\VisitService;
+use Carbon\Carbon;
+use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -124,5 +127,135 @@ class TransactionController extends Controller
         $transaction->load('items.product', 'customer', 'invoice', 'sales.branch.company');
 
         return view('sales.transactions.show', compact('transaction'));
+    }
+
+    /**
+     * Laporan penjualan harian Sales (detail per transaksi, rekap produk,
+     * pembayaran yang diterima) -- bisa dicetak ke printer thermal.
+     * Default hari ini; ?date=YYYY-MM-DD untuk mencetak ulang hari lain.
+     */
+    public function dailyReport(Request $request)
+    {
+        $sales = $this->currentSales();
+
+        try {
+            $date = Carbon::createFromFormat('Y-m-d', (string) $request->query('date', now()->toDateString()))->startOfDay();
+        } catch (\Throwable $e) {
+            $date = now()->startOfDay();
+        }
+
+        if ($date->isFuture()) {
+            $date = now()->startOfDay();
+        }
+
+        $transactions = SalesTransaction::query()
+            ->where('sales_id', $sales->id)
+            ->where('status', SalesTransaction::STATUS_COMPLETED)
+            ->whereDate('created_at', $date->toDateString())
+            ->with(['items.product', 'customer', 'invoice'])
+            ->orderBy('created_at')
+            ->get();
+
+        $methodLabels = [
+            Payment::METHOD_CASH => 'Tunai',
+            Payment::METHOD_TRANSFER => 'Transfer',
+            Payment::METHOD_OTHER => 'Lainnya',
+        ];
+
+        $trxRows = [];
+        $products = [];
+        $customerIds = [];
+        $totalSales = 0.0;
+        $totalFreeQty = 0.0;
+        $outstanding = 0.0;
+
+        foreach ($transactions as $trx) {
+            $customerIds[$trx->customer_id] = true;
+            $totalSales += (float) $trx->total;
+
+            $invoice = $trx->invoice;
+            $statusLabel = $invoice ? match ($invoice->status) {
+                'paid' => 'Lunas',
+                'partial' => 'Sebagian',
+                default => 'Belum Bayar',
+            } : '-';
+            $left = $invoice && ! $invoice->isFullyPaid() ? $invoice->outstanding() : 0.0;
+            $outstanding += $left;
+
+            $items = [];
+            foreach ($trx->items as $line) {
+                $name = ($line->product->name ?? '-').($line->is_free ? ' (GRATIS)' : '');
+                $items[] = [
+                    'name' => $name,
+                    'quantity' => (float) $line->quantity,
+                    'price' => (float) $line->price,
+                    'subtotal' => (float) $line->subtotal,
+                    'is_free' => (bool) $line->is_free,
+                ];
+
+                $key = $line->product_id;
+                $products[$key] ??= ['name' => $line->product->name ?? '-', 'sold' => 0.0, 'free' => 0.0, 'amount' => 0.0];
+                if ($line->is_free) {
+                    $products[$key]['free'] += (float) $line->quantity;
+                    $totalFreeQty += (float) $line->quantity;
+                } else {
+                    $products[$key]['sold'] += (float) $line->quantity;
+                    $products[$key]['amount'] += (float) $line->subtotal;
+                }
+            }
+
+            $trxRows[] = [
+                'code' => $trx->code,
+                'time' => $trx->created_at->format('H:i'),
+                'customer' => $trx->customer->name ?? '-',
+                'items' => $items,
+                'total' => (float) $trx->total,
+                'status' => $statusLabel,
+                'outstanding' => $left,
+            ];
+        }
+
+        // Pembayaran yang DITERIMA Sales ini pada tanggal tsb (termasuk penagihan invoice hari lain).
+        $payments = Payment::query()
+            ->where('received_by', auth()->id())
+            ->whereDate('paid_at', $date->toDateString())
+            ->with('invoice.customer')
+            ->orderBy('id')
+            ->get();
+
+        $byMethod = [];
+        $paymentRows = [];
+        foreach ($payments as $pay) {
+            $label = $methodLabels[$pay->method] ?? ucfirst((string) $pay->method);
+            $byMethod[$label] = ($byMethod[$label] ?? 0) + (float) $pay->amount;
+            $paymentRows[] = [
+                'invoice' => $pay->invoice->code ?? '-',
+                'customer' => $pay->invoice?->customer?->name ?? '-',
+                'method' => $label,
+                'amount' => (float) $pay->amount,
+            ];
+        }
+
+        $report = [
+            'company_name' => $sales->branch?->company?->name,
+            'sales_name' => $sales->name,
+            'date' => $date->format('d/m/Y'),
+            'date_iso' => $date->toDateString(),
+            'printed_at' => now()->format('d/m/Y H:i'),
+            'summary' => [
+                'transactions' => count($trxRows),
+                'customers' => count($customerIds),
+                'total_sales' => round($totalSales, 2),
+                'free_qty' => round($totalFreeQty, 2),
+                'received' => round(array_sum($byMethod), 2),
+                'outstanding' => round($outstanding, 2),
+            ],
+            'transactions' => $trxRows,
+            'products' => array_values($products),
+            'payments' => $paymentRows,
+            'payments_by_method' => collect($byMethod)->map(fn ($amount, $label) => ['method' => $label, 'amount' => $amount])->values()->all(),
+        ];
+
+        return view('sales.transactions.daily', compact('report', 'date'));
     }
 }

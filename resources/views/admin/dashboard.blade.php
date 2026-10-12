@@ -33,6 +33,10 @@
                 'hint' => 'Semua kunjungan, termasuk yang transaksi'],
             ['label' => 'EC (Kunjungan + Transaksi)', 'value' => number_format($kpi['effective_call']), 'tone' => 'green', 'icon' => 'star', 'href' => null,
                 'hint' => $ecPercent.'% dari kunjungan'],
+            ['label' => 'EC Toko Baru', 'value' => number_format($kpi['ec_new']), 'tone' => 'violet', 'icon' => 'star', 'href' => null,
+                'hint' => 'Toko pertama kali order'],
+            ['label' => 'EC Toko Repeat', 'value' => number_format($kpi['ec_repeat']), 'tone' => 'teal', 'icon' => 'star', 'href' => null,
+                'hint' => 'Toko repeat order'],
             ['label' => 'Transaksi', 'value' => number_format($kpi['sales_count']), 'tone' => 'blue', 'icon' => 'cart', 'href' => null],
             ['label' => 'Penjualan', 'value' => $fmtRp($kpi['sales_total']), 'tone' => 'green', 'icon' => 'trend', 'href' => null],
             ['label' => 'Delivered', 'value' => number_format($kpi['do_delivered']), 'tone' => 'teal', 'icon' => 'truck',
@@ -390,6 +394,8 @@
                             <th>Sales</th>
                             <th class="is-num">Call Made (Total Kunjungan)</th>
                             <th class="is-num">EC (Kunjungan + Transaksi)</th>
+                            <th class="is-num">EC Toko Baru</th>
+                            <th class="is-num">EC Toko Repeat</th>
                             <th class="is-num">% EC</th>
                         </tr>
                     </thead>
@@ -405,6 +411,8 @@
                                     @if ($row['stores'] > 0)<p class="frm-meta">{{ number_format($row['stores'], 0, ',', '.') }} toko unik</p>@endif
                                 </td>
                                 <td data-label="EC" class="is-num"><span class="frm-num">{{ number_format($row['ec'], 0, ',', '.') }}</span></td>
+                                <td data-label="EC Toko Baru" class="is-num"><span class="frm-num">{{ number_format($row['ec_new'], 0, ',', '.') }}</span></td>
+                                <td data-label="EC Toko Repeat" class="is-num"><span class="frm-num">{{ number_format($row['ec_repeat'], 0, ',', '.') }}</span></td>
                                 <td data-label="% EC" class="is-num"><span class="frm-num">{{ $row['ec_pct'] }}%</span></td>
                             </tr>
                         @endforeach
@@ -414,6 +422,8 @@
                             <th>Total{{ $tblSalesId ? '' : ' Seluruh Sales' }}</th>
                             <th class="is-num"><span class="frm-num">{{ number_format($covTotals['call_made'], 0, ',', '.') }}</span></th>
                             <th class="is-num"><span class="frm-num">{{ number_format($covTotals['ec'], 0, ',', '.') }}</span></th>
+                            <th class="is-num"><span class="frm-num">{{ number_format($covTotals['ec_new'], 0, ',', '.') }}</span></th>
+                            <th class="is-num"><span class="frm-num">{{ number_format($covTotals['ec_repeat'], 0, ',', '.') }}</span></th>
                             <th class="is-num"><span class="frm-num">{{ $covTotals['ec_pct'] }}%</span></th>
                         </tr>
                     </tfoot>
@@ -422,6 +432,8 @@
             <p class="frm-hint" style="padding: .75rem 1rem; margin: 0">
                 1 call = 1 Sales + 1 toko + 1 hari. <strong>Call Made</strong> = total kunjungan (check-in), termasuk yang transaksi dan Toko Tutup;
                 <strong>EC</strong> = kunjungan yang di hari yang sama ada transaksi selesai ke toko itu;
+                <strong>EC Toko Baru</strong> = EC pada toko yang baru pertama kali order (transaksi selesai pertamanya di hari itu);
+                <strong>EC Toko Repeat</strong> = EC pada toko yang sebelumnya sudah pernah order;
                 <strong>% EC</strong> = EC dibagi Call Made. Angka ini sama dengan tabel Target &amp; Pencapaian.
                 Kunjungan berulang ke toko yang sama di hari yang sama dihitung 1 call.
             </p>

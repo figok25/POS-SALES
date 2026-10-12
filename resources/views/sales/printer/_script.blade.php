@@ -500,6 +500,70 @@ window.ThermalPrinter = window.ThermalPrinter || (function () {
         return b.toBytes();
     }
 
+    // Laporan penjualan harian Sales: ringkasan, detail tiap transaksi, rekap produk, pembayaran.
+    function buildDaily(payload, width) {
+        var b = new Builder(width);
+        var sum = payload.summary || {};
+        b.init().align('center').bold(true).line(payload.company_name || 'POS & Sales').bold(false);
+        b.bold(true).line('LAPORAN PENJUALAN HARIAN').bold(false);
+        b.align('left').divider();
+        b.twoCol('Tanggal', payload.date || '-');
+        b.twoCol('Sales', payload.sales_name || '-');
+        b.twoCol('Dicetak', payload.printed_at || '-');
+        b.divider('=');
+        b.bold(true).line('RINGKASAN').bold(false);
+        b.twoCol('Transaksi', String(sum.transactions || 0));
+        b.twoCol('Toko', String(sum.customers || 0));
+        b.bold(true).twoCol('Total Jual', 'Rp ' + money(sum.total_sales)).bold(false);
+        if (Number(sum.free_qty) > 0) b.twoCol('Barang Gratis', qty(sum.free_qty));
+        b.twoCol('Diterima', 'Rp ' + money(sum.received));
+        b.twoCol('Piutang', 'Rp ' + money(sum.outstanding));
+        b.divider('=');
+
+        var trx = payload.transactions || [];
+        b.bold(true).line('DETAIL TRANSAKSI').bold(false);
+        if (!trx.length) b.line('(tidak ada transaksi)');
+        trx.forEach(function (t, i) {
+            b.divider();
+            b.twoCol((i + 1) + '. ' + (t.code || '-'), t.time || '');
+            b.bold(true).wrap(t.customer || '-').bold(false);
+            (t.items || []).forEach(function (item) {
+                b.wrap(item.name || '-');
+                b.twoCol(qty(item.quantity) + ' x ' + money(item.price), 'Rp ' + money(item.subtotal));
+            });
+            b.bold(true).twoCol('Total', 'Rp ' + money(t.total)).bold(false);
+            b.twoCol('Status', t.status || '-');
+            if (Number(t.outstanding) > 0) b.twoCol('Sisa', 'Rp ' + money(t.outstanding));
+        });
+        b.divider('=');
+
+        var prods = payload.products || [];
+        b.bold(true).line('REKAP PRODUK').bold(false);
+        if (!prods.length) b.line('(kosong)');
+        prods.forEach(function (p) {
+            b.wrap(p.name || '-');
+            b.twoCol('  Terjual ' + qty(p.sold), 'Rp ' + money(p.amount));
+            if (Number(p.free) > 0) b.line('  Gratis ' + qty(p.free));
+        });
+        b.divider('=');
+
+        b.bold(true).line('PEMBAYARAN DITERIMA').bold(false);
+        var pays = payload.payments || [];
+        if (!pays.length) b.line('(belum ada)');
+        pays.forEach(function (p) {
+            b.wrap(p.customer || '-');
+            b.twoCol('  ' + (p.invoice || '') + ' ' + (p.method || ''), 'Rp ' + money(p.amount));
+        });
+        (payload.payments_by_method || []).forEach(function (m) {
+            b.twoCol('Total ' + m.method, 'Rp ' + money(m.amount));
+        });
+        b.bold(true).twoCol('TOTAL DITERIMA', 'Rp ' + money(sum.received)).bold(false);
+        b.divider();
+        b.align('center').line('Dicetak dari Sales App').feed(1);
+        b.cut();
+        return b.toBytes();
+    }
+
     function buildTest(payload, width) {
         var b = new Builder(width);
         b.init().align('center').bold(true).big(true).line('TEST PRINT').big(false).bold(false);
@@ -587,6 +651,10 @@ window.ThermalPrinter = window.ThermalPrinter || (function () {
         printStock: async function (payload) {
             await ensureConnected();
             await writeBytes(buildStock(payload, getWidth()));
+        },
+        printDaily: async function (payload) {
+            await ensureConnected();
+            await writeBytes(buildDaily(payload, getWidth()));
         },
         printTest: async function (payload) {
             await ensureConnected();
