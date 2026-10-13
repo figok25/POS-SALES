@@ -285,6 +285,7 @@
                             <th class="is-num">Program Gratis</th>
                             <th class="is-num">Nilai Produk Terjual</th>
                             <th class="is-num">Stok Kembali (BTB)</th>
+                            <th class="is-num">Total per Kategori</th>
                             <th class="is-num">Total Transaksi</th>
                         </tr>
                     </thead>
@@ -323,6 +324,13 @@
                                 <td data-label="Program Gratis" class="is-num"><span class="frm-num">{{ $fmtQty($row['free_qty']) }}</span></td>
                                 <td data-label="Nilai Produk" class="is-num"><span class="frm-num">{{ $fmtRp($row['sold_value']) }}</span></td>
                                 <td data-label="Stok Kembali" class="is-num"><span class="frm-num">{{ $fmtQty($row['returned_qty']) }}</span></td>
+                                <td data-label="Total per Kategori" class="is-num">
+                                    @forelse ($row['categories'] as $c)
+                                        <p class="frm-meta" style="margin:0"><strong>{{ $c['name'] }}</strong>: {{ $fmtQty($c['qty']) }} · {{ $fmtRp($c['value']) }}</p>
+                                    @empty
+                                        <span class="frm-dash">—</span>
+                                    @endforelse
+                                </td>
                                 <td data-label="Total Transaksi" class="is-num">
                                     <span class="frm-num is-strong">{{ $fmtRp($row['trx_total']) }}</span>
                                     <p class="frm-meta">{{ number_format($row['trx_count'], 0, ',', '.') }} transaksi</p>
@@ -331,7 +339,7 @@
                             @if (count($row['products']))
                                 {{-- Rincian per produk: dibawa, terjual, dan nilai terjual. --}}
                                 <tr class="perf-detail" data-perf-detail="{{ $row['id'] }}" hidden style="display: none">
-                                    <td colspan="7">
+                                    <td colspan="8">
                                         <div style="display:flex;gap:1.5rem;flex-wrap:wrap;align-items:flex-start">
                                         <table class="perf-sub" style="flex:2 1 420px">
                                             <thead>
@@ -390,6 +398,11 @@
                             <th class="is-num"><span class="frm-num">{{ $fmtQty($perfTotals['free_qty']) }}</span></th>
                             <th class="is-num"><span class="frm-num">{{ $fmtRp($perfTotals['sold_value']) }}</span></th>
                             <th class="is-num"><span class="frm-num">{{ $fmtQty($perfTotals['returned_qty']) }}</span></th>
+                            <th class="is-num">
+                                @foreach ($perfTotals['categories'] as $c)
+                                    <p class="frm-meta" style="margin:0"><strong>{{ $c['name'] }}</strong>: {{ $fmtQty($c['qty']) }} · {{ $fmtRp($c['value']) }}</p>
+                                @endforeach
+                            </th>
                             <th class="is-num">
                                 <span class="frm-num">{{ $fmtRp($perfTotals['trx_total']) }}</span>
                                 <p class="frm-meta">{{ number_format($perfTotals['trx_count'], 0, ',', '.') }} transaksi</p>

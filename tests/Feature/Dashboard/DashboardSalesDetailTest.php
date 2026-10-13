@@ -363,4 +363,45 @@ class DashboardSalesDetailTest extends TestCase
 
         $response->assertSee('Program Gratis');
     }
+
+    public function test_totals_are_split_per_product_category(): void
+    {
+        $branch = $this->makeBranch('CBG-K', 'Depo K');
+        [, $sales] = $this->makeSalesUser($branch);
+        $customer = $this->makeCustomer($sales->id);
+
+        $rokokCat = \App\Models\Category::create(['code' => 'ROK', 'name' => 'Rokok']);
+        $kopiCat = \App\Models\Category::create(['code' => 'KOP', 'name' => 'Kopi']);
+
+        $rokok = $this->makeProduct(12000);
+        $rokok->update(['category_id' => $rokokCat->id]);
+        $kopi = $this->makeProduct(2000);
+        $kopi->update(['category_id' => $kopiCat->id]);
+
+        $trx = $this->transaction($sales, $customer, [
+            ['product' => $rokok, 'qty' => 5, 'price' => 12000],
+            ['product' => $kopi, 'qty' => 10, 'price' => 2000],
+        ]);
+        SalesTransactionItem::create([
+            'sales_transaction_id' => $trx->id, 'product_id' => $kopi->id,
+            'quantity' => 2, 'price' => 0, 'subtotal' => 0, 'is_free' => true,
+        ]);
+
+        $response = $this->actingAs($this->makeAdminUser($branch))->get(route('admin.dashboard'))->assertOk();
+        $perf = $response->viewData('salesPerformance');
+        $row = $perf['rows']->firstWhere('id', $sales->id);
+
+        $cats = collect($row['categories'])->keyBy('name');
+        $this->assertEquals(5, $cats['Rokok']['qty']);
+        $this->assertEquals(60000, $cats['Rokok']['value']);
+        $this->assertEquals(10, $cats['Kopi']['qty']);   // gratis tidak dihitung
+        $this->assertEquals(20000, $cats['Kopi']['value']);
+        $this->assertEquals(80000, $row['trx_total']);
+
+        $totals = collect($perf['totals']['categories'])->keyBy('name');
+        $this->assertEquals(60000, $totals['Rokok']['value']);
+        $this->assertEquals(20000, $totals['Kopi']['value']);
+
+        $response->assertSee('Total per Kategori');
+    }
 }

@@ -403,6 +403,22 @@ class DashboardController extends Controller
             ->selectRaw('SUM(sales_transaction_items.subtotal) as sold_value')
             ->get();
 
+        // Total per KATEGORI produk (mis. Rokok, Kopi) -- hanya barang berbayar
+        // (qty dan nilai), terpisah dari total semua transaksi.
+        $byCategory = SalesTransactionItem::query()
+            ->join('sales_transactions', 'sales_transactions.id', '=', 'sales_transaction_items.sales_transaction_id')
+            ->join('products', 'products.id', '=', 'sales_transaction_items.product_id')
+            ->leftJoin('categories', 'categories.id', '=', 'products.category_id')
+            ->whereIn('sales_transactions.sales_id', $ids)
+            ->where('sales_transactions.status', SalesTransaction::STATUS_COMPLETED)
+            ->whereBetween('sales_transactions.created_at', [$from, $to])
+            ->groupBy('sales_transactions.sales_id', 'categories.name')
+            ->selectRaw('sales_transactions.sales_id as sales_id')
+            ->selectRaw("COALESCE(categories.name, 'Lainnya') as category_name")
+            ->selectRaw('SUM(CASE WHEN sales_transaction_items.is_free THEN 0 ELSE sales_transaction_items.quantity END) as qty')
+            ->selectRaw('SUM(sales_transaction_items.subtotal) as cat_value')
+            ->get();
+
         // Stok kembali = jumlah barang yang diretur Sales lewat BTB Distribusi
         // (Return Stock) pada periode ini. Semua BTB yang diinput Sales ikut
         // dihitung kecuali yang dibatalkan.
@@ -456,6 +472,9 @@ class DashboardController extends Controller
             'free_qty' => (float) ($sold[$s->id]->free_qty ?? 0),
             'sold_value' => (float) ($sold[$s->id]->sold_value ?? 0),
             'returned_qty' => (float) $returnedByProduct->where('sales_id', $s->id)->sum('qty'),
+            'categories' => $byCategory->where('sales_id', $s->id)
+                ->map(fn ($c) => ['name' => $c->category_name, 'qty' => (float) $c->qty, 'value' => (float) $c->cat_value])
+                ->sortBy('name')->values()->all(),
             'trx_count' => (int) ($trx[$s->id]->trx_count ?? 0),
             'trx_total' => (float) ($trx[$s->id]->trx_total ?? 0),
         ])->sortBy([['trx_total', 'desc'], ['name', 'asc']])->values();
@@ -468,6 +487,9 @@ class DashboardController extends Controller
                 'free_qty' => $rows->sum('free_qty'),
                 'sold_value' => $rows->sum('sold_value'),
                 'returned_qty' => $rows->sum('returned_qty'),
+                'categories' => $byCategory->groupBy('category_name')
+                    ->map(fn ($g, $name) => ['name' => $name, 'qty' => (float) $g->sum('qty'), 'value' => (float) $g->sum('cat_value')])
+                    ->sortBy('name')->values()->all(),
                 'trx_count' => $rows->sum('trx_count'),
                 'trx_total' => $rows->sum('trx_total'),
             ],
