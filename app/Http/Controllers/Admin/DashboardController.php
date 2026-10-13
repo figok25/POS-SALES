@@ -362,7 +362,8 @@ class DashboardController extends Controller
             ->whereBetween('sales_transactions.created_at', [$from, $to])
             ->groupBy('sales_transactions.sales_id')
             ->selectRaw('sales_transactions.sales_id as sales_id')
-            ->selectRaw('SUM(sales_transaction_items.quantity) as qty')
+            ->selectRaw('SUM(CASE WHEN sales_transaction_items.is_free THEN 0 ELSE sales_transaction_items.quantity END) as qty')
+            ->selectRaw('SUM(CASE WHEN sales_transaction_items.is_free THEN sales_transaction_items.quantity ELSE 0 END) as free_qty')
             ->selectRaw('SUM(sales_transaction_items.subtotal) as sold_value')
             ->get()
             ->keyBy('sales_id');
@@ -397,7 +398,8 @@ class DashboardController extends Controller
             ->whereBetween('sales_transactions.created_at', [$from, $to])
             ->groupBy('sales_transactions.sales_id', 'sales_transaction_items.product_id')
             ->selectRaw('sales_transactions.sales_id as sales_id, sales_transaction_items.product_id as product_id')
-            ->selectRaw('SUM(sales_transaction_items.quantity) as qty')
+            ->selectRaw('SUM(CASE WHEN sales_transaction_items.is_free THEN 0 ELSE sales_transaction_items.quantity END) as qty')
+            ->selectRaw('SUM(CASE WHEN sales_transaction_items.is_free THEN sales_transaction_items.quantity ELSE 0 END) as free_qty')
             ->selectRaw('SUM(sales_transaction_items.subtotal) as sold_value')
             ->get();
 
@@ -423,6 +425,7 @@ class DashboardController extends Controller
         }
         foreach ($soldByProduct as $r) {
             $productLines[$r->sales_id][$r->product_id]['sold_qty'] = (float) $r->qty;
+            $productLines[$r->sales_id][$r->product_id]['free_qty'] = (float) $r->free_qty;
             $productLines[$r->sales_id][$r->product_id]['sold_value'] = (float) $r->sold_value;
         }
 
@@ -440,6 +443,7 @@ class DashboardController extends Controller
                     'sku' => $productNames[$productId]->sku ?? null,
                     'carried_qty' => (float) ($line['carried_qty'] ?? 0),
                     'sold_qty' => (float) ($line['sold_qty'] ?? 0),
+                    'free_qty' => (float) ($line['free_qty'] ?? 0),
                     'sold_value' => (float) ($line['sold_value'] ?? 0),
                     'returned_qty' => (float) ($line['returned_qty'] ?? 0),
                 ])
@@ -449,6 +453,7 @@ class DashboardController extends Controller
             'carried_qty' => (float) ($carried[$s->id]->qty ?? 0),
             'carried_products' => (int) ($carried[$s->id]->products ?? 0),
             'sold_qty' => (float) ($sold[$s->id]->qty ?? 0),
+            'free_qty' => (float) ($sold[$s->id]->free_qty ?? 0),
             'sold_value' => (float) ($sold[$s->id]->sold_value ?? 0),
             'returned_qty' => (float) $returnedByProduct->where('sales_id', $s->id)->sum('qty'),
             'trx_count' => (int) ($trx[$s->id]->trx_count ?? 0),
@@ -460,6 +465,7 @@ class DashboardController extends Controller
             'totals' => [
                 'carried_qty' => $rows->sum('carried_qty'),
                 'sold_qty' => $rows->sum('sold_qty'),
+                'free_qty' => $rows->sum('free_qty'),
                 'sold_value' => $rows->sum('sold_value'),
                 'returned_qty' => $rows->sum('returned_qty'),
                 'trx_count' => $rows->sum('trx_count'),

@@ -332,4 +332,35 @@ class DashboardSalesDetailTest extends TestCase
         $this->assertEquals(9, collect($row['products'])->firstWhere('product_id', $productA->id)['returned_qty']);
         $this->assertEquals(3, collect($row['products'])->firstWhere('product_id', $productB->id)['returned_qty']);
     }
+    public function test_free_program_items_are_separated_from_paid_sold_qty(): void
+    {
+        $branch = $this->makeBranch('CBG-F', 'Depo F');
+        [, $sales] = $this->makeSalesUser($branch);
+        $customer = $this->makeCustomer($sales->id);
+        $product = $this->makeProduct(2000);
+
+        $trx = $this->transaction($sales, $customer, [['product' => $product, 'qty' => 10, 'price' => 2000]]);
+        SalesTransactionItem::create([
+            'sales_transaction_id' => $trx->id,
+            'product_id' => $product->id,
+            'quantity' => 3,
+            'price' => 0,
+            'subtotal' => 0,
+            'is_free' => true,
+        ]);
+
+        $response = $this->actingAs($this->makeAdminUser($branch))->get(route('admin.dashboard'))->assertOk();
+        $perf = $response->viewData('salesPerformance');
+        $row = $perf['rows']->firstWhere('id', $sales->id);
+
+        $this->assertEquals(10, $row['sold_qty']);   // hanya berbayar
+        $this->assertEquals(3, $row['free_qty']);
+        $this->assertEquals(20000, $row['sold_value']);
+        $this->assertEquals(10, $row['products'][0]['sold_qty']);
+        $this->assertEquals(3, $row['products'][0]['free_qty']);
+        $this->assertEquals(10, $perf['totals']['sold_qty']);
+        $this->assertEquals(3, $perf['totals']['free_qty']);
+
+        $response->assertSee('Program Gratis');
+    }
 }

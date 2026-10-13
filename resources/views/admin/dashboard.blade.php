@@ -282,6 +282,7 @@
                             <th>Sales</th>
                             <th class="is-num">Stok Dibawa</th>
                             <th class="is-num">Produk Terjual</th>
+                            <th class="is-num">Program Gratis</th>
                             <th class="is-num">Nilai Produk Terjual</th>
                             <th class="is-num">Stok Kembali (BTB)</th>
                             <th class="is-num">Total Transaksi</th>
@@ -316,9 +317,10 @@
                                 <td data-label="Produk Terjual" class="is-num">
                                     <span class="frm-num">{{ $fmtQty($row['sold_qty']) }}</span>
                                     @if ($row['carried_qty'] > 0)
-                                        <p class="frm-meta">{{ round($row['sold_qty'] / $row['carried_qty'] * 100) }}% dari stok</p>
+                                        <p class="frm-meta">{{ round(($row['sold_qty'] + $row['free_qty']) / $row['carried_qty'] * 100) }}% stok keluar</p>
                                     @endif
                                 </td>
+                                <td data-label="Program Gratis" class="is-num"><span class="frm-num">{{ $fmtQty($row['free_qty']) }}</span></td>
                                 <td data-label="Nilai Produk" class="is-num"><span class="frm-num">{{ $fmtRp($row['sold_value']) }}</span></td>
                                 <td data-label="Stok Kembali" class="is-num"><span class="frm-num">{{ $fmtQty($row['returned_qty']) }}</span></td>
                                 <td data-label="Total Transaksi" class="is-num">
@@ -329,8 +331,9 @@
                             @if (count($row['products']))
                                 {{-- Rincian per produk: dibawa, terjual, dan nilai terjual. --}}
                                 <tr class="perf-detail" data-perf-detail="{{ $row['id'] }}" hidden style="display: none">
-                                    <td colspan="6">
-                                        <table class="perf-sub">
+                                    <td colspan="7">
+                                        <div style="display:flex;gap:1.5rem;flex-wrap:wrap;align-items:flex-start">
+                                        <table class="perf-sub" style="flex:2 1 420px">
                                             <thead>
                                                 <tr>
                                                     <th>Produk</th>
@@ -352,6 +355,28 @@
                                                 @endforeach
                                             </tbody>
                                         </table>
+
+                                        {{-- Tabel terpisah: barang gratis dari Program Beli X Gratis Y. --}}
+                                        @php $freeLines = collect($row['products'])->filter(fn ($p) => $p['free_qty'] > 0); @endphp
+                                        <table class="perf-sub" style="flex:1 1 220px">
+                                            <thead>
+                                                <tr>
+                                                    <th>Program Gratis</th>
+                                                    <th class="is-num">Gratis</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @forelse ($freeLines as $p)
+                                                    <tr>
+                                                        <td>{{ $p['name'] }}@if ($p['sku']) <span class="frm-meta">({{ $p['sku'] }})</span>@endif</td>
+                                                        <td class="is-num">{{ $fmtQty($p['free_qty']) }}</td>
+                                                    </tr>
+                                                @empty
+                                                    <tr><td colspan="2"><span class="frm-dash">Tidak ada barang gratis</span></td></tr>
+                                                @endforelse
+                                            </tbody>
+                                        </table>
+                                        </div>
                                     </td>
                                 </tr>
                             @endif
@@ -362,6 +387,7 @@
                             <th>Total{{ $tblSalesId ? '' : ' Seluruh Sales' }}</th>
                             <th class="is-num"><span class="frm-num">{{ $fmtQty($perfTotals['carried_qty']) }}</span></th>
                             <th class="is-num"><span class="frm-num">{{ $fmtQty($perfTotals['sold_qty']) }}</span></th>
+                            <th class="is-num"><span class="frm-num">{{ $fmtQty($perfTotals['free_qty']) }}</span></th>
                             <th class="is-num"><span class="frm-num">{{ $fmtRp($perfTotals['sold_value']) }}</span></th>
                             <th class="is-num"><span class="frm-num">{{ $fmtQty($perfTotals['returned_qty']) }}</span></th>
                             <th class="is-num">
