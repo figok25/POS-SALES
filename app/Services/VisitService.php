@@ -57,7 +57,7 @@ class VisitService
             ]);
         }
 
-        $this->assertDailyQuota($salesId, $customerId);
+        $this->assertWeeklyQuota($salesId, $customerId);
 
         if (! $customer->hasLocation()) {
             throw ValidationException::withMessages([
@@ -120,40 +120,44 @@ class VisitService
     }
 
     /**
-     * Kuota kunjungan: SATU kali per toko per hari (per Sales). Kunjungan yang
-     * hasilnya "Toko Tutup" TIDAK menghabiskan kuota: Sales boleh kunjungan ulang
-     * satu kali di hari yang sama. Kalau kunjungan ulang itu pun tutup (atau
-     * kunjungan pertama bukan tutup), kuota habis sampai besok.
+     * Kuota kunjungan: SATU kali per toko per MINGGU (Senin-Minggu, per Sales).
+     * Toko boleh dikunjungi di hari mana pun, tidak terkunci di hari jadwal
+     * Rute Kanvas-nya; yang dibatasi hanya frekuensinya. Kunjungan yang hasilnya
+     * "Toko Tutup" TIDAK menghabiskan kuota: Sales boleh kunjungan ulang satu kali
+     * di minggu yang sama. Kalau kunjungan ulang itu pun tutup (atau kunjungan
+     * pertama bukan tutup), kuota habis sampai minggu depan.
      */
-    private function assertDailyQuota(int $salesId, int $customerId): void
+    private function assertWeeklyQuota(int $salesId, int $customerId): void
     {
         $visits = Visit::query()
             ->where('sales_id', $salesId)
             ->where('customer_id', $customerId)
-            ->whereDate('check_in_at', now()->toDateString())
+            ->whereBetween('check_in_at', [now()->startOfWeek(), now()->endOfWeek()])
             ->orderBy('id')
-            ->get(['id', 'customer_id', 'check_in_condition']);
+            ->get(['id', 'customer_id', 'check_in_at', 'check_in_condition']);
 
         if (self::quotaAllows($visits)) {
             return;
         }
 
+        $last = $visits->last()->check_in_at;
+
         throw ValidationException::withMessages([
             'customer_id' => $visits->count() >= 2
-                ? 'Kuota kunjungan toko ini hari ini sudah habis (kunjungan ulang setelah Toko Tutup sudah dipakai).'
-                : 'Toko ini sudah Anda kunjungi hari ini. Kunjungan ulang hanya diizinkan bila kunjungan sebelumnya Toko Tutup.',
+                ? 'Kuota kunjungan toko ini minggu ini sudah habis (kunjungan ulang setelah Toko Tutup sudah dipakai). Bisa dikunjungi lagi mulai Senin depan.'
+                : 'Toko ini sudah Anda kunjungi minggu ini ('.$last->format('d/m').'). Satu toko hanya bisa dikunjungi sekali per minggu, kecuali kunjungan sebelumnya Toko Tutup.',
         ]);
     }
 
-    /** Boleh check-in lagi? (belum ada kunjungan hari ini, atau satu-satunya kunjungan = Toko Tutup) */
-    private static function quotaAllows(Collection $visitsToday): bool
+    /** Boleh check-in lagi? (belum ada kunjungan minggu ini, atau satu-satunya kunjungan = Toko Tutup) */
+    private static function quotaAllows(Collection $visitsThisWeek): bool
     {
-        return $visitsToday->isEmpty()
-            || ($visitsToday->count() === 1 && $visitsToday->first()->check_in_condition === Visit::CONDITION_CLOSED);
+        return $visitsThisWeek->isEmpty()
+            || ($visitsThisWeek->count() === 1 && $visitsThisWeek->first()->check_in_condition === Visit::CONDITION_CLOSED);
     }
 
     /**
-     * ID Customer yang kuota kunjungannya hari ini sudah habis, supaya daftar
+     * ID Customer yang kuota kunjungannya MINGGU INI sudah habis, supaya daftar
      * toko di form Check-in tidak menawarkan toko yang pasti ditolak.
      *
      * @return array<int, int>
@@ -162,7 +166,7 @@ class VisitService
     {
         return Visit::query()
             ->where('sales_id', $salesId)
-            ->whereDate('check_in_at', now()->toDateString())
+            ->whereBetween('check_in_at', [now()->startOfWeek(), now()->endOfWeek()])
             ->orderBy('id')
             ->get(['id', 'customer_id', 'check_in_condition'])
             ->groupBy('customer_id')

@@ -13,7 +13,7 @@ use Tests\TestCase;
 
 /**
  * Aturan kunjungan:
- *  - Kuota: SATU kunjungan per toko per hari. Toko Tutup tidak menghabiskan
+ *  - Kuota: SATU kunjungan per toko per MINGGU (Senin-Minggu), di hari mana pun. Toko Tutup tidak menghabiskan
  *    kuota: boleh SATU kunjungan ulang bila kunjungan sebelumnya Toko Tutup.
  *  - Transaksi di lapangan wajib sedang Check-in di toko yang sama (toko tutup
  *    tidak bisa bertransaksi).
@@ -83,7 +83,7 @@ class VisitQuotaTest extends TestCase
 
     // ----------------------------------------------------------------- kuota
 
-    public function test_second_visit_to_same_store_on_same_day_is_blocked(): void
+    public function test_second_visit_to_same_store_in_the_same_week_is_blocked(): void
     {
         [$user, , $a] = $this->salesWithTwoStores();
 
@@ -135,7 +135,7 @@ class VisitQuotaTest extends TestCase
         $this->checkIn($user, $a)->assertSessionHasErrors('customer_id');
     }
 
-    public function test_quota_is_per_store_and_resets_the_next_day(): void
+    public function test_quota_is_per_store_and_resets_the_next_week(): void
     {
         [$user, $sales, $a, $b] = $this->salesWithTwoStores();
 
@@ -146,14 +146,14 @@ class VisitQuotaTest extends TestCase
         $this->checkIn($user, $b)->assertSessionHasNoErrors();
         $this->checkOut($user, $this->lastVisit());
 
-        // Kunjungan kemarin tidak menghabiskan kuota hari ini.
+        // Kunjungan minggu lalu tidak menghabiskan kuota minggu ini.
         $yesterday = $this->makeCustomer($sales->id);
         $yesterday->forceFill(['latitude' => self::LAT, 'longitude' => self::LNG])->save();
         Visit::create([
             'sales_id' => $sales->id,
             'customer_id' => $yesterday->id,
-            'check_in_at' => now()->subDay(),
-            'check_out_at' => now()->subDay()->addMinutes(10),
+            'check_in_at' => now()->subWeek(),
+            'check_out_at' => now()->subWeek()->addMinutes(10),
             'check_in_condition' => Visit::CONDITION_NORMAL,
             'status' => Visit::STATUS_COMPLETED,
         ]);
@@ -173,7 +173,7 @@ class VisitQuotaTest extends TestCase
             ->assertOk()
             ->assertDontSee('Toko Alfa Makmur')
             ->assertSee('Toko Beta Sentosa')
-            ->assertSee('sudah Anda kunjungi hari ini');
+            ->assertSee('sudah Anda kunjungi minggu ini');
     }
 
     public function test_check_in_form_still_offers_a_closed_store_for_the_one_revisit(): void
@@ -187,6 +187,65 @@ class VisitQuotaTest extends TestCase
             ->get(route('sales.visits.create'))
             ->assertOk()
             ->assertSee('Toko Alfa Makmur');
+    }
+
+    public function test_store_visited_earlier_this_week_is_blocked_even_on_another_day(): void
+    {
+        [$user, $sales, $a] = $this->salesWithTwoStores();
+
+        // Kunjungan di awal minggu ini (Senin 00:00 selalu dalam minggu yang sama).
+        Visit::create([
+            'sales_id' => $sales->id,
+            'customer_id' => $a->id,
+            'check_in_at' => now()->startOfWeek()->addMinute(),
+            'check_out_at' => now()->startOfWeek()->addMinutes(15),
+            'check_in_condition' => Visit::CONDITION_NORMAL,
+            'status' => Visit::STATUS_COMPLETED,
+        ]);
+
+        $this->checkIn($user, $a)->assertSessionHasErrors('customer_id');
+        $this->assertSame(1, Visit::count());
+    }
+
+    public function test_store_scheduled_on_another_day_can_be_visited_and_is_searchable(): void
+    {
+        [$user, $sales, $a, $b] = $this->salesWithTwoStores();
+
+        $otherDay = now()->dayOfWeekIso === 1 ? 2 : 1;
+        $todayDay = now()->dayOfWeekIso;
+
+        // A dijadwalkan hari lain, B dijadwalkan hari ini.
+        \App\Models\SalesVisitPlan::create(['sales_id' => $sales->id, 'customer_id' => $a->id, 'day_of_week' => $otherDay, 'sequence' => 1]);
+        \App\Models\SalesVisitPlan::create(['sales_id' => $sales->id, 'customer_id' => $b->id, 'day_of_week' => $todayDay, 'sequence' => 1]);
+
+        $this->actingAs($user)
+            ->get(route('sales.visits.create'))
+            ->assertOk()
+            ->assertSee('Toko Alfa Makmur')
+            ->assertSee('Toko Beta Sentosa')
+            ->assertSee('Jadwal hari ini');
+
+        // Toko jadwal hari lain boleh di-check-in hari ini.
+        $this->checkIn($user, $a)->assertSessionHasNoErrors();
+        $this->assertSame(1, Visit::count());
+    }
+
+    public function test_check_in_form_lists_todays_route_stores_first(): void
+    {
+        [$user, $sales, $a, $b] = $this->salesWithTwoStores();
+
+        $otherDay = now()->dayOfWeekIso === 1 ? 2 : 1;
+        \App\Models\SalesVisitPlan::create(['sales_id' => $sales->id, 'customer_id' => $a->id, 'day_of_week' => $otherDay, 'sequence' => 1]);
+        \App\Models\SalesVisitPlan::create(['sales_id' => $sales->id, 'customer_id' => $b->id, 'day_of_week' => now()->dayOfWeekIso, 'sequence' => 1]);
+
+        $names = $this->actingAs($user)
+            ->get(route('sales.visits.create'))
+            ->assertOk()
+            ->viewData('customers')
+            ->pluck('name')
+            ->all();
+
+        $this->assertSame(['Toko Beta Sentosa', 'Toko Alfa Makmur'], $names);
     }
 
     // ------------------------------------------------- wajib check-in transaksi

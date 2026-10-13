@@ -36,32 +36,30 @@
         </div>
     @endif
 
-    @if ($customers->isEmpty() && ($quotaBlockedCount > 0 || ! $usingFallback))
+    @if ($customers->isEmpty())
         <div class="bg-white rounded-lg shadow p-4 text-sm text-gray-500">
             @if ($quotaBlockedCount > 0)
-                Semua toko di Rute Kanvas hari ini sudah Anda kunjungi ({{ $quotaBlockedCount }} toko). Satu toko hanya bisa dikunjungi sekali per hari, kecuali kunjungan sebelumnya Toko Tutup.
+                Semua toko Anda sudah dikunjungi minggu ini ({{ $quotaBlockedCount }} toko). Satu toko hanya bisa dikunjungi sekali per minggu, kecuali kunjungan sebelumnya Toko Tutup.
             @else
-                Tidak ada toko terjadwal untuk dikunjungi hari ini di Rute Kanvas Anda.
+                Belum ada toko yang di-assign ke Anda.
             @endif
         </div>
     @else
         @if ($quotaBlockedCount > 0)
             <div class="mb-3 p-3 bg-blue-50 text-blue-800 rounded text-xs">
-                {{ $quotaBlockedCount }} toko tidak ditampilkan karena sudah Anda kunjungi hari ini.
+                {{ $quotaBlockedCount }} toko tidak ditampilkan karena sudah Anda kunjungi minggu ini (1 toko 1 kali per minggu).
             </div>
         @endif
-        @if ($usingFallback)
-            <div class="mb-3 p-3 bg-amber-50 text-amber-800 rounded text-xs">
-                Rute Kanvas Anda belum pernah diatur Admin -- daftar di bawah menampilkan semua toko yang di-assign ke Anda untuk sementara.
-            </div>
-        @endif
+        <div class="mb-3 p-3 bg-gray-50 text-gray-600 rounded text-xs">
+            Semua toko Anda bisa dikunjungi kapan saja (tidak terkunci di hari jadwalnya), tetapi 1 toko hanya 1 kali per minggu. Toko jadwal hari ini ada di urutan atas; toko lain bisa dicari lewat kolom cari.
+        </div>
     <form method="POST" action="{{ route('sales.visits.store') }}" onsubmit="return isiLokasi(event)" class="bg-white rounded-lg shadow p-4 space-y-3">
         @csrf
         <div>
             <label class="block text-sm text-gray-600 mb-1">Pilih Customer</label>
             <x-searchable-select
                 name="customer_id"
-                :options="$customers->map(fn ($c) => ['id' => $c->id, 'label' => $c->name . ($c->code ? ' (' . $c->code . ')' : '')])"
+                :options="$customers->map(fn ($c) => ['id' => $c->id, 'label' => $c->name . ($c->code ? ' (' . $c->code . ')' : '') . ' · ' . $scheduleNote($c)])"
                 placeholder="Cari nama atau kode customer..."
                 required
             />

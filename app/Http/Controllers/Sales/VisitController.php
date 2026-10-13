@@ -6,7 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Sales\Concerns\ResolvesCurrentSales;
 use App\Http\Requests\Sales\VisitCheckInRequest;
 use App\Http\Requests\Sales\VisitCheckOutRequest;
+use App\Models\Customer;
+use App\Models\CustomerAssignment;
 use App\Models\PromoItem;
+use App\Models\SalesVisitPlan;
 use App\Models\Visit;
 use App\Services\SalesRouteMapService;
 use App\Services\VisitService;
@@ -42,32 +45,60 @@ class VisitController extends Controller
     }
 
     /**
-     * PERBAIKAN: sebelumnya menampilkan SEMUA Customer yang di-assign ke
-     * Sales (+ yang belum di-assign ke siapapun), tanpa peduli hari.
-     * Akibatnya Sales bisa check-in ke toko jadwal hari lain di hari yang
-     * salah. Sekarang dropdown Check-in dibatasi ke Rute Kanvas HARI INI
-     * saja, memakai service yang sama dengan Peta Customer (SalesRouteMapService)
-     * supaya kedua fitur selalu konsisten -- termasuk toko hasil Tagging
-     * yang baru di-approve untuk hari ini (lihat CustomerTaggingService::
-     * autoAddToVisitPlan()).
+     * Daftar toko di form Check-in: SEMUA toko aktif milik Sales ini, bukan hanya
+     * Rute Kanvas hari ini (toko jadwal hari lain boleh dikunjungi lebih awal/akhir).
+     * Yang dibatasi hanya kuotanya: 1 kunjungan per toko per minggu (lihat
+     * VisitService::assertWeeklyQuota). Toko jadwal hari ini ditaruh paling atas;
+     * toko lain diberi keterangan hari jadwalnya dan tetap bisa dicari lewat kolom cari.
      */
     public function create()
     {
         $sales = $this->currentSales();
 
-        $today = now()->dayOfWeekIso;
-        [$customers, $usingFallback] = $this->routeMapService->customersForDay($sales->id, $today);
+        $assignedIds = CustomerAssignment::where('sales_id', $sales->id)
+            ->whereNull('unassigned_at')
+            ->pluck('customer_id');
 
-        // Toko yang kuota kunjungannya hari ini sudah habis (sudah dikunjungi, dan
-        // bukan Toko Tutup) tidak ditawarkan lagi di daftar.
+        $all = Customer::query()
+            ->where('is_active', true)
+            ->where(fn ($q) => $q->where('sales_id', $sales->id)->orWhereIn('id', $assignedIds))
+            ->orderBy('name')
+            ->get();
+
+        // Jadwal Rute Kanvas per toko: [customer_id => [hari ISO, ...]].
+        $planDays = SalesVisitPlan::where('sales_id', $sales->id)->get(['customer_id', 'day_of_week'])
+            ->groupBy('customer_id')
+            ->map(fn ($rows) => $rows->pluck('day_of_week')->map(fn ($d) => (int) $d)->sort()->values()->all());
+
+        $today = now()->dayOfWeekIso;
+        [$todayRoute] = $this->routeMapService->customersForDay($sales->id, $today);
+        $todayIds = $todayRoute->pluck('id')->all();
+
+        // Toko yang kuota minggu ini sudah habis (sudah dikunjungi, dan bukan Toko Tutup)
+        // tidak ditawarkan lagi di daftar.
         $exhausted = $this->service->quotaExhaustedCustomerIds($sales->id);
-        $quotaBlockedCount = $customers->whereIn('id', $exhausted)->count();
-        $customers = $customers->reject(fn ($c) => in_array((int) $c->id, $exhausted, true))->values();
+        $quotaBlockedCount = $all->whereIn('id', $exhausted)->count();
+        $all = $all->reject(fn ($c) => in_array((int) $c->id, $exhausted, true));
+
+        // Urutan: jadwal hari ini (sesuai urutan rute) dulu, lalu toko lain menurut nama.
+        $customers = $all->filter(fn ($c) => in_array($c->id, $todayIds, true))
+            ->sortBy(fn ($c) => array_search($c->id, $todayIds, true))
+            ->concat($all->reject(fn ($c) => in_array($c->id, $todayIds, true)))
+            ->values();
+
+        $dayNames = [1 => 'Senin', 2 => 'Selasa', 3 => 'Rabu', 4 => 'Kamis', 5 => 'Jumat', 6 => 'Sabtu', 7 => 'Minggu'];
+        $scheduleNote = fn ($c) => in_array($c->id, $todayIds, true)
+            ? 'Jadwal hari ini'
+            : (isset($planDays[$c->id]) && $planDays[$c->id]
+                ? 'Jadwal '.collect($planDays[$c->id])->map(fn ($d) => $dayNames[$d])->implode('/')
+                : 'Tanpa jadwal');
+
+        $usingFallback = false;
 
         // Item Promosi/POSM aktif (dikelola Admin) yang dicentang Sales saat check-in.
         $promoItems = PromoItem::active()->ordered()->get();
 
-        return view('sales.visits.create', compact('customers', 'usingFallback', 'promoItems', 'quotaBlockedCount'));
+        return view('sales.visits.create', compact('customers', 'usingFallback', 'promoItems', 'quotaBlockedCount', 'scheduleNote'));
     }
 
     public function store(VisitCheckInRequest $request)
