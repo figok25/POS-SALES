@@ -9,6 +9,7 @@ use App\Models\Sales;
 use App\Models\SalesTask;
 use App\Models\SalesTransaction;
 use App\Models\Visit;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
 /**
@@ -49,12 +50,39 @@ class KpiAchievementService
     }
 
     /**
-     * @return array{period:KpiPeriod,products:Collection,rows:array<int,array>,totals:array}
+     * Tanggal valid di dalam periode (untuk filter per hari), atau null bila
+     * kosong/tidak valid/di luar periode = tampilkan satu periode penuh.
      */
-    public function build(KpiPeriod $period, ?int $onlySalesId = null): array
+    public function resolveDay(KpiPeriod $period, ?string $value): ?Carbon
     {
-        $startDate = $period->start_date->copy()->startOfDay();
-        $endDate = $period->end_date->copy()->endOfDay();
+        if (! $value) {
+            return null;
+        }
+
+        try {
+            $day = Carbon::createFromFormat('Y-m-d', $value)->startOfDay();
+        } catch (\Throwable) {
+            return null;
+        }
+
+        $inside = $day->toDateString() >= $period->start_date->toDateString()
+            && $day->toDateString() <= $period->end_date->toDateString();
+
+        return $inside ? $day : null;
+    }
+
+    /**
+     * @param  Carbon|null  $day  bila diisi (harus di dalam periode), Actual hanya dihitung
+     *                            untuk hari itu. Target TIDAK dibagi: tetap target periode
+     *                            (hanya tampilan pencapaian per hari).
+     * @return array{period:KpiPeriod,products:Collection,rows:array<int,array>,totals:array,day:?Carbon}
+     */
+    public function build(KpiPeriod $period, ?int $onlySalesId = null, ?Carbon $day = null): array
+    {
+        $day = $day ? $this->resolveDay($period, $day->toDateString()) : null;
+
+        $startDate = ($day ?? $period->start_date)->copy()->startOfDay();
+        $endDate = ($day ?? $period->end_date)->copy()->endOfDay();
 
         $salesList = Sales::query()
             ->where('branch_id', $period->branch_id)
@@ -129,7 +157,8 @@ class KpiAchievementService
 
         SalesTask::query()
             ->whereIn('sales_id', $salesIds)
-            ->whereBetween('task_date', [$period->start_date->toDateString(), $period->end_date->toDateString()])
+            ->whereDate('task_date', '>=', $startDate->toDateString())
+            ->whereDate('task_date', '<=', $endDate->toDateString())
             ->whereNotIn('status', config('kpi.absent_task_statuses'))
             ->get(['id', 'sales_id', 'task_date'])
             ->each(function (SalesTask $task) use (&$attendance, $workingDays) {
@@ -181,6 +210,7 @@ class KpiAchievementService
             'products' => $kpiProducts,
             'rows' => $rows,
             'totals' => $totals,
+            'day' => $day,
         ];
     }
 

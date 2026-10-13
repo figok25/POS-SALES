@@ -39,13 +39,15 @@ class KpiController extends Controller
             ?? $periods->first(fn (KpiPeriod $p) => today()->between($p->start_date, $p->end_date))
             ?? $periods->first();
 
-        $result = $selected ? $this->service->build($selected) : null;
+        $day = $selected ? $this->service->resolveDay($selected, $request->query('date')) : null;
+        $result = $selected ? $this->service->build($selected, null, $day) : null;
 
         $branches = $ctx->isAll() ? Branch::where('is_active', true)->orderBy('name')->get(['id', 'name']) : collect();
 
         return view('admin.sales.kpi.index', [
             'periods' => $periods,
             'selected' => $selected,
+            'day' => $day,
             'result' => $result,
             'branches' => $branches,
             'isAll' => $ctx->isAll(),
@@ -153,11 +155,12 @@ class KpiController extends Controller
         return redirect()->route('admin.sales.kpi.index')->with('status', 'Periode dihapus.');
     }
 
-    public function export(KpiPeriod $period)
+    public function export(Request $request, KpiPeriod $period)
     {
         $this->guard($period);
 
-        $result = $this->service->build($period);
+        $day = $this->service->resolveDay($period, $request->query('date'));
+        $result = $this->service->build($period, null, $day);
         $products = $result['products'];
 
         $columns = ['No', 'Sales',
@@ -196,8 +199,8 @@ class KpiController extends Controller
         $rows[] = $total;
 
         return ExcelTableExport::download(
-            'Target & Pencapaian '.$period->name,
-            ($period->branch->name ?? '').' | '.$period->rangeLabel(),
+            'Target & Pencapaian '.$period->name.($day ? ' '.$day->format('d-m-Y') : ''),
+            ($period->branch->name ?? '').' | '.($day ? $day->translatedFormat('l, d M Y').' (pencapaian per hari)' : $period->rangeLabel()),
             $columns,
             $rows,
             [],

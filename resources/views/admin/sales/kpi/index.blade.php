@@ -17,7 +17,7 @@
                     <a href="{{ route('admin.sales.kpi.products.index') }}" class="adm-btn adm-btn-ghost adm-btn-sm">Produk KPI</a>
                 @endcan
                 @if ($selected)
-                    <a href="{{ route('admin.sales.kpi.export', $selected) }}" class="adm-btn adm-btn-ghost adm-btn-sm">Ekspor Excel</a>
+                    <a href="{{ route('admin.sales.kpi.export', array_filter(['period' => $selected->id, 'date' => $day?->toDateString()])) }}" class="adm-btn adm-btn-ghost adm-btn-sm">Ekspor Excel</a>
                     @can('sales-management.manage')
                         <a href="{{ route('admin.sales.kpi.targets.edit', $selected) }}" class="adm-btn adm-btn-primary adm-btn-sm">Atur Target</a>
                     @endcan
@@ -41,6 +41,20 @@
                                 </option>
                             @endforeach
                         </select>
+                        @if ($selected)
+                            @php
+                                $dayOptions = [];
+                                for ($d = $selected->start_date->copy(); $d->lte($selected->end_date); $d->addDay()) {
+                                    $dayOptions[$d->toDateString()] = $d->translatedFormat('D, d M Y');
+                                }
+                            @endphp
+                            <select name="date" onchange="this.form.submit()" aria-label="Pilih hari">
+                                <option value="">Seluruh periode (mingguan)</option>
+                                @foreach ($dayOptions as $value => $label)
+                                    <option value="{{ $value }}" @selected($day && $day->toDateString() === $value)>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        @endif
                     </form>
                 @else
                     <span class="kpi-note">Belum ada periode. Buat periode pertama di bawah.</span>
@@ -68,6 +82,9 @@
         </div>
 
         @if ($result)
+            @if ($day)
+                <p class="kpi-note" style="margin-bottom:8px"><strong>Tampilan harian: {{ $day->translatedFormat('l, d M Y') }}.</strong> Actual hanya kunjungan, transaksi, dan absensi pada hari itu; Target tetap target periode (tidak dibagi per hari).</p>
+            @endif
             @php $t = $result['totals']; $products = $result['products']; @endphp
             <div class="kpi-scroll">
                 <table class="kpi-table">

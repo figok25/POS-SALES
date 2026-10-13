@@ -262,4 +262,82 @@ class KpiAchievementTest extends TestCase
 
         $this->actingAs($user)->get(route('admin.sales.kpi.index'))->assertForbidden();
     }
+
+    // ---------------------------------------------------------- filter per hari
+
+    public function test_single_day_shows_only_that_days_actuals_and_keeps_the_period_target(): void
+    {
+        [, , $p1] = $this->scenario();
+        $period = $this->period();
+        KpiTarget::create(['kpi_period_id' => $period->id, 'call_made' => 192, 'ec' => 12, 'absensi' => 6, 'product_targets' => [$p1->id => 120]]);
+        $service = app(KpiAchievementService::class);
+
+        // Senin 5 Okt: 2 kunjungan (A transaksi, B tidak), 1 EC, hadir, 3 produk KPI terjual.
+        $monday = $service->build($period, null, \Illuminate\Support\Carbon::parse('2026-10-05'))['rows'][0];
+        $this->assertSame(2, $monday['actual']['call_made']);
+        $this->assertSame(1, $monday['actual']['ec']);
+        $this->assertSame(1, $monday['actual']['absensi']);
+        $this->assertSame(3.0, $monday['actual']['volume']);
+        // Target TIDAK dibagi per hari: tetap target periode.
+        $this->assertSame(192, $monday['target']['call_made']);
+        $this->assertSame(12, $monday['target']['ec']);
+        $this->assertSame(6, $monday['target']['absensi']);
+        $this->assertSame(120.0, $monday['target']['volume']);
+
+        // Selasa 6 Okt: hanya 1 kunjungan Toko Tutup, tanpa EC & tanpa penjualan.
+        $tuesday = $service->build($period, null, \Illuminate\Support\Carbon::parse('2026-10-06'))['rows'][0];
+        $this->assertSame(1, $tuesday['actual']['call_made']);
+        $this->assertSame(0, $tuesday['actual']['ec']);
+        $this->assertSame(0.0, $tuesday['actual']['volume']);
+        $this->assertSame(1, $tuesday['actual']['absensi']);
+    }
+
+    public function test_sunday_shows_no_attendance_but_other_actuals_still_count(): void
+    {
+        [, $sales, , ] = $this->scenario();
+        $period = $this->period();
+        KpiTarget::create(['kpi_period_id' => $period->id, 'call_made' => 192, 'ec' => 12, 'absensi' => 6]);
+
+        $sunday = app(KpiAchievementService::class)->build($period, null, \Illuminate\Support\Carbon::parse('2026-10-11'))['rows'][0];
+
+        $this->assertSame(192, $sunday['target']['call_made']);
+        $this->assertSame(0, $sunday['actual']['absensi']);   // tugas hari Minggu tidak dihitung absensi
+        $this->assertSame(0, $sunday['actual']['call_made']);
+    }
+
+    public function test_day_outside_the_period_falls_back_to_the_whole_period(): void
+    {
+        $this->scenario();
+        $period = $this->period();
+        KpiTarget::create(['kpi_period_id' => $period->id, 'call_made' => 195, 'ec' => 20, 'absensi' => 6]);
+
+        $result = app(KpiAchievementService::class)->build($period, null, \Illuminate\Support\Carbon::parse('2026-11-20'));
+
+        $this->assertNull($result['day']);
+        $this->assertSame(3, $result['rows'][0]['actual']['call_made']);
+    }
+
+    public function test_admin_and_sales_pages_accept_the_day_filter(): void
+    {
+        [$user] = $this->scenario();
+        $period = $this->period();
+        KpiTarget::create(['kpi_period_id' => $period->id, 'call_made' => 192, 'ec' => 12, 'absensi' => 6]);
+
+        $this->actingAs($this->makeAdminUser())
+            ->get(route('admin.sales.kpi.index', ['period' => $period->id, 'date' => '2026-10-05']))
+            ->assertOk()
+            ->assertSee('Tampilan harian')
+            ->assertViewHas('day', fn ($day) => $day->toDateString() === '2026-10-05');
+
+        $this->actingAs($user)
+            ->get(route('sales.kpi.index', ['period' => $period->id, 'date' => '2026-10-05']))
+            ->assertOk()
+            ->assertSee('2 / 192');
+
+        // Tanggal ngawur diabaikan -> tampilan mingguan.
+        $this->actingAs($this->makeAdminUser())
+            ->get(route('admin.sales.kpi.index', ['period' => $period->id, 'date' => 'bukan-tanggal']))
+            ->assertOk()
+            ->assertViewHas('day', null);
+    }
 }

@@ -22,11 +22,13 @@ class KpiController extends Controller
             ?? $periods->first(fn (KpiPeriod $p) => today()->between($p->start_date, $p->end_date))
             ?? $periods->first();
 
-        $result = $selected ? $service->build($selected, $sales->id) : null;
+        $day = $selected ? $service->resolveDay($selected, $request->query('date')) : null;
+        $result = $selected ? $service->build($selected, $sales->id, $day) : null;
 
         return view('sales.kpi.index', [
             'periods' => $periods,
             'selected' => $selected,
+            'day' => $day,
             'row' => $result['rows'][0] ?? null,
             'products' => $result['products'] ?? collect(),
         ]);

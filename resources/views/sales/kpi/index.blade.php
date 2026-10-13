@@ -29,11 +29,23 @@
                     <option value="{{ $p->id }}" @selected($selected && $selected->id === $p->id)>{{ $p->name }} ({{ $p->rangeLabel() }})</option>
                 @endforeach
             </select>
+            @php
+                $dayOptions = [];
+                for ($d = $selected->start_date->copy(); $d->lte($selected->end_date); $d->addDay()) {
+                    $dayOptions[$d->toDateString()] = $d->translatedFormat('D, d M Y');
+                }
+            @endphp
+            <select name="date" class="kpi-s-select" onchange="this.form.submit()" aria-label="Pilih hari">
+                <option value="">Seluruh periode (mingguan)</option>
+                @foreach ($dayOptions as $value => $label)
+                    <option value="{{ $value }}" @selected($day && $day->toDateString() === $value)>{{ $label }}</option>
+                @endforeach
+            </select>
         </form>
 
         <section class="sls-card sls-card-pad">
             <p class="sls-card-title">{{ $selected->name }}</p>
-            <p class="sls-card-note">{{ $selected->rangeLabel() }}</p>
+            <p class="sls-card-note">{{ $day ? $day->translatedFormat('l, d M Y').' (pencapaian hari itu; target tetap target periode)' : $selected->rangeLabel() }}</p>
 
             @php
                 $lines = [
