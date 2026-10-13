@@ -13,6 +13,8 @@ use App\Models\SalesVisitPlan;
 use App\Models\Visit;
 use App\Services\SalesRouteMapService;
 use App\Services\VisitService;
+use Carbon\Carbon;
+use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -26,7 +28,7 @@ class VisitController extends Controller
     {
     }
 
-    public function index()
+    public function index(Request $request)
     {
         $sales = $this->currentSales();
 
@@ -35,13 +37,34 @@ class VisitController extends Controller
         // Alasan check-out hanya diwajibkan bila outlet normal tapi belum ada transaksi.
         $checkOutReasonRequired = $ongoing?->needsCheckOutReason() ?? false;
 
+        // Riwayat difilter per hari (default hari ini); ?date=all = semua tanggal.
+        $filterDate = $this->resolveFilterDate($request->query('date'));
+
         $items = Visit::where('sales_id', $sales->id)
             ->where('status', Visit::STATUS_COMPLETED)
+            ->when($filterDate, fn ($q) => $q->whereDate('check_in_at', $filterDate->toDateString()))
             ->with('customer')
             ->orderBy('id', 'desc')
-            ->paginate(15);
+            ->paginate(15)
+            ->withQueryString();
 
-        return view('sales.visits.index', compact('ongoing', 'items', 'checkOutReasonRequired'));
+        return view('sales.visits.index', compact('ongoing', 'items', 'checkOutReasonRequired', 'filterDate'));
+    }
+
+    /** null = semua tanggal; tanggal tidak valid/masa depan = hari ini. */
+    private function resolveFilterDate(?string $value): ?Carbon
+    {
+        if ($value === 'all') {
+            return null;
+        }
+
+        try {
+            $date = Carbon::createFromFormat('Y-m-d', (string) $value)->startOfDay();
+        } catch (\Throwable) {
+            return now()->startOfDay();
+        }
+
+        return $date->isFuture() ? now()->startOfDay() : $date;
     }
 
     /**

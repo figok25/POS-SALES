@@ -35,16 +35,44 @@ class TransactionController extends Controller
     ) {
     }
 
-    public function index()
+    public function index(Request $request)
     {
         $sales = $this->currentSales();
 
-        $items = SalesTransaction::where('sales_id', $sales->id)
+        // Riwayat difilter per hari (default hari ini); ?date=all = semua tanggal.
+        $filterDate = $this->resolveFilterDate($request->query('date'));
+
+        $base = SalesTransaction::where('sales_id', $sales->id)
+            ->when($filterDate, fn ($q) => $q->whereDate('created_at', $filterDate->toDateString()));
+
+        $summary = [
+            'count' => (clone $base)->count(),
+            'total' => (float) (clone $base)->where('status', SalesTransaction::STATUS_COMPLETED)->sum('total'),
+        ];
+
+        $items = (clone $base)
             ->with('customer')
             ->orderBy('id', 'desc')
-            ->paginate(15);
+            ->paginate(15)
+            ->withQueryString();
 
-        return view('sales.transactions.index', compact('items'));
+        return view('sales.transactions.index', compact('items', 'filterDate', 'summary'));
+    }
+
+    /** null = semua tanggal; tanggal tidak valid/masa depan = hari ini. */
+    private function resolveFilterDate(?string $value): ?Carbon
+    {
+        if ($value === 'all') {
+            return null;
+        }
+
+        try {
+            $date = Carbon::createFromFormat('Y-m-d', (string) $value)->startOfDay();
+        } catch (\Throwable) {
+            return now()->startOfDay();
+        }
+
+        return $date->isFuture() ? now()->startOfDay() : $date;
     }
 
     /**

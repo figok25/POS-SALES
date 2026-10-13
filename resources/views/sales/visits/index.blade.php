@@ -63,6 +63,8 @@
     @endif
 
     <p class="text-sm text-gray-600 mb-2">Riwayat kunjungan selesai</p>
+    @include('sales._date-filter', ['filterRoute' => 'sales.visits.index'])
+    <p class="text-xs text-gray-500 mb-2">{{ $items->total() }} kunjungan</p>
     <div class="space-y-2">
         @forelse ($items as $item)
             <div class="bg-white rounded-lg shadow p-3 text-sm">
@@ -79,7 +81,7 @@
                 </p>
             </div>
         @empty
-            <p class="text-center text-gray-500 text-sm py-6">Belum ada riwayat kunjungan.</p>
+            <p class="text-center text-gray-500 text-sm py-6">{{ $filterDate ? 'Tidak ada kunjungan pada tanggal ini.' : 'Belum ada riwayat kunjungan.' }}</p>
         @endforelse
     </div>
 
