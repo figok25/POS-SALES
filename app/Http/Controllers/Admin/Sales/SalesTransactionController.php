@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin\Sales;
 
 use App\Http\Controllers\Controller;
 use App\Models\Branch;
+use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\Price;
 use App\Models\SalesTransaction;
@@ -11,6 +12,7 @@ use App\Models\Stock;
 use App\Models\Warehouse;
 use App\Services\DepoSaleService;
 use App\Support\BranchContext;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -25,20 +27,73 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class SalesTransactionController extends Controller
 {
     /**
-     * Query dasar daftar/laporan: Branch context + filter Sales & Sumber.
+     * Tanggal dari request (Y-m-d) atau null kalau kosong/tidak valid.
+     */
+    private function parseDate(?string $value): ?Carbon
+    {
+        if (! $value || ! preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
+            return null;
+        }
+
+        try {
+            return Carbon::createFromFormat('Y-m-d', $value)->startOfDay();
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * Query dasar daftar/laporan: Branch context + filter lengkap (tanggal,
+     * Sales, Sumber, Gudang, Status, Pembayaran, pencarian).
+     *
+     * Depo/Branch dipilih lewat `?branch=` (ditangani BranchContext, hanya
+     * berlaku untuk Super Admin).
      */
     private function filteredQuery(Request $request)
     {
         $salesId = $request->query('sales_id');
         $source = $request->query('source');
+        $status = $request->query('status');
+        $payment = $request->query('payment');
+        $warehouseId = $request->query('warehouse_id');
+        $search = trim((string) $request->query('q', ''));
+
+        $from = $this->parseDate($request->query('date_from'));
+        $to = $this->parseDate($request->query('date_to'));
+
+        if ($from && $to && $from->gt($to)) {
+            [$from, $to] = [$to, $from];
+        }
 
         return BranchContext::current()->applyTo(
-            SalesTransaction::query()->with(['sales', 'customer']),
+            SalesTransaction::query()->with(['sales', 'customer', 'branch']),
             'branch_id'
         )
             ->when($salesId, fn ($q) => $q->where('sales_id', $salesId))
             ->when($source === 'depo', fn ($q) => $q->whereNull('sales_id'))
             ->when($source === 'sales', fn ($q) => $q->whereNotNull('sales_id'))
+            ->when($warehouseId, fn ($q) => $q->where('warehouse_id', $warehouseId))
+            ->when(
+                in_array($status, [SalesTransaction::STATUS_COMPLETED, SalesTransaction::STATUS_CANCELLED], true),
+                fn ($q) => $q->where('status', $status)
+            )
+            ->when(
+                in_array($payment, [Invoice::STATUS_UNPAID, Invoice::STATUS_PARTIAL, Invoice::STATUS_PAID], true),
+                fn ($q) => $q->whereHas('invoice', fn ($i) => $i->where('status', $payment))
+            )
+            ->when($from, fn ($q) => $q->whereDate('created_at', '>=', $from->toDateString()))
+            ->when($to, fn ($q) => $q->whereDate('created_at', '<=', $to->toDateString()))
+            ->when($search !== '', function ($q) use ($search) {
+                $like = '%'.str_replace(['%', '_'], ['\\%', '\\_'], $search).'%';
+
+                $q->where(function ($w) use ($like) {
+                    $w->where('code', 'like', $like)
+                        ->orWhere('consumer_name', 'like', $like)
+                        ->orWhereHas('customer', fn ($c) => $c->where('name', 'like', $like))
+                        ->orWhereHas('sales', fn ($s) => $s->where('name', 'like', $like))
+                        ->orWhereHas('invoice', fn ($i) => $i->where('code', 'like', $like));
+                });
+            })
             ->orderBy('id', 'desc');
     }
 
@@ -58,14 +113,54 @@ class SalesTransactionController extends Controller
     {
         $request->query->set('source', $depoOnly ? 'depo' : 'sales');
 
+        if ($depoOnly) {
+            $request->query->remove('sales_id');
+        }
+
+        $context = BranchContext::current();
         $salesId = $depoOnly ? null : $request->query('sales_id');
         $source = $request->query('source');
 
-        $items = $this->filteredQuery($request)->paginate(15)->withQueryString();
+        $query = $this->filteredQuery($request);
 
-        $salesList = BranchContext::current()->applyTo(\App\Models\Sales::query())->orderBy('name')->get();
+        // Ringkasan mengikuti seluruh filter: jumlah transaksi & omzet (completed).
+        $summary = [
+            'count' => (clone $query)->toBase()->count(),
+            'completed' => (clone $query)->where('status', SalesTransaction::STATUS_COMPLETED)->toBase()->count(),
+            'cancelled' => (clone $query)->where('status', SalesTransaction::STATUS_CANCELLED)->toBase()->count(),
+            'total' => (float) (clone $query)->where('status', SalesTransaction::STATUS_COMPLETED)->toBase()->sum('total'),
+        ];
 
-        return view('admin.sales.transactions.index', compact('items', 'salesList', 'salesId', 'source', 'depoOnly'));
+        $items = $query->paginate(15)->withQueryString();
+
+        $salesList = $context->applyTo(\App\Models\Sales::query())->orderBy('name')->get();
+
+        // Pilihan Depo hanya untuk Super Admin (Admin terkunci ke Depo-nya).
+        $branches = $context->isAll() || auth()->user()?->isSuperAdmin()
+            ? Branch::where('is_active', true)->orderBy('name')->get()
+            : collect();
+
+        $warehouses = $depoOnly
+            ? $context->applyTo(Warehouse::query()->where('is_active', true))->orderBy('name')->get()
+            : collect();
+
+        $filters = [
+            'q' => trim((string) $request->query('q', '')),
+            'date_from' => $this->parseDate($request->query('date_from'))?->toDateString(),
+            'date_to' => $this->parseDate($request->query('date_to'))?->toDateString(),
+            'status' => $request->query('status'),
+            'payment' => $request->query('payment'),
+            'warehouse_id' => $request->query('warehouse_id'),
+            'branch' => $context->isAll() ? 'all' : (string) $context->branchId(),
+        ];
+
+        $isFiltered = filled($salesId) || filled($filters['q']) || filled($filters['date_from'])
+            || filled($filters['date_to']) || filled($filters['status']) || filled($filters['payment'])
+            || filled($filters['warehouse_id']) || (auth()->user()?->isSuperAdmin() && ! $context->isAll());
+
+        return view('admin.sales.transactions.index', compact(
+            'items', 'salesList', 'salesId', 'source', 'depoOnly', 'summary', 'branches', 'warehouses', 'filters', 'isFiltered'
+        ));
     }
 
     /**
@@ -193,12 +288,13 @@ class SalesTransactionController extends Controller
         $callback = function () use ($items) {
             $out = fopen('php://output', 'w');
             fwrite($out, "\xEF\xBB\xBF");
-            fputcsv($out, ['Kode Transaksi', 'Tanggal', 'Sumber', 'Sales', 'Customer', 'Subtotal', 'Diskon', 'Pajak', 'Total', 'Status']);
+            fputcsv($out, ['Kode Transaksi', 'Tanggal', 'Depo', 'Sumber', 'Sales', 'Customer', 'Subtotal', 'Diskon', 'Pajak', 'Total', 'Status']);
 
             foreach ($items as $t) {
                 fputcsv($out, [
                     $t->code,
                     $t->created_at->format('Y-m-d H:i'),
+                    $t->branch->name ?? '-',
                     $t->isDepoSale() ? 'Toko Depo' : 'Sales',
                     $t->sales->name ?? 'Toko Depo',
                     $t->customer->name ?? '-',

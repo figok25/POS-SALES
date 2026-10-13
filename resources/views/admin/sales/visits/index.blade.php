@@ -28,15 +28,76 @@
     </div>
 
     <section class="panel">
-        {{-- Tab status --}}
+        {{-- Tab status (filter lain ikut terbawa) --}}
         <nav class="frm-tabs" aria-label="Status kunjungan">
             @foreach ($tabs as $key => $label)
-                <a href="{{ $key === '' ? route('admin.sales.visits.index') : route('admin.sales.visits.index', ['status' => $key]) }}"
+                <a href="{{ route('admin.sales.visits.index', array_filter(array_merge(request()->except(['status', 'page']), ['status' => $key]), fn ($v) => $v !== '' && $v !== null)) }}"
                    class="frm-tab {{ ($status ?? '') === $key ? 'is-active' : '' }}"
                    @if (($status ?? '') === $key) aria-current="page" @endif>{{ $label }}</a>
             @endforeach
-            <span class="frm-count">{{ number_format($items->total(), 0, ',', '.') }} kunjungan</span>
+            <span class="frm-count">{{ number_format($summary['count'], 0, ',', '.') }} kunjungan · {{ number_format($summary['sales'], 0, ',', '.') }} Sales · {{ number_format($summary['stores'], 0, ',', '.') }} toko</span>
         </nav>
+
+        {{-- Filter lengkap --}}
+        <form method="GET" class="frm-toolbar" style="flex-wrap:wrap;gap:.5rem;align-items:flex-end">
+            @if ($status)<input type="hidden" name="status" value="{{ $status }}">@endif
+
+            @if ($branches->isNotEmpty())
+            <label style="display:flex;flex-direction:column;gap:.15rem;font-size:.75rem">Depo
+                <select name="branch" class="frm-input is-select is-filter" aria-label="Filter Depo">
+                    <option value="all" @selected($filters['branch'] === 'all')>Semua Depo</option>
+                    @foreach ($branches as $b)
+                        <option value="{{ $b->id }}" @selected($filters['branch'] === (string) $b->id)>{{ $b->name }}</option>
+                    @endforeach
+                </select>
+            </label>
+            @endif
+
+            <label style="display:flex;flex-direction:column;gap:.15rem;font-size:.75rem">Dari Tanggal
+                <input type="date" name="date_from" value="{{ $filters['date_from'] }}" class="frm-input" aria-label="Dari tanggal">
+            </label>
+            <label style="display:flex;flex-direction:column;gap:.15rem;font-size:.75rem">Sampai Tanggal
+                <input type="date" name="date_to" value="{{ $filters['date_to'] }}" class="frm-input" aria-label="Sampai tanggal">
+            </label>
+
+            <label style="display:flex;flex-direction:column;gap:.15rem;font-size:.75rem">Sales
+                <select name="sales_id" class="frm-input is-select is-filter" aria-label="Filter Sales">
+                    <option value="">Semua Sales</option>
+                    @foreach ($salesList as $s)
+                        <option value="{{ $s->id }}" @selected((string) $filters['sales_id'] === (string) $s->id)>{{ $s->name }}</option>
+                    @endforeach
+                </select>
+            </label>
+
+            <label style="display:flex;flex-direction:column;gap:.15rem;font-size:.75rem">Kondisi
+                <select name="condition" class="frm-input is-select is-filter" aria-label="Filter Kondisi">
+                    <option value="">Semua Kondisi</option>
+                    <option value="normal" @selected($filters['condition'] === 'normal')>Normal</option>
+                    <option value="closed" @selected($filters['condition'] === 'closed')>Toko Tutup</option>
+                    <option value="other" @selected($filters['condition'] === 'other')>Kendala Lain</option>
+                </select>
+            </label>
+
+            <label style="display:flex;flex-direction:column;gap:.15rem;font-size:.75rem">Hasil
+                <select name="outcome" class="frm-input is-select is-filter" aria-label="Filter Hasil">
+                    <option value="">Semua Hasil</option>
+                    <option value="transaction" @selected($filters['outcome'] === 'transaction')>Transaksi (EC)</option>
+                    <option value="no_transaction" @selected($filters['outcome'] === 'no_transaction')>Tanpa Transaksi (Call Made)</option>
+                    <option value="closed" @selected($filters['outcome'] === 'closed')>Toko Tutup</option>
+                    <option value="ongoing" @selected($filters['outcome'] === 'ongoing')>Sedang Berkunjung</option>
+                </select>
+            </label>
+
+            <label style="display:flex;flex-direction:column;gap:.15rem;font-size:.75rem">Cari
+                <input type="search" name="q" value="{{ $filters['q'] }}" class="frm-input" placeholder="Toko / kode / Sales">
+            </label>
+
+            <button type="submit" class="adm-btn adm-btn-primary adm-btn-sm">Terapkan</button>
+
+            @if ($isFiltered)
+                <a href="{{ route('admin.sales.visits.index', ['branch' => 'all']) }}" class="adm-btn adm-btn-ghost adm-btn-sm">Reset</a>
+            @endif
+        </form>
 
         @if ($items->count())
             <div class="frm-table-wrap">
@@ -113,8 +174,8 @@
                 <div class="frm-empty-icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
                 </div>
-                <p class="frm-empty-title">Belum ada data</p>
-                <p class="frm-empty-text">{{ $emptyText }}</p>
+                <p class="frm-empty-title">{{ $isFiltered ? 'Tidak ada hasil' : 'Belum ada data' }}</p>
+                <p class="frm-empty-text">{{ $isFiltered ? 'Tidak ada kunjungan yang cocok dengan filter.' : $emptyText }}</p>
             </div>
         @endif
     </section>
