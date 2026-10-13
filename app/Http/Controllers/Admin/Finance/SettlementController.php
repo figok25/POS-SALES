@@ -38,7 +38,13 @@ class SettlementController extends Controller
             ->paginate(15)
             ->withQueryString();
 
-        return view('admin.finance.settlements.index', compact('items', 'status'));
+        // Sales yang punya uang/BTB belum ter-settle tapi belum punya Draft.
+        $salesScoped = BranchContext::current()->applyTo(\App\Models\Sales::query())->orderBy('name')->get(['id', 'name', 'code']);
+        $pending = $this->service->pendingSales($salesScoped->pluck('id')->all())
+            ->map(fn ($p) => $p + ['sales' => $salesScoped->firstWhere('id', $p['sales_id'])])
+            ->values();
+
+        return view('admin.finance.settlements.index', compact('items', 'status', 'pending'));
     }
 
     /**
@@ -93,6 +99,70 @@ class SettlementController extends Controller
         }
 
         return redirect()->route('admin.finance.settlements.index')->with('status', 'Settlement berhasil di-Apply.');
+    }
+
+    /**
+     * Koreksi oleh Admin (Draft maupun Applied): kaitkan/lepas pembayaran,
+     * ubah uang disetor dan catatan; selisih dihitung ulang.
+     */
+    public function correctForm(Settlement $settlement)
+    {
+        if (! BranchContext::current()->allows($settlement->sales->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke Settlement ini.');
+        }
+
+        $settlement->load(['payments.invoice.customer', 'sales', 'warehouse']);
+        $candidates = $this->service->candidatePayments($settlement);
+
+        return view('admin.finance.settlements.correct', compact('settlement', 'candidates'));
+    }
+
+    public function correct(Request $request, Settlement $settlement)
+    {
+        if (! BranchContext::current()->allows($settlement->sales->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke Settlement ini.');
+        }
+
+        $data = $request->validate([
+            'cash_deposited' => ['required', 'numeric', 'min:0'],
+            'notes' => ['nullable', 'string', 'max:255'],
+            'attach' => ['nullable', 'array'],
+            'attach.*' => ['integer'],
+            'detach' => ['nullable', 'array'],
+            'detach.*' => ['integer'],
+        ]);
+
+        try {
+            $this->service->correct(
+                $settlement,
+                (float) $data['cash_deposited'],
+                $data['notes'] ?? null,
+                $data['attach'] ?? [],
+                $data['detach'] ?? [],
+                auth()->id(),
+            );
+        } catch (ValidationException $e) {
+            return back()->withErrors($e->errors())->withInput();
+        }
+
+        return redirect()->route('admin.finance.settlements.index')->with('status', "Settlement {$settlement->code} berhasil dikoreksi.");
+    }
+
+    /** Buat Draft manual untuk Sales yang draft otomatisnya tidak terbentuk. */
+    public function generate(\App\Models\Sales $sales)
+    {
+        if (! BranchContext::current()->allows($sales->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke Sales ini.');
+        }
+
+        try {
+            $settlement = $this->service->generateDraft($sales->id, auth()->id());
+        } catch (ValidationException $e) {
+            return redirect()->route('admin.finance.settlements.index')->withErrors($e->errors());
+        }
+
+        return redirect()->route('admin.finance.settlements.edit', $settlement)
+            ->with('status', "Draft {$settlement->code} dibuat untuk {$sales->name}. Cek lalu Apply.");
     }
 
     public function destroy(Settlement $settlement)

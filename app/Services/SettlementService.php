@@ -308,6 +308,191 @@ class SettlementService
     }
 
     /**
+     * Sales yang punya sesuatu untuk di-settle tetapi belum punya Settlement
+     * Draft: payment cash belum ter-settlement dan/atau BTB (3 hari terakhir)
+     * yang belum diklaim Settlement mana pun. Dipakai tombol "Buat Draft"
+     * di halaman Settlement sebagai jaring pengaman kalau draft otomatis
+     * tidak terbentuk.
+     *
+     * @param  array<int, int>  $salesIds  Sales yang boleh dilihat (sudah di-scope Branch)
+     * @return Collection<int, array{sales_id:int, payments:int, cash:float, btbs:int}>
+     */
+    public function pendingSales(array $salesIds): Collection
+    {
+        if (! $salesIds) {
+            return collect();
+        }
+
+        $withDraft = Settlement::where('status', Settlement::STATUS_DRAFT)->whereIn('sales_id', $salesIds)->pluck('sales_id')->all();
+
+        $cash = Payment::query()
+            ->join('invoices', 'invoices.id', '=', 'payments.invoice_id')
+            ->whereNull('payments.settlement_id')
+            ->where('payments.method', Payment::METHOD_CASH)
+            ->whereIn('invoices.sales_id', $salesIds)
+            ->groupBy('invoices.sales_id')
+            ->selectRaw('invoices.sales_id as sales_id, COUNT(*) as payments, SUM(payments.amount) as cash')
+            ->get()
+            ->keyBy('sales_id');
+
+        $btbs = BtbDistribusi::query()
+            ->whereIn('sales_id', $salesIds)
+            ->whereNull('settlement_id')
+            ->where('status', '!=', BtbDistribusi::STATUS_CANCELLED)
+            ->where('created_at', '>=', now()->subDays(3)->startOfDay())
+            ->groupBy('sales_id')
+            ->selectRaw('sales_id, COUNT(*) as btbs')
+            ->get()
+            ->keyBy('sales_id');
+
+        return collect(array_unique(array_merge($cash->keys()->all(), $btbs->keys()->all())))
+            ->reject(fn ($id) => in_array($id, $withDraft))
+            ->map(fn ($id) => [
+                'sales_id' => (int) $id,
+                'payments' => (int) ($cash[$id]->payments ?? 0),
+                'cash' => round((float) ($cash[$id]->cash ?? 0), 2),
+                'btbs' => (int) ($btbs[$id]->btbs ?? 0),
+            ])
+            ->values();
+    }
+
+    /**
+     * Buat Settlement Draft manual untuk satu Sales: mengklaim seluruh payment
+     * cash yang belum ter-settlement dan BTB (3 hari terakhir) yang belum
+     * diklaim. Gudang tujuan diambil dari BTB terakhir Sales (atau Gudang
+     * aktif Depo-nya).
+     */
+    public function generateDraft(int $salesId, ?int $byUserId): Settlement
+    {
+        return DB::transaction(function () use ($salesId, $byUserId) {
+            $pending = $this->pendingSales([$salesId])->first();
+
+            if (! $pending) {
+                throw ValidationException::withMessages([
+                    'sales_id' => 'Tidak ada pembayaran cash atau BTB yang perlu di-settle untuk Sales ini (atau sudah ada Draft).',
+                ]);
+            }
+
+            $btbs = BtbDistribusi::where('sales_id', $salesId)
+                ->whereNull('settlement_id')
+                ->where('status', '!=', BtbDistribusi::STATUS_CANCELLED)
+                ->where('created_at', '>=', now()->subDays(3)->startOfDay())
+                ->lockForUpdate()
+                ->get();
+
+            $warehouseId = $btbs->last()?->warehouse_id
+                ?? BtbDistribusi::where('sales_id', $salesId)->latest('id')->value('warehouse_id')
+                ?? \App\Models\Warehouse::where('branch_id', \App\Models\Sales::findOrFail($salesId)->branch_id)
+                    ->where('is_active', true)->orderBy('id')->value('id');
+
+            if (! $warehouseId) {
+                throw ValidationException::withMessages(['sales_id' => 'Gudang tujuan tidak ditemukan untuk Sales ini.']);
+            }
+
+            $settlement = $this->createDraft($salesId, (int) $warehouseId, $byUserId);
+            $this->claimBtbs($btbs, $settlement);
+
+            return $settlement;
+        });
+    }
+
+    /**
+     * Payment cash milik Sales ini yang belum masuk Settlement mana pun
+     * (mis. pembayaran yang dicatat manual Admin di Invoice setelah
+     * Settlement di-Apply) -- kandidat untuk dikaitkan lewat Koreksi.
+     *
+     * @return Collection<int, Payment>
+     */
+    public function candidatePayments(Settlement $settlement): Collection
+    {
+        return Payment::with('invoice.customer')
+            ->whereNull('settlement_id')
+            ->where('method', Payment::METHOD_CASH)
+            ->whereHas('invoice', fn ($q) => $q->where('sales_id', $settlement->sales_id))
+            ->orderBy('id')
+            ->get();
+    }
+
+    /**
+     * Koreksi Settlement oleh Admin (berlaku untuk Draft maupun Applied):
+     *  - kaitkan Payment cash yang belum ter-settlement ($attachPaymentIds),
+     *  - lepas Payment yang salah masuk ($detachPaymentIds),
+     *  - ubah uang disetor dan catatan,
+     * lalu Cash Expected & selisih dihitung ulang dari payment yang terkait.
+     * Tidak menyentuh stok (barang tetap urusan BTB). Tercatat di audit log.
+     *
+     * @param  array<int, int|string>  $attachPaymentIds
+     * @param  array<int, int|string>  $detachPaymentIds
+     */
+    public function correct(
+        Settlement $settlement,
+        float $cashDeposited,
+        ?string $notes,
+        array $attachPaymentIds,
+        array $detachPaymentIds,
+        ?int $byUserId,
+    ): Settlement {
+        return DB::transaction(function () use ($settlement, $cashDeposited, $notes, $attachPaymentIds, $detachPaymentIds, $byUserId) {
+            /** @var Settlement $settlement */
+            $settlement = Settlement::lockForUpdate()->findOrFail($settlement->id);
+
+            if ($cashDeposited < 0) {
+                throw ValidationException::withMessages(['cash_deposited' => 'Jumlah uang disetor tidak boleh negatif.']);
+            }
+
+            $before = $settlement->toArray();
+
+            $detachIds = array_values(array_unique(array_map('intval', $detachPaymentIds)));
+            if ($detachIds) {
+                Payment::where('settlement_id', $settlement->id)
+                    ->whereIn('id', $detachIds)
+                    ->update(['settlement_id' => null]);
+            }
+
+            $attachIds = array_values(array_diff(array_unique(array_map('intval', $attachPaymentIds)), $detachIds));
+            if ($attachIds) {
+                $valid = Payment::whereNull('settlement_id')
+                    ->where('method', Payment::METHOD_CASH)
+                    ->whereIn('id', $attachIds)
+                    ->whereHas('invoice', fn ($q) => $q->where('sales_id', $settlement->sales_id))
+                    ->lockForUpdate()
+                    ->pluck('id');
+
+                if ($valid->count() !== count($attachIds)) {
+                    throw ValidationException::withMessages([
+                        'attach' => 'Ada pembayaran yang tidak valid (sudah masuk Settlement lain, bukan cash, atau bukan milik Sales ini).',
+                    ]);
+                }
+
+                Payment::whereIn('id', $valid)->update(['settlement_id' => $settlement->id]);
+            }
+
+            $cashExpected = round((float) Payment::where('settlement_id', $settlement->id)
+                ->where('method', Payment::METHOD_CASH)
+                ->sum('amount'), 2);
+
+            $settlement->update([
+                'cash_expected' => $cashExpected,
+                'cash_deposited' => $cashDeposited,
+                'cash_variance' => round($cashDeposited - $cashExpected, 2),
+                'notes' => $notes,
+            ]);
+
+            AuditLogger::log(
+                action: 'correct',
+                module: 'Finance',
+                documentType: Settlement::class,
+                documentId: $settlement->id,
+                before: $before,
+                after: $settlement->fresh()->toArray() + ['attached_payments' => $attachIds, 'detached_payments' => $detachIds],
+                userId: $byUserId,
+            );
+
+            return $settlement->fresh(['payments', 'sales']);
+        });
+    }
+
+    /**
      * Batalkan Settlement Draft (belum di-Apply) - lepas kembali
      * reservasi Payment dan klaim BTB supaya bisa masuk Settlement berikutnya.
      */

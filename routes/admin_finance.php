@@ -33,6 +33,9 @@ Route::middleware('permission:finance.manage')->group(function () {
     Route::get('settlements/create', [SettlementController::class, 'create'])->name('settlements.create');
     Route::get('settlements/{settlement}/edit', [SettlementController::class, 'edit'])->name('settlements.edit');
     Route::post('settlements/{settlement}/apply', [SettlementController::class, 'apply'])->name('settlements.apply');
+    Route::post('settlements/generate/{sales}', [SettlementController::class, 'generate'])->name('settlements.generate');
+    Route::get('settlements/{settlement}/correct', [SettlementController::class, 'correctForm'])->name('settlements.correct');
+    Route::post('settlements/{settlement}/correct', [SettlementController::class, 'correct'])->name('settlements.correct.store');
     Route::delete('settlements/{settlement}', [SettlementController::class, 'destroy'])->name('settlements.destroy');
 
     // Income & Expense

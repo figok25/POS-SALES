@@ -29,6 +29,45 @@
         </div>
     @endif
 
+    {{-- Sales yang punya uang/BTB belum ter-settle tapi belum punya Draft --}}
+    @if ($pending->isNotEmpty())
+        <section class="panel" style="margin-bottom:1rem">
+            <div class="panel-head">
+                <h2 class="panel-title">Menunggu Settlement (belum ada Draft)</h2>
+                <span class="frm-count">{{ $pending->count() }} Sales</span>
+            </div>
+            <div class="frm-table-wrap">
+                <table class="frm-table">
+                    <thead>
+                        <tr>
+                            <th>Sales</th>
+                            <th class="is-num">Pembayaran Cash</th>
+                            <th class="is-num">BTB (3 hari)</th>
+                            <th class="is-end">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($pending as $p)
+                            <tr>
+                                <td><span class="frm-name">{{ $p['sales']->name ?? '-' }}</span></td>
+                                <td data-label="Pembayaran Cash" class="is-num"><span class="frm-num">Rp {{ number_format($p['cash'], 0, ',', '.') }}</span> <span class="frm-meta">({{ $p['payments'] }} pembayaran)</span></td>
+                                <td data-label="BTB" class="is-num"><span class="frm-num">{{ $p['btbs'] }}</span></td>
+                                <td class="is-end">
+                                    @can('finance.manage')
+                                        <form method="POST" action="{{ route('admin.finance.settlements.generate', $p['sales_id']) }}">
+                                            @csrf
+                                            <button type="submit" class="adm-btn adm-btn-primary adm-btn-sm">Buat Draft Settlement</button>
+                                        </form>
+                                    @endcan
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    @endif
+
     <section class="panel">
         {{-- Filter --}}
         <form method="GET" class="frm-toolbar">
@@ -90,6 +129,12 @@
                                             Cek &amp; Apply
                                         </a>
                                     @endif
+                                    @can('finance.manage')
+                                        <a href="{{ route('admin.finance.settlements.correct', $settlement) }}" class="adm-btn adm-btn-ghost adm-btn-sm" title="Koreksi uang disetor / pembayaran">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                                            Koreksi
+                                        </a>
+                                    @endcan
                                 </td>
                             </tr>
                         @endforeach
