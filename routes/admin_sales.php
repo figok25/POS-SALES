@@ -50,6 +50,19 @@ Route::middleware('permission:sales-management.manage')->group(function () {
     Route::post('kpi-products', [KpiController::class, 'storeProduct'])->name('kpi.products.store');
     Route::delete('kpi-products/{item}', [KpiController::class, 'destroyProduct'])->name('kpi.products.destroy');
 
+    // Admin/Superadmin mencatat transaksi atas nama Sales (path sengaja berbeda dari
+    // transactions/{transaction} supaya tidak bentrok dengan route show).
+    Route::get('transaction-for-sales', [SalesTransactionController::class, 'createForSales'])->name('transactions.create-for-sales');
+    Route::post('transaction-for-sales', [SalesTransactionController::class, 'storeForSales'])->name('transactions.store-for-sales');
+
+    // Check-in bantuan oleh Admin/Superadmin (tanpa radius GPS). Path berbeda dari visits/{visit}.
+    Route::get('visit-for-sales', [VisitController::class, 'createForSales'])->name('visits.create-for-sales');
+    Route::post('visit-for-sales', [VisitController::class, 'storeForSales'])->name('visits.store-for-sales');
+
+    // Edit transaksi penjualan (koreksi salah input; stok & invoice dihitung dari selisih).
+    Route::get('transactions/{transaction}/edit', [SalesTransactionController::class, 'edit'])->name('transactions.edit');
+    Route::put('transactions/{transaction}', [SalesTransactionController::class, 'update'])->name('transactions.update');
+
     Route::post('customer-taggings/{tagging}/approve', [CustomerTaggingController::class, 'approve'])->name('customer-taggings.approve');
     Route::post('customer-taggings/{tagging}/reject', [CustomerTaggingController::class, 'reject'])->name('customer-taggings.reject');
     Route::post('customer-taggings/bulk-approve', [CustomerTaggingController::class, 'bulkApprove'])->name('customer-taggings.bulk-approve');

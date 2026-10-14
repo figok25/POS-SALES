@@ -76,7 +76,11 @@ class Visit extends Model
         };
     }
 
+    public const SOURCE_SALES = 'sales';
+    public const SOURCE_ADMIN = 'admin';
+
     protected $fillable = [
+        'source', 'entered_by', 'recorded_at', 'entry_reason',
         'sales_id',
         'customer_id',
 
@@ -103,6 +107,7 @@ class Visit extends Model
         return [
             'check_in_at' => 'datetime',
             'check_out_at' => 'datetime',
+            'recorded_at' => 'datetime',
 
             'check_in_latitude' => 'decimal:7',
             'check_in_longitude' => 'decimal:7',
@@ -120,6 +125,27 @@ class Visit extends Model
     public function sales(): BelongsTo
     {
         return $this->belongsTo(Sales::class);
+    }
+
+    /** Check-in bantuan yang dibuat Admin/Superadmin (bukan check-in GPS Sales sendiri). */
+    public function isAssisted(): bool
+    {
+        return $this->source === self::SOURCE_ADMIN;
+    }
+
+    public function enteredBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'entered_by');
+    }
+
+    /** Penanda "Check-in by Admin" / "Check-in by Superadmin" (null bila check-in biasa). */
+    public function assistedLabel(): ?string
+    {
+        if (! $this->isAssisted()) {
+            return null;
+        }
+
+        return $this->enteredBy?->isSuperAdmin() ? 'Check-in by Superadmin' : 'Check-in by Admin';
     }
 
     /**

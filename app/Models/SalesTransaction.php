@@ -22,6 +22,8 @@ class SalesTransaction extends Model
         'code', 'sales_id', 'branch_id', 'warehouse_id', 'customer_id', 'consumer_name',
         'subtotal', 'discount', 'tax', 'total',
         'status', 'source', 'price_type', 'notes', 'created_by',
+        'revision_count', 'last_revised_by', 'last_revised_at', 'revision_reason',
+        'recorded_at', 'entry_reason',
     ];
 
     protected function casts(): array
@@ -31,6 +33,8 @@ class SalesTransaction extends Model
             'discount' => 'decimal:2',
             'tax' => 'decimal:2',
             'total' => 'decimal:2',
+            'last_revised_at' => 'datetime',
+            'recorded_at' => 'datetime',
         ];
     }
 
@@ -46,6 +50,11 @@ class SalesTransaction extends Model
                 $trx->branch_id = Sales::query()->whereKey($trx->sales_id)->value('branch_id');
             }
         });
+    }
+
+    public function isRevised(): bool
+    {
+        return (int) $this->revision_count > 0;
     }
 
     public function branch(): BelongsTo
@@ -67,6 +76,17 @@ class SalesTransaction extends Model
     public function isCreatedByAdmin(): bool
     {
         return $this->source === self::SOURCE_ADMIN;
+    }
+
+    /** Transaksi Sales yang diinput Admin/Superadmin atas nama Sales. */
+    public function isEnteredForSales(): bool
+    {
+        return $this->source === self::SOURCE_ADMIN && $this->sales_id !== null;
+    }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
     }
 
     /** Nama pembeli untuk tampilan: Customer/Outlet, atau konsumen umum (kasir). */

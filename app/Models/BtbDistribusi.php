@@ -36,6 +36,7 @@ class BtbDistribusi extends Model
         'code', 'bkb_distribusi_id', 'sales_id', 'warehouse_id', 'settlement_id', 'status', 'source', 'notes',
         'created_by', 'applied_by', 'applied_at', 'cancelled_by', 'cancelled_at',
         'checked_by', 'checked_at',
+        'document_date', 'revision_count', 'last_revised_by', 'last_revised_at', 'revision_reason', 'cancel_reason',
     ];
 
     protected function casts(): array
@@ -44,6 +45,8 @@ class BtbDistribusi extends Model
             'applied_at' => 'datetime',
             'cancelled_at' => 'datetime',
             'checked_at' => 'datetime',
+            'document_date' => 'date',
+            'last_revised_at' => 'datetime',
         ];
     }
 

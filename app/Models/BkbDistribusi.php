@@ -23,6 +23,7 @@ class BkbDistribusi extends Model
     protected $fillable = [
         'code', 'stock_request_id', 'warehouse_id', 'sales_id', 'status', 'notes',
         'created_by', 'applied_by', 'applied_at', 'cancelled_by', 'cancelled_at',
+        'document_date', 'revision_count', 'last_revised_by', 'last_revised_at', 'revision_reason', 'cancel_reason',
     ];
 
     protected function casts(): array
@@ -30,6 +31,8 @@ class BkbDistribusi extends Model
         return [
             'applied_at' => 'datetime',
             'cancelled_at' => 'datetime',
+            'document_date' => 'date',
+            'last_revised_at' => 'datetime',
         ];
     }
 

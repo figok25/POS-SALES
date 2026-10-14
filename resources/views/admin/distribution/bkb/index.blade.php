@@ -42,6 +42,13 @@
                     <option value="applied" @selected($status === 'applied')>Applied</option>
                     <option value="cancelled" @selected($status === 'cancelled')>Cancelled</option>
                 </select>
+                <input type="date" name="date_from" value="{{ request('date_from') }}" class="frm-input" aria-label="Dari tanggal">
+                <input type="date" name="date_to" value="{{ request('date_to') }}" class="frm-input" aria-label="Sampai tanggal">
+                <input type="search" name="q" value="{{ request('q') }}" class="frm-input" placeholder="Kode / Sales / Warehouse" aria-label="Cari">
+                <button type="submit" class="adm-btn adm-btn-primary adm-btn-sm">Terapkan</button>
+                @if (request()->hasAny(['q', 'date_from', 'date_to', 'status']))
+                    <a href="{{ route('admin.distribution.bkb.index', request()->only('branch')) }}" class="adm-btn adm-btn-ghost adm-btn-sm">Reset</a>
+                @endif
                 <span class="frm-count">{{ $items->total() }} dokumen</span>
             </form>
 

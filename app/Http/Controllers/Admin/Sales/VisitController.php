@@ -4,10 +4,13 @@ namespace App\Http\Controllers\Admin\Sales;
 
 use App\Http\Controllers\Controller;
 use App\Models\Branch;
+use App\Models\Customer;
 use App\Models\Sales;
 use App\Models\SalesTransaction;
 use App\Models\Visit;
+use App\Services\VisitService;
 use App\Support\BranchContext;
+use Illuminate\Validation\ValidationException;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -64,7 +67,7 @@ class VisitController extends Controller
         }
 
         $query = BranchContext::current()->applyVia(
-            Visit::query()->with(['sales', 'customer']),
+            Visit::query()->with(['sales', 'customer', 'enteredBy']),
             fn ($q, $branchId) => $q->whereHas('sales', fn ($qq) => $qq->where('branch_id', $branchId))
         )
             ->when(in_array($status, [Visit::STATUS_ONGOING, Visit::STATUS_COMPLETED], true), fn ($q) => $q->where('status', $status))
@@ -143,8 +146,60 @@ class VisitController extends Controller
             abort(403, 'Anda tidak memiliki akses ke Kunjungan ini.');
         }
 
-        $visit->load(['sales', 'customer', 'promoItems']);
+        $visit->load(['sales', 'customer', 'promoItems', 'enteredBy']);
 
         return view('admin.sales.visits.show', compact('visit'));
+    }
+
+    /** Form check-in bantuan: pilih Sales dulu, lalu outlet, waktu kunjungan & alasan. */
+    public function createForSales(Request $request)
+    {
+        $context = BranchContext::current();
+        $salesList = $context->applyTo(Sales::query()->where('is_active', true))->orderBy('name')->get();
+
+        $sales = $salesList->firstWhere('id', (int) $request->query('sales_id'));
+        $customers = collect();
+
+        if ($sales) {
+            $customers = Customer::query()
+                ->where('is_active', true)
+                ->where(fn ($q) => $q->where('sales_id', $sales->id)->orWhereNull('sales_id'))
+                ->when($sales->branch_id, fn ($q) => $q->where(fn ($x) => $x->where('branch_id', $sales->branch_id)->orWhereNull('branch_id')))
+                ->orderBy('name')
+                ->get(['id', 'code', 'name']);
+        }
+
+        return view('admin.sales.visits.create-for-sales', compact('salesList', 'sales', 'customers'));
+    }
+
+    public function storeForSales(Request $request, VisitService $service)
+    {
+        $data = $request->validate([
+            'sales_id' => ['required', 'exists:sales,id'],
+            'customer_id' => ['required', 'exists:customers,id'],
+            'visit_date' => ['required', 'date_format:Y-m-d', 'before_or_equal:today'],
+            'visit_time' => ['required', 'date_format:H:i'],
+            'condition' => ['required', 'in:'.implode(',', Visit::CONDITIONS)],
+            'reason' => ['required', 'string', 'min:3', 'max:500'],
+        ], [
+            'reason.required' => 'Catatan/alasan check-in bantuan wajib diisi.',
+        ]);
+
+        $sales = Sales::findOrFail($data['sales_id']);
+
+        if (! BranchContext::current()->allows($sales->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke Sales ini.');
+        }
+
+        $visitAt = Carbon::createFromFormat('Y-m-d H:i', $data['visit_date'].' '.$data['visit_time']);
+
+        try {
+            $visit = $service->assistedCheckIn(auth()->user(), $sales, (int) $data['customer_id'], $visitAt, $data['condition'], $data['reason']);
+        } catch (ValidationException $e) {
+            return back()->withErrors($e->errors())->withInput();
+        }
+
+        return redirect()->route('admin.sales.visits.show', $visit)
+            ->with('status', "Check-in bantuan untuk {$sales->name} berhasil dicatat ({$visit->assistedLabel()}).");
     }
 }

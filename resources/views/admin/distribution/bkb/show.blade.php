@@ -114,6 +114,7 @@
                 @endcan
             @endif
         </div>
+        @include('admin.distribution._revision-panel', ['doc' => $bkb, 'kind' => 'BKB'])
     </div>
 
     <script>

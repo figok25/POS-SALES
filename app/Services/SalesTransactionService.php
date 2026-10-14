@@ -85,6 +85,11 @@ class SalesTransactionService
         // Validasi Product & Price per baris (Blueprint #22 - Validate
         // Product, Validate Price) dilakukan sebelum masuk DB transaction
         // supaya pesan error jelas per baris.
+        // Input Admin/Superadmin atas nama Sales: harga & diskon boleh disesuaikan,
+        // tanggal transaksi sebenarnya bisa dipilih. Jalur Sales biasa tidak
+        // pernah memakai ini (flag hanya diset oleh form Admin).
+        $adminEntry = (bool) ($data['admin_entry'] ?? false);
+
         $lines = [];
         foreach ($data['items'] ?? [] as $line) {
             $product = Product::find($line['product_id']);
@@ -101,12 +106,19 @@ class SalesTransactionService
                 ->latest('id')
                 ->first();
 
-            if (! $price) {
+            $override = $adminEntry && isset($line['price']) && $line['price'] !== '' ? round((float) $line['price'], 2) : null;
+
+            if (! $price && $override === null) {
                 throw ValidationException::withMessages([
                     'items' => "Harga {$priceTypeLabel} aktif untuk produk {$product->name} belum diatur. Hubungi Admin.",
                 ]);
             }
 
+            if ($override !== null && $override < 0) {
+                throw ValidationException::withMessages(['items' => "Harga {$product->name} tidak boleh negatif."]);
+            }
+
+            $unitPrice = $override ?? (float) $price->amount;
             $quantity = (float) $line['quantity'];
 
             if ($quantity <= 0) {
@@ -117,17 +129,40 @@ class SalesTransactionService
 
             $lines[] = [
                 'product' => $product,
-                'price' => (float) $price->amount,
+                'price' => $unitPrice,
                 'quantity' => $quantity,
-                'subtotal' => round((float) $price->amount * $quantity, 2),
+                'subtotal' => round($unitPrice * $quantity, 2),
             ];
+        }
+
+        $discount = 0.0;
+        $entryDate = null;
+
+        if ($adminEntry) {
+            $subtotalPreview = round(array_sum(array_column($lines, 'subtotal')), 2);
+            $discount = round((float) ($data['discount'] ?? 0), 2);
+
+            if ($discount < 0 || $discount > $subtotalPreview + 0.001) {
+                throw ValidationException::withMessages(['discount' => 'Diskon tidak boleh negatif atau melebihi subtotal.']);
+            }
+
+            $entryDate = ! empty($data['transaction_date']) ? \Illuminate\Support\Carbon::parse($data['transaction_date'])->startOfDay() : now()->startOfDay();
+
+            if ($entryDate->isFuture()) {
+                throw ValidationException::withMessages(['transaction_date' => 'Tanggal transaksi tidak boleh di masa depan.']);
+            }
+
+            // Cegah transaksi yang sama tercatat dua kali (Sales sudah mencatat, Admin mencatat lagi).
+            if (! ($data['allow_duplicate'] ?? false)) {
+                $this->assertNotDuplicate($salesId, $customer->id, $entryDate->toDateString(), $lines);
+            }
         }
 
         // Program Beli X Gratis Y: hitung barang gratis (dibatasi stok Sales).
         $freeLines = $this->promoService->freeLinesFor($salesId, $lines, $shells);
 
         try {
-            return DB::transaction(function () use ($salesId, $createdByUserId, $customer, $lines, $freeLines, $data, $priceType) {
+            return DB::transaction(function () use ($salesId, $createdByUserId, $customer, $lines, $freeLines, $data, $priceType, $adminEntry, $discount, $entryDate) {
                 $subtotal = round(array_sum(array_column($lines, 'subtotal')), 2);
 
                 $trx = SalesTransaction::create([
@@ -135,14 +170,27 @@ class SalesTransactionService
                     'sales_id' => $salesId,
                     'customer_id' => $customer->id,
                     'subtotal' => $subtotal,
-                    'discount' => 0,
+                    'discount' => $discount,
                     'tax' => 0,
-                    'total' => $subtotal,
+                    'total' => round($subtotal - $discount, 2),
                     'status' => SalesTransaction::STATUS_COMPLETED,
                     'price_type' => $priceType,
                     'notes' => $data['notes'] ?? null,
                     'created_by' => $createdByUserId,
+                    // Admin input atas nama Sales: sumber 'admin', pembuat = Admin,
+                    // tanggal transaksi = tanggal sebenarnya, recorded_at = waktu input.
+                    'source' => $adminEntry ? SalesTransaction::SOURCE_ADMIN : SalesTransaction::SOURCE_SALES,
+                    'recorded_at' => $adminEntry ? now() : null,
+                    'entry_reason' => $adminEntry ? ($data['entry_reason'] ?? null) : null,
                 ]);
+
+                if ($adminEntry) {
+                    // Hari ini: pakai jam sekarang. Hari lampau: jam tengah hari agar tidak bergeser zona.
+                    $at = $entryDate->isToday() ? now() : $entryDate->copy()->setTime(12, 0);
+                    $trx->created_at = $at;
+                    $trx->updated_at = $at;
+                    $trx->save();
+                }
 
                 $trx->update(['code' => DocumentCode::make('SO', $trx->id)]);
 
@@ -199,7 +247,11 @@ class SalesTransactionService
                 // Generate dokumen lanjutan (Blueprint #12.5 - "Generate
                 // dokumen lanjutan jika diperlukan"; Blueprint #23 relasi
                 // Sales -> Invoice).
-                $this->invoiceService->generateFromSalesTransaction($trx->fresh('items'));
+                $invoice = $this->invoiceService->generateFromSalesTransaction($trx->fresh('items'));
+
+                if ($adminEntry) {
+                    $invoice->update(['date' => $trx->created_at->toDateString()]);
+                }
 
                 // Fitur B.1/B.2: setiap Sales Transaction yang selesai
                 // otomatis masuk daftar Draft Delivery Order, tanpa perlu
@@ -239,6 +291,42 @@ class SalesTransactionService
             throw ValidationException::withMessages([
                 'items' => $e->getMessage(),
             ]);
+        }
+    }
+
+    /**
+     * Transaksi yang sama = Sales + Customer + tanggal + komposisi barang (produk & qty) yang sama.
+     *
+     * @param  array<int, array{product: \App\Models\Product, quantity: float}>  $lines
+     */
+    private function assertNotDuplicate(int $salesId, int $customerId, string $day, array $lines): void
+    {
+        $signature = [];
+        foreach ($lines as $line) {
+            $signature[$line['product']->id] = round(($signature[$line['product']->id] ?? 0) + $line['quantity'], 2);
+        }
+        ksort($signature);
+
+        $existing = SalesTransaction::query()
+            ->where('sales_id', $salesId)
+            ->where('customer_id', $customerId)
+            ->where('status', SalesTransaction::STATUS_COMPLETED)
+            ->whereDate('created_at', $day)
+            ->with('items')
+            ->get();
+
+        foreach ($existing as $trx) {
+            $other = [];
+            foreach ($trx->items->where('is_free', false) as $item) {
+                $other[$item->product_id] = round(($other[$item->product_id] ?? 0) + (float) $item->quantity, 2);
+            }
+            ksort($other);
+
+            if ($other === $signature) {
+                throw ValidationException::withMessages([
+                    'duplicate' => "Transaksi yang sama (Sales, Customer, tanggal, dan barang) sudah tercatat: {$trx->code}. Centang \"Tetap simpan\" bila ini memang transaksi yang berbeda.",
+                ]);
+            }
         }
     }
 }

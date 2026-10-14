@@ -25,6 +25,12 @@
             <h1 class="frm-title">Kunjungan (Visit)</h1>
             <p class="frm-sub">Pantau check-in dan check-out Sales di setiap customer.</p>
         </div>
+        @can('sales-management.manage')
+            <a href="{{ route('admin.sales.visits.create-for-sales') }}" class="adm-btn adm-btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                Check-in Bantuan
+            </a>
+        @endcan
     </div>
 
     <section class="panel">
@@ -120,7 +126,9 @@
                             @php $dur = $duration($item->check_in_at, $item->check_out_at); @endphp
                             <tr>
                                 <td><span class="frm-name">{{ $item->sales->name ?? '-' }}</span></td>
-                                <td data-label="Customer">{{ $item->customer->name ?? '-' }}</td>
+                                <td data-label="Customer">{{ $item->customer->name ?? '-' }}
+                                    @if ($item->isAssisted())<br><span class="frm-status is-warn">{{ $item->assistedLabel() }}</span>@endif
+                                </td>
                                 <td data-label="Kondisi">
                                     @if ($item->check_in_condition === 'normal')
                                         <span class="frm-status is-on">Normal</span>
@@ -145,7 +153,7 @@
                                     @endif
                                 </td>
                                 <td data-label="Durasi" class="frm-nowrap">
-                                    @if ($dur) {{ $dur }} @else <span class="frm-dash">—</span> @endif
+                                    @if ($dur && ! $item->isAssisted()) {{ $dur }} @else <span class="frm-dash">—</span> @endif
                                 </td>
                                 <td class="frm-cell-status">
                                     @if ($item->status === 'ongoing')

@@ -11,6 +11,9 @@ use App\Models\Product;
 use App\Models\Sales;
 use App\Models\Stock;
 use App\Models\Warehouse;
+use App\Http\Requests\Admin\Distribution\DistributionRevisionRequest;
+use App\Http\Requests\Admin\Distribution\DistributionVoidRequest;
+use App\Services\DistributionRevisionService;
 use App\Services\AuditLogger;
 use App\Services\SettlementService;
 use App\Services\StockService;
@@ -38,11 +41,45 @@ class BtbDistribusiController extends Controller
             fn ($q, $branchId) => $q->whereHas('sales', fn ($qq) => $qq->where('branch_id', $branchId))
         )
             ->when($status, fn ($q) => $q->where('status', $status))
+            ->tap(fn ($q) => $this->applyListFilters($q, $request))
             ->orderBy('id', 'desc')
             ->paginate(15)
             ->withQueryString();
 
         return view('admin.distribution.btb.index', compact('items', 'status'));
+    }
+
+    /** Cari (kode/Sales/Warehouse) + rentang tanggal dokumen; berlaku bersama filter Depo & status. */
+    private function applyListFilters($query, Request $request)
+    {
+        $parse = function ($v) {
+            if (! $v || ! preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $v)) {
+                return null;
+            }
+            try {
+                return \Carbon\Carbon::createFromFormat('Y-m-d', $v)->toDateString();
+            } catch (\Throwable) {
+                return null;
+            }
+        };
+        $from = $parse($request->query('date_from'));
+        $to = $parse($request->query('date_to'));
+        if ($from && $to && $from > $to) {
+            [$from, $to] = [$to, $from];
+        }
+
+        $onDate = function ($q, string $op, string $date) {
+            $q->where(function ($w) use ($op, $date) {
+                $w->whereDate('document_date', $op, $date)
+                    ->orWhere(fn ($x) => $x->whereNull('document_date')->whereDate('created_at', $op, $date));
+            });
+        };
+
+        \App\Support\Search::apply($query, $request->query('q'), ['code'], ['sales' => ['name', 'code'], 'warehouse' => ['name']]);
+
+        return $query
+            ->when($from, fn ($q) => $onDate($q, '>=', $from))
+            ->when($to, fn ($q) => $onDate($q, '<=', $to));
     }
 
     public function create(Request $request)
@@ -109,7 +146,15 @@ class BtbDistribusiController extends Controller
             );
         }
 
-        return view('admin.distribution.btb.show', compact('btb', 'availability'));
+        $history = \App\Models\AuditLog::query()
+            ->with('user:id,name')
+            ->where('document_type', BtbDistribusi::class)
+            ->where('document_id', $btb->id)
+            ->whereIn('action', ['revise', 'void'])
+            ->orderByDesc('id')
+            ->get();
+
+        return view('admin.distribution.btb.show', compact('btb', 'availability', 'history'));
     }
 
     public function apply(BtbDistribusi $btb)
@@ -221,5 +266,70 @@ class BtbDistribusiController extends Controller
         AuditLogger::log('cancel', 'Distribution', BtbDistribusi::class, $btb->id, $before, $btb->toArray());
 
         return back()->with('status', 'BTB Distribusi dibatalkan.');
+    }
+
+    /** Form revisi BTB (Draft/Applied). Hanya yang berwenang atas Depo dokumen. */
+    public function edit(BtbDistribusi $btb)
+    {
+        $this->authorizeDoc($btb);
+
+        if ($btb->status === 'cancelled') {
+            return redirect()->route('admin.distribution.btb.show', $btb)
+                ->with('error', 'Dokumen yang sudah dibatalkan tidak dapat direvisi.');
+        }
+
+        $btb->load(['items.product', 'sales', 'warehouse']);
+
+        return view('admin.distribution.revise', [
+            'doc' => $btb,
+            'kind' => 'BTB',
+            'title' => 'Revisi BTB Distribusi',
+            'action' => route('admin.distribution.btb.revise', $btb),
+            'backUrl' => route('admin.distribution.btb.show', $btb),
+            'products' => Product::orderBy('name')->get(),
+            'isApplied' => $btb->status === 'applied',
+            'stockHint' => 'Qty naik: Sales Stock berkurang & Warehouse Stock bertambah sebesar selisih. Qty turun: dikembalikan ke Sales.',
+        ]);
+    }
+
+    public function revise(DistributionRevisionRequest $request, BtbDistribusi $btb, DistributionRevisionService $service)
+    {
+        $this->authorizeDoc($btb);
+        $data = $request->validated();
+
+        try {
+            $impact = $service->reviseBtb($btb, $data['items'], $data['notes'] ?? null, $data['document_date'] ?? null, $data['reason']);
+        } catch (InsufficientStockException|\DomainException $e) {
+            return back()->withInput()->with('error', $e->getMessage());
+        }
+
+        $changed = collect($impact)->filter(fn ($r) => $r['delta'] != 0.0)->count();
+        $msg = 'BTB berhasil direvisi.'.($btb->fresh()->status === 'applied'
+            ? " Stok disesuaikan berdasarkan selisih ({$changed} produk berubah)."
+            : ' Stok tidak berubah karena dokumen belum di-Apply.');
+
+        return redirect()->route('admin.distribution.btb.show', $btb)->with('status', $msg);
+    }
+
+    /** Batalkan dokumen yang sudah Applied dan kembalikan stok. */
+    public function void(DistributionVoidRequest $request, BtbDistribusi $btb, DistributionRevisionService $service)
+    {
+        $this->authorizeDoc($btb);
+
+        try {
+            $service->voidBtb($btb, $request->validated()['reason']);
+        } catch (InsufficientStockException|\DomainException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return redirect()->route('admin.distribution.btb.show', $btb)
+            ->with('status', 'BTB dibatalkan dan stok dikembalikan.');
+    }
+
+    private function authorizeDoc(BtbDistribusi $btb): void
+    {
+        if (! BranchContext::current()->allows($btb->sales->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke dokumen ini.');
+        }
     }
 }

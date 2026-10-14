@@ -62,6 +62,13 @@ Route::middleware('permission:distribution.apply')->group(function () {
     Route::post('btb/{btb}/apply', [BtbDistribusiController::class, 'apply'])->name('btb.apply');
     // Business Flow Update v3.1 (Blueprint #13.13): Admin Check menandai
     // selisih fisik pada Return Stock tanpa memindahkan stock.
+    // Revisi & pembatalan BKB/BTB (koreksi salah input, stok disesuaikan berdasarkan selisih).
+    Route::get('bkb/{bkb}/revise', [BkbDistribusiController::class, 'edit'])->name('bkb.edit');
+    Route::put('bkb/{bkb}/revise', [BkbDistribusiController::class, 'revise'])->name('bkb.revise');
+    Route::post('bkb/{bkb}/void', [BkbDistribusiController::class, 'void'])->name('bkb.void');
+    Route::get('btb/{btb}/revise', [BtbDistribusiController::class, 'edit'])->name('btb.edit');
+    Route::put('btb/{btb}/revise', [BtbDistribusiController::class, 'revise'])->name('btb.revise');
+    Route::post('btb/{btb}/void', [BtbDistribusiController::class, 'void'])->name('btb.void');
     Route::post('btb/{btb}/discrepancy', [BtbDistribusiController::class, 'discrepancy'])->name('btb.discrepancy');
 
     Route::post('branch-transfer/{transfer}/send', [BranchTransferController::class, 'send'])->name('branch-transfer.send');

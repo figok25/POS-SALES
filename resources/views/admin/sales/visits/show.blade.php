@@ -3,7 +3,7 @@
         $hasInLoc  = filled($visit->check_in_latitude) && filled($visit->check_in_longitude);
         $hasOutLoc = filled($visit->check_out_latitude) && filled($visit->check_out_longitude);
         $mins      = $visit->check_out_at ? abs((int) $visit->check_in_at->diffInMinutes($visit->check_out_at)) : null;
-        $duration  = $mins === null ? null : ($mins >= 60 ? intdiv($mins, 60) . ' jam ' . ($mins % 60) . ' menit' : $mins . ' menit');
+        $duration  = ($mins === null || $visit->isAssisted()) ? null : ($mins >= 60 ? intdiv($mins, 60) . ' jam ' . ($mins % 60) . ' menit' : $mins . ' menit');
     @endphp
 
     <div class="frm-page">
@@ -31,6 +31,12 @@
 
             <dl class="frm-detail">
                 <div><dt>Sales</dt><dd>{{ $visit->sales->name ?? '-' }}</dd></div>
+                @if ($visit->isAssisted())
+                    <div><dt>Sumber</dt><dd><span class="frm-status is-warn">{{ $visit->assistedLabel() }}</span></dd></div>
+                    <div><dt>Diinput oleh</dt><dd>{{ $visit->enteredBy->name ?? '-' }}</dd></div>
+                    <div><dt>Waktu Dicatat</dt><dd>{{ $visit->recorded_at?->format('d M Y H:i') ?? '-' }}</dd></div>
+                    <div><dt>Catatan Check-in Bantuan</dt><dd>{{ $visit->entry_reason ?? '-' }}</dd></div>
+                @endif
                 <div><dt>Customer</dt><dd>{{ $visit->customer->name ?? '-' }}</dd></div>
                 <div><dt>Check-in</dt><dd>{{ $visit->check_in_at->format('d M Y H:i') }}</dd></div>
                 <div>
@@ -57,7 +63,7 @@
                             @endif
                         </dd>
                     </div>
-                    <div><dt>Durasi</dt><dd>{{ $duration }}</dd></div>
+                    <div><dt>Durasi</dt><dd>{{ $duration ?? "-" }}</dd></div>
                 @endif
                 <div>
                     <dt>Kondisi Outlet</dt>

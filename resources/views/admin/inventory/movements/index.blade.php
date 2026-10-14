@@ -1,5 +1,5 @@
 @php
-    $hasFilter = filled($movementType);
+    $hasFilter = filled($movementType) || filled(request('date_from')) || filled(request('date_to'));
     $total = method_exists($items, 'total') ? $items->total() : $items->count();
 @endphp
 
@@ -23,10 +23,12 @@
                         <option value="{{ $type }}" @selected($movementType === $type)>{{ $type }}</option>
                     @endforeach
                 </select>
+                <input type="date" name="date_from" value="{{ request('date_from') }}" class="frm-input" aria-label="Dari tanggal">
+                <input type="date" name="date_to" value="{{ request('date_to') }}" class="frm-input" aria-label="Sampai tanggal">
                 <div class="frm-toolbar-actions">
                     <button type="submit" class="adm-btn adm-btn-ghost adm-btn-sm">Filter</button>
                     @if ($hasFilter)
-                        <a href="{{ route('admin.inventory.movements.index') }}" class="adm-btn adm-btn-ghost adm-btn-sm">Reset</a>
+                        <a href="{{ route('admin.inventory.movements.index', request()->only('branch')) }}" class="adm-btn adm-btn-ghost adm-btn-sm">Reset</a>
                     @endif
                 </div>
                 <span class="frm-count">{{ $total }} pergerakan</span>

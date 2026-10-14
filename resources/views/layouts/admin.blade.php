@@ -175,6 +175,12 @@
     // tandai aktif hanya pada kemunculan PERTAMA supaya tidak dobel.
     $activeTaken = false;
 
+    // Super Admin yang sedang memfilter satu Depo: pilihan itu ikut terbawa saat pindah menu.
+    $branchKeep = [];
+    if (auth()->user()->isSuperAdmin() && ctype_digit((string) request()->query('branch', ''))) {
+        $branchKeep = ['branch' => (int) request()->query('branch')];
+    }
+
     // Resolusi menu satu kali jalan: URL, status aktif per item, dan status
     // aktif per grup (grup yang berisi menu aktif otomatis terbuka).
     $navGroups = [];
@@ -196,7 +202,7 @@
 
             $items[] = [
                 'label' => $label,
-                'url' => $routeName ? route($routeName) : '#',
+                'url' => $routeName ? route($routeName, $branchKeep) : '#',
                 'active' => $isActive,
             ];
             $groupActive = $groupActive || $isActive;
@@ -325,6 +331,7 @@
 
         <main class="adm-content">
             <div class="adm-container">
+                @include('partials.branch-filter')
                 {{ $slot }}
             </div>
         </main>

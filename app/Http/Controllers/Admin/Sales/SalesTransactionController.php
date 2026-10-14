@@ -3,7 +3,11 @@
 namespace App\Http\Controllers\Admin\Sales;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\Sales\SalesTransactionRevisionRequest;
+use App\Models\AuditLog;
 use App\Models\Branch;
+use App\Models\Customer;
+use App\Models\Product;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\Price;
@@ -11,6 +15,8 @@ use App\Models\SalesTransaction;
 use App\Models\Stock;
 use App\Models\Warehouse;
 use App\Services\DepoSaleService;
+use App\Services\SalesTransactionService;
+use App\Services\SalesTransactionRevisionService;
 use App\Support\BranchContext;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -250,9 +256,155 @@ class SalesTransactionController extends Controller
             abort(403, 'Anda tidak memiliki akses ke Transaksi ini.');
         }
 
+        $transaction->load(['sales', 'customer', 'items.product', 'invoice', 'warehouse', 'branch', 'creator']);
+
+        $history = AuditLog::query()
+            ->with('user:id,name')
+            ->where('document_type', SalesTransaction::class)
+            ->where('document_id', $transaction->id)
+            ->where('action', 'revise')
+            ->orderByDesc('id')
+            ->get();
+
+        return view('admin.sales.transactions.show', compact('transaction', 'history'));
+    }
+
+    /**
+     * Admin/Superadmin mencatat transaksi atas nama Sales (Sales lupa input).
+     * Pilih Sales -> halaman memuat Customer, stok Sales, dan harga sesuai jenis Sales.
+     */
+    public function createForSales(Request $request)
+    {
+        $context = BranchContext::current();
+
+        $salesList = $context->applyTo(\App\Models\Sales::query()->where('is_active', true))->orderBy('name')->get();
+
+        $salesId = (int) $request->query('sales_id');
+        $sales = $salesList->firstWhere('id', $salesId);
+
+        $customers = collect();
+        $stocks = collect();
+        $prices = collect();
+
+        if ($sales) {
+            $customers = Customer::query()
+                ->where('is_active', true)
+                ->where(fn ($q) => $q->where('sales_id', $sales->id)->orWhereNull('sales_id'))
+                ->when($sales->branch_id, fn ($q) => $q->where(fn ($x) => $x->where('branch_id', $sales->branch_id)->orWhereNull('branch_id')))
+                ->orderBy('name')
+                ->get(['id', 'code', 'name']);
+
+            $stocks = Stock::where('location_type', Stock::LOCATION_SALES)
+                ->where('location_id', $sales->id)
+                ->where('quantity', '>', 0)
+                ->with('product')
+                ->get()
+                ->filter(fn ($stock) => $stock->product !== null && $stock->product->is_active)
+                ->sortBy(fn ($stock) => $stock->product->name)
+                ->values();
+
+            $prices = Price::where('is_active', true)
+                ->where('price_type', $sales->priceType())
+                ->orderBy('id')
+                ->pluck('amount', 'product_id');
+        }
+
+        return view('admin.sales.transactions.create-for-sales', compact('salesList', 'sales', 'customers', 'stocks', 'prices'));
+    }
+
+    public function storeForSales(Request $request, SalesTransactionService $service)
+    {
+        $data = $request->validate([
+            'sales_id' => ['required', 'exists:sales,id'],
+            'customer_id' => ['required', 'exists:customers,id'],
+            'transaction_date' => ['required', 'date', 'before_or_equal:today'],
+            'discount' => ['nullable', 'numeric', 'min:0'],
+            'notes' => ['nullable', 'string', 'max:1000'],
+            'entry_reason' => ['required', 'string', 'min:3', 'max:500'],
+            'allow_duplicate' => ['nullable', 'boolean'],
+            'items' => ['required', 'array', 'min:1'],
+            'items.*.product_id' => ['required', 'exists:products,id'],
+            'items.*.quantity' => ['required', 'numeric', 'min:0.01'],
+            'items.*.price' => ['required', 'numeric', 'min:0'],
+        ], [
+            'entry_reason.required' => 'Catatan/alasan input bantuan wajib diisi.',
+        ]);
+
+        $sales = \App\Models\Sales::findOrFail($data['sales_id']);
+
+        if (! BranchContext::current()->allows($sales->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke Sales ini.');
+        }
+
+        $data['admin_entry'] = true;
+        $data['allow_duplicate'] = $request->boolean('allow_duplicate');
+
+        try {
+            $trx = $service->create($sales->id, auth()->id(), $data);
+        } catch (ValidationException $e) {
+            return back()->withErrors($e->errors())->withInput();
+        }
+
+        return redirect()->route('admin.sales.transactions.show', $trx)
+            ->with('status', "Transaksi {$trx->code} atas nama {$sales->name} berhasil dicatat. Stok Sales dipotong dan invoice {$trx->invoice->code} diterbitkan.");
+    }
+
+    /** Form edit transaksi (koreksi salah input). */
+    public function edit(SalesTransaction $transaction)
+    {
+        if (! BranchContext::current()->allows($transaction->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke Transaksi ini.');
+        }
+
+        if ($transaction->status === SalesTransaction::STATUS_CANCELLED) {
+            return redirect()->route('admin.sales.transactions.show', $transaction)
+                ->with('error', 'Transaksi yang sudah dibatalkan tidak dapat diedit.');
+        }
+
         $transaction->load(['sales', 'customer', 'items.product', 'invoice', 'warehouse', 'branch']);
 
-        return view('admin.sales.transactions.show', compact('transaction'));
+        $customers = collect();
+        if (! $transaction->isDepoSale()) {
+            $customers = Customer::query()
+                ->where(function ($q) use ($transaction) {
+                    $q->where('id', $transaction->customer_id)
+                        ->orWhere(function ($qq) use ($transaction) {
+                            $qq->where('is_active', true)
+                                ->where(fn ($s) => $s->where('sales_id', $transaction->sales_id)->orWhereNull('sales_id'))
+                                ->when($transaction->branch_id, fn ($b) => $b->where(fn ($x) => $x->where('branch_id', $transaction->branch_id)->orWhereNull('branch_id')));
+                        });
+                })
+                ->orderBy('name')
+                ->get(['id', 'code', 'name']);
+        }
+
+        $products = Product::query()
+            ->where(fn ($q) => $q->where('is_active', true)->orWhereIn('id', $transaction->items->pluck('product_id')))
+            ->orderBy('name')
+            ->get(['id', 'sku', 'name']);
+
+        return view('admin.sales.transactions.edit', compact('transaction', 'customers', 'products'));
+    }
+
+    public function update(SalesTransactionRevisionRequest $request, SalesTransaction $transaction, SalesTransactionRevisionService $service)
+    {
+        if (! BranchContext::current()->allows($transaction->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke Transaksi ini.');
+        }
+
+        $data = $request->validated();
+
+        try {
+            $result = $service->revise($transaction, $data, $data['reason']);
+        } catch (ValidationException $e) {
+            return back()->withErrors($e->errors())->withInput();
+        }
+
+        $changed = collect($result['stock_impact'])->filter(fn ($r) => $r['delta'] != 0.0)->count();
+
+        return redirect()->route('admin.sales.transactions.show', $transaction)
+            ->with('status', "Transaksi {$transaction->code} berhasil dikoreksi. Stok disesuaikan berdasarkan selisih ({$changed} produk berubah), invoice dihitung ulang.")
+            ->with('warnings', $result['warnings']);
     }
 
     /**

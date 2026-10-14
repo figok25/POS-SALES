@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Models\Customer;
 use App\Models\CustomerAssignment;
 use App\Models\PromoItem;
+use App\Models\Sales;
+use App\Models\User;
 use App\Models\Visit;
 use App\Services\AuditLogger;
 use App\Support\Geo;
@@ -117,6 +119,79 @@ class VisitService
         AuditLogger::log('check_in', 'Sales', Visit::class, $visit->id, null, $visit->toArray());
 
         return $visit;
+    }
+
+    /**
+     * Check-in BANTUAN oleh Admin/Superadmin atas nama Sales (mis. Sales lupa
+     * check-in atau GPS bermasalah). TIDAK ada batas radius 150 m dan tidak ada
+     * lokasi GPS. Kunjungan dicatat selesai pada waktu kunjungan sebenarnya
+     * ($visitAt) -- terpisah dari recorded_at (waktu data dimasukkan) -- sehingga
+     * ikut Call Made/EC pada tanggal kunjungan itu. Check-in/transaksi asli Sales
+     * tidak diubah; kunjungan ganda (Sales + toko + hari yang sama) ditolak.
+     */
+    public function assistedCheckIn(User $actor, Sales $sales, int $customerId, \Carbon\Carbon $visitAt, string $condition, string $reason): Visit
+    {
+        if ($visitAt->isFuture()) {
+            throw ValidationException::withMessages(['visit_time' => 'Waktu kunjungan tidak boleh di masa depan.']);
+        }
+
+        if (! in_array($condition, Visit::CONDITIONS, true)) {
+            throw ValidationException::withMessages(['condition' => 'Kondisi outlet tidak valid.']);
+        }
+
+        $customer = Customer::findOrFail($customerId);
+
+        if ($sales->branch_id && $customer->branch_id && (int) $customer->branch_id !== (int) $sales->branch_id) {
+            throw ValidationException::withMessages(['customer_id' => 'Outlet ini bukan milik Depo Sales yang dipilih.']);
+        }
+
+        return DB::transaction(function () use ($actor, $sales, $customer, $visitAt, $condition, $reason) {
+            // Kunci baris Sales supaya dua Admin tidak membuat kunjungan ganda bersamaan.
+            Sales::whereKey($sales->id)->lockForUpdate()->first();
+
+            $exists = Visit::query()
+                ->where('sales_id', $sales->id)
+                ->where('customer_id', $customer->id)
+                ->whereDate('check_in_at', $visitAt->toDateString())
+                ->exists();
+
+            if ($exists) {
+                throw ValidationException::withMessages([
+                    'customer_id' => 'Sales ini sudah tercatat mengunjungi outlet tersebut pada '.$visitAt->format('d/m/Y').'. Check-in bantuan tidak diperlukan.',
+                ]);
+            }
+
+            // Hari lampau: selesai di akhir hari itu; hari ini: selesai sekarang.
+            $checkOut = $visitAt->isToday() ? now() : $visitAt->copy()->endOfDay();
+
+            $visit = Visit::create([
+                'sales_id' => $sales->id,
+                'customer_id' => $customer->id,
+                'check_in_at' => $visitAt,
+                'check_out_at' => $checkOut,
+                'check_in_condition' => $condition,
+                'notes' => $reason,
+                'check_out_notes' => 'Selesai otomatis (check-in bantuan).',
+                'status' => Visit::STATUS_COMPLETED,
+                'source' => Visit::SOURCE_ADMIN,
+                'entered_by' => $actor->id,
+                'recorded_at' => now(),
+                'entry_reason' => $reason,
+            ]);
+
+            AuditLogger::log(
+                'assisted_check_in',
+                'Sales',
+                Visit::class,
+                $visit->id,
+                null,
+                $visit->toArray() + ['branch_id' => $sales->branch_id],
+                $actor->id,
+                $sales->branch_id ? (int) $sales->branch_id : null,
+            );
+
+            return $visit;
+        });
     }
 
     /**

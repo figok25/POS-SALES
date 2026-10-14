@@ -11,6 +11,9 @@ use App\Models\Sales;
 use App\Models\Stock;
 use App\Models\StockRequest;
 use App\Models\Warehouse;
+use App\Http\Requests\Admin\Distribution\DistributionRevisionRequest;
+use App\Http\Requests\Admin\Distribution\DistributionVoidRequest;
+use App\Services\DistributionRevisionService;
 use App\Services\AuditLogger;
 use App\Services\StockService;
 use App\Support\BranchContext;
@@ -39,11 +42,45 @@ class BkbDistribusiController extends Controller
             fn ($q, $branchId) => $q->whereHas('warehouse', fn ($qq) => $qq->where('branch_id', $branchId))
         )
             ->when($status, fn ($q) => $q->where('status', $status))
+            ->tap(fn ($q) => $this->applyListFilters($q, $request))
             ->orderBy('id', 'desc')
             ->paginate(15)
             ->withQueryString();
 
         return view('admin.distribution.bkb.index', compact('items', 'status'));
+    }
+
+    /** Cari (kode/Sales/Warehouse) + rentang tanggal dokumen; berlaku bersama filter Depo & status. */
+    private function applyListFilters($query, Request $request)
+    {
+        $parse = function ($v) {
+            if (! $v || ! preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $v)) {
+                return null;
+            }
+            try {
+                return \Carbon\Carbon::createFromFormat('Y-m-d', $v)->toDateString();
+            } catch (\Throwable) {
+                return null;
+            }
+        };
+        $from = $parse($request->query('date_from'));
+        $to = $parse($request->query('date_to'));
+        if ($from && $to && $from > $to) {
+            [$from, $to] = [$to, $from];
+        }
+
+        $onDate = function ($q, string $op, string $date) {
+            $q->where(function ($w) use ($op, $date) {
+                $w->whereDate('document_date', $op, $date)
+                    ->orWhere(fn ($x) => $x->whereNull('document_date')->whereDate('created_at', $op, $date));
+            });
+        };
+
+        \App\Support\Search::apply($query, $request->query('q'), ['code'], ['sales' => ['name', 'code'], 'warehouse' => ['name']]);
+
+        return $query
+            ->when($from, fn ($q) => $onDate($q, '>=', $from))
+            ->when($to, fn ($q) => $onDate($q, '<=', $to));
     }
 
     public function create(Request $request)
@@ -134,7 +171,15 @@ class BkbDistribusiController extends Controller
             );
         }
 
-        return view('admin.distribution.bkb.show', compact('bkb', 'availability'));
+        $history = \App\Models\AuditLog::query()
+            ->with('user:id,name')
+            ->where('document_type', BkbDistribusi::class)
+            ->where('document_id', $bkb->id)
+            ->whereIn('action', ['revise', 'void'])
+            ->orderByDesc('id')
+            ->get();
+
+        return view('admin.distribution.bkb.show', compact('bkb', 'availability', 'history'));
     }
 
     public function apply(BkbDistribusi $bkb)
@@ -208,5 +253,70 @@ class BkbDistribusiController extends Controller
         AuditLogger::log('cancel', 'Distribution', BkbDistribusi::class, $bkb->id, $before, $bkb->toArray());
 
         return back()->with('status', 'BKB Distribusi dibatalkan.');
+    }
+
+    /** Form revisi BKB (Draft/Applied). Hanya yang berwenang atas Depo dokumen. */
+    public function edit(BkbDistribusi $bkb)
+    {
+        $this->authorizeDoc($bkb);
+
+        if ($bkb->status === 'cancelled') {
+            return redirect()->route('admin.distribution.bkb.show', $bkb)
+                ->with('error', 'Dokumen yang sudah dibatalkan tidak dapat direvisi.');
+        }
+
+        $bkb->load(['items.product', 'sales', 'warehouse']);
+
+        return view('admin.distribution.revise', [
+            'doc' => $bkb,
+            'kind' => 'BKB',
+            'title' => 'Revisi BKB Distribusi',
+            'action' => route('admin.distribution.bkb.revise', $bkb),
+            'backUrl' => route('admin.distribution.bkb.show', $bkb),
+            'products' => Product::orderBy('name')->get(),
+            'isApplied' => $bkb->status === 'applied',
+            'stockHint' => 'Qty naik: Warehouse Stock berkurang & Sales Stock bertambah sebesar selisih. Qty turun: dikembalikan ke Warehouse.',
+        ]);
+    }
+
+    public function revise(DistributionRevisionRequest $request, BkbDistribusi $bkb, DistributionRevisionService $service)
+    {
+        $this->authorizeDoc($bkb);
+        $data = $request->validated();
+
+        try {
+            $impact = $service->reviseBkb($bkb, $data['items'], $data['notes'] ?? null, $data['document_date'] ?? null, $data['reason']);
+        } catch (InsufficientStockException|\DomainException $e) {
+            return back()->withInput()->with('error', $e->getMessage());
+        }
+
+        $changed = collect($impact)->filter(fn ($r) => $r['delta'] != 0.0)->count();
+        $msg = 'BKB berhasil direvisi.'.($bkb->fresh()->status === 'applied'
+            ? " Stok disesuaikan berdasarkan selisih ({$changed} produk berubah)."
+            : ' Stok tidak berubah karena dokumen belum di-Apply.');
+
+        return redirect()->route('admin.distribution.bkb.show', $bkb)->with('status', $msg);
+    }
+
+    /** Batalkan dokumen yang sudah Applied dan kembalikan stok. */
+    public function void(DistributionVoidRequest $request, BkbDistribusi $bkb, DistributionRevisionService $service)
+    {
+        $this->authorizeDoc($bkb);
+
+        try {
+            $service->voidBkb($bkb, $request->validated()['reason']);
+        } catch (InsufficientStockException|\DomainException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return redirect()->route('admin.distribution.bkb.show', $bkb)
+            ->with('status', 'BKB dibatalkan dan stok dikembalikan.');
+    }
+
+    private function authorizeDoc(BkbDistribusi $bkb): void
+    {
+        if (! BranchContext::current()->allows($bkb->warehouse->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke dokumen ini.');
+        }
     }
 }
