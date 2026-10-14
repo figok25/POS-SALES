@@ -416,6 +416,117 @@
         @endif
     </section>
 
+
+    {{-- Laporan global seluruh Sales per Depo (harian / mingguan) --}}
+    @php
+        $rptQty = fn ($n) => rtrim(rtrim(number_format($n, 2, ',', '.'), '0'), ',') ?: '0';
+        $rptRp = fn ($n) => 'Rp'.number_format((float) $n, 0, ',', '.');
+        $rptView = $depoReport['view'];
+    @endphp
+
+    <section class="panel dash-section" id="depo-report">
+        <div class="panel-head">
+            <div>
+                <h2 class="panel-title">Laporan Global Seluruh Sales per Depo</h2>
+                <span class="dash-section-note">{{ $depoReport['label'] }}</span>
+            </div>
+            <span class="frm-count">{{ $depoReport['blocks']->count() }} depo</span>
+        </div>
+
+        <form method="GET" action="{{ route('admin.dashboard') }}#depo-report" class="frm-toolbar">
+            @foreach (request()->except(['rpt_view', 'rpt_date']) as $k => $v)
+                @if (is_scalar($v) && filled($v))<input type="hidden" name="{{ $k }}" value="{{ $v }}">@endif
+            @endforeach
+
+            <select name="rpt_view" id="rpt_view" class="frm-input is-select is-filter" aria-label="Periode laporan"
+                    onchange="document.getElementById('rpt_date').hidden = (this.value === 'today'); this.form.submit()">
+                <option value="today" @selected($rptView === 'today')>Hari Ini</option>
+                <option value="date" @selected($rptView === 'date')>Pilih Tanggal</option>
+                <option value="week" @selected($rptView === 'week')>Mingguan (minggu dari tanggal dipilih)</option>
+            </select>
+
+            <input type="date" name="rpt_date" id="rpt_date" class="frm-input is-filter" value="{{ $depoReport['dateValue'] }}"
+                   aria-label="Tanggal laporan" @if ($rptView === 'today') hidden @endif onchange="this.form.submit()">
+
+            @if ($rptView !== 'today')
+                <a href="{{ route('admin.dashboard', request()->except(['rpt_view', 'rpt_date'])) }}#depo-report" class="adm-btn adm-btn-ghost adm-btn-sm">Reset</a>
+            @endif
+        </form>
+
+        @forelse ($depoReport['blocks'] as $blk)
+            <div class="frm-table-wrap" style="margin-bottom:1.25rem">
+                <table class="frm-table">
+                    <thead>
+                        <tr>
+                            <th colspan="3">REPORT GLOBAL ALL SALES &middot; DEPO {{ mb_strtoupper($blk['branch']->name) }}</th>
+                            <th colspan="4" class="is-num">{{ $depoReport['label'] }}</th>
+                        </tr>
+                        <tr>
+                            <th>No</th>
+                            <th>Nama Produk</th>
+                            <th class="is-num">Harga Retail</th>
+                            <th class="is-num">Stok Awal</th>
+                            <th class="is-num">Sisa Stok</th>
+                            <th class="is-num">Stok Jual</th>
+                            <th class="is-num">Gratis (Program)</th>
+                            <th class="is-num">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($blk['rows'] as $i => $r)
+                            <tr>
+                                <td>{{ $i + 1 }}</td>
+                                <td><span class="frm-name">{{ $r['name'] }}</span></td>
+                                <td data-label="Harga Retail" class="is-num">{{ $rptRp($r['price']) }}</td>
+                                <td data-label="Stok Awal" class="is-num">{{ $rptQty($r['start']) }}</td>
+                                <td data-label="Sisa Stok" class="is-num">{{ $rptQty($r['left']) }}</td>
+                                <td data-label="Stok Jual" class="is-num">{{ $rptQty($r['sold']) }}</td>
+                                <td data-label="Gratis" class="is-num">{{ $rptQty($r['free']) }}</td>
+                                <td data-label="Total" class="is-num"><span class="frm-num">{{ $rptRp($r['total']) }}</span></td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="8"><span class="frm-dash">Belum ada penjualan atau stok dibawa pada periode ini.</span></td></tr>
+                        @endforelse
+                    </tbody>
+                    <tfoot>
+                        <tr class="perf-total">
+                            <th colspan="3">TOTAL SETORAN ALL SALES</th>
+                            <th class="is-num">{{ $rptQty($blk['totals']['start']) }}</th>
+                            <th class="is-num">{{ $rptQty($blk['totals']['left']) }}</th>
+                            <th class="is-num">{{ $rptQty($blk['totals']['sold']) }}</th>
+                            <th class="is-num">{{ $rptQty($blk['totals']['free']) }}</th>
+                            <th class="is-num">{{ $rptRp($blk['totals']['total']) }}</th>
+                        </tr>
+                        <tr class="perf-total">
+                            <th colspan="7">TOTAL GLOBAL ALL SALES (TUNAI)</th>
+                            <th class="is-num">{{ $rptRp($blk['cash']) }}</th>
+                        </tr>
+                        <tr class="perf-total">
+                            <th colspan="7">TOTAL GLOBAL ALL SALES (TRANSFER)</th>
+                            <th class="is-num">{{ $rptRp($blk['transfer']) }}</th>
+                        </tr>
+                        <tr class="perf-total">
+                            <th colspan="7">TOTAL SETORAN ALL SALES</th>
+                            <th class="is-num">{{ $rptRp($blk['settled']) }}</th>
+                        </tr>
+                        @if ($blk['unpaid'] > 0)
+                            <tr class="perf-total">
+                                <th colspan="7">BELUM TERCATAT / BELUM DIBAYAR (Total penjualan &minus; setoran)</th>
+                                <th class="is-num"><span class="is-neg">{{ $rptRp($blk['unpaid']) }}</span></th>
+                            </tr>
+                        @endif
+                    </tfoot>
+                </table>
+            </div>
+        @empty
+            <p class="panel-empty">Belum ada aktivitas penjualan pada periode ini.</p>
+        @endforelse
+
+        <p class="frm-hint" style="margin:.25rem 1rem 1rem">
+            Stok Awal = stok dibawa Sales pada periode. Sisa Stok = Stok Awal &minus; Stok Jual &minus; Gratis. Setoran dihitung dari pembayaran yang tercatat (tunai / transfer) pada periode.
+        </p>
+    </section>
+
     @php
         $cov = $visitCoverage['rows'];
         $covTotals = $visitCoverage['totals'];

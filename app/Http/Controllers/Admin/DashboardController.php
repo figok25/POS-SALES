@@ -113,6 +113,9 @@ class DashboardController extends Controller
         // dengan tabel Penjualan per Sales di atas, supaya keduanya sejajar.
         $visitCoverage = $this->buildVisitCoverage($tblSalesRows, $tblFrom, $tblTo);
 
+        // Laporan global semua Sales per Depo (harian / mingguan), filter sendiri.
+        $depoReport = $this->buildDepoReport($request, $branchContext);
+
         $transactions = fn () => $branchContext->applyVia(
             SalesTransaction::where('status', SalesTransaction::STATUS_COMPLETED)
                 ->whereNotNull('sales_id')
@@ -295,6 +298,7 @@ class DashboardController extends Controller
             'salesList' => $salesList,
             'salesPerformance' => $salesPerformance,
             'visitCoverage' => $visitCoverage,
+            'depoReport' => $depoReport,
             'tblView' => $tblView,
             'tblDate' => $tblDate->toDateString(),
             'tblSalesId' => $tblSalesId,
@@ -585,6 +589,146 @@ class DashboardController extends Controller
                 'total_calls' => $sumTotal,
                 'ec_pct' => $sumTotal > 0 ? (int) round($sumEc / $sumTotal * 100) : 0,
             ],
+        ];
+    }
+
+    /**
+     * Laporan global seluruh Sales per Depo (mirip rekap harian/mingguan di
+     * Excel): per produk -> Harga Retail, Stok Awal (stok dibawa Sales),
+     * Stok Jual (berbayar), Gratis (program), Sisa Stok (awal - jual - gratis)
+     * dan Total (nilai jual); lalu total Tunai / Transfer / Setoran.
+     *
+     * Filter sendiri: ?rpt_view=today|date|week, ?rpt_date=Y-m-d (hari itu,
+     * atau minggu ISO yang memuat tanggal itu). Dibatasi Branch context;
+     * "Semua Depo" menampilkan satu blok per Depo yang punya aktivitas.
+     */
+    private function buildDepoReport(Request $request, BranchContext $branchContext): array
+    {
+        $view = in_array($request->query('rpt_view'), ['today', 'date', 'week'], true)
+            ? $request->query('rpt_view')
+            : 'today';
+
+        $date = $this->parseDate($request->query('rpt_date'), now()->startOfDay());
+
+        [$from, $to] = match ($view) {
+            'date' => [$date->copy()->startOfDay(), $date->copy()->endOfDay()],
+            'week' => [$date->copy()->startOfWeek(), $date->copy()->endOfWeek()],
+            default => [now()->startOfDay(), now()->endOfDay()],
+        };
+
+        $label = match ($view) {
+            'week' => 'WEEK '.$from->isoWeek().' ('.$from->format('d/m').' - '.$to->format('d/m/Y').')',
+            'date' => mb_strtoupper($from->locale('id')->translatedFormat('l, d-m-Y')),
+            default => mb_strtoupper(now()->locale('id')->translatedFormat('l, d-m-Y')),
+        };
+
+        $branches = $branchContext->applyTo(Branch::query()->where('is_active', true), 'id')->orderBy('name')->get();
+        $branchIds = $branches->pluck('id')->all();
+
+        if (! $branchIds) {
+            return compact('view', 'date', 'from', 'to', 'label') + ['blocks' => collect(), 'dateValue' => $date->toDateString()];
+        }
+
+        $carried = SalesTaskStock::query()
+            ->join('sales_tasks', 'sales_tasks.id', '=', 'sales_task_stocks.sales_task_id')
+            ->join('sales', 'sales.id', '=', 'sales_tasks.sales_id')
+            ->whereIn('sales.branch_id', $branchIds)
+            ->whereDate('sales_tasks.task_date', '>=', $from->toDateString())
+            ->whereDate('sales_tasks.task_date', '<=', $to->toDateString())
+            ->whereNotIn('sales_tasks.status', [SalesTask::STATUS_DRAFT, SalesTask::STATUS_CANCELLED])
+            ->groupBy('sales.branch_id', 'sales_task_stocks.product_id')
+            ->selectRaw('sales.branch_id as branch_id, sales_task_stocks.product_id as product_id')
+            ->selectRaw('SUM(COALESCE(sales_task_stocks.quantity_verified, sales_task_stocks.quantity_assigned)) as qty')
+            ->get();
+
+        $sold = SalesTransactionItem::query()
+            ->join('sales_transactions', 'sales_transactions.id', '=', 'sales_transaction_items.sales_transaction_id')
+            ->join('sales', 'sales.id', '=', 'sales_transactions.sales_id')
+            ->whereIn('sales.branch_id', $branchIds)
+            ->where('sales_transactions.status', SalesTransaction::STATUS_COMPLETED)
+            ->whereBetween('sales_transactions.created_at', [$from, $to])
+            ->groupBy('sales.branch_id', 'sales_transaction_items.product_id')
+            ->selectRaw('sales.branch_id as branch_id, sales_transaction_items.product_id as product_id')
+            ->selectRaw('SUM(CASE WHEN sales_transaction_items.is_free THEN 0 ELSE sales_transaction_items.quantity END) as qty')
+            ->selectRaw('SUM(CASE WHEN sales_transaction_items.is_free THEN sales_transaction_items.quantity ELSE 0 END) as free_qty')
+            ->selectRaw('SUM(sales_transaction_items.subtotal) as value')
+            ->get();
+
+        $payments = Payment::query()
+            ->join('invoices', 'invoices.id', '=', 'payments.invoice_id')
+            ->join('sales', 'sales.id', '=', 'invoices.sales_id')
+            ->whereIn('sales.branch_id', $branchIds)
+            ->whereDate('payments.paid_at', '>=', $from->toDateString())
+            ->whereDate('payments.paid_at', '<=', $to->toDateString())
+            ->groupBy('sales.branch_id', 'payments.method')
+            ->selectRaw('sales.branch_id as branch_id, payments.method as method, SUM(payments.amount) as amount')
+            ->get();
+
+        $productIds = $carried->pluck('product_id')->merge($sold->pluck('product_id'))->unique()->values()->all();
+        $products = Product::query()->whereIn('id', $productIds)->get(['id', 'name', 'sku'])->keyBy('id');
+
+        // Harga Retail master (aktif); kalau belum ada, tampilkan harga jual rata-rata.
+        $retail = \App\Models\Price::query()
+            ->where('is_active', true)
+            ->where('price_type', \App\Models\Price::TYPE_RETAIL)
+            ->whereIn('product_id', $productIds)
+            ->orderBy('id')
+            ->pluck('amount', 'product_id');
+
+        $blocks = $branches->map(function (Branch $branch) use ($carried, $sold, $payments, $products, $retail) {
+            $c = $carried->where('branch_id', $branch->id)->keyBy('product_id');
+            $s = $sold->where('branch_id', $branch->id)->keyBy('product_id');
+
+            $rows = $c->keys()->merge($s->keys())->unique()->map(function ($pid) use ($c, $s, $products, $retail) {
+                $start = (float) ($c[$pid]->qty ?? 0);
+                $qty = (float) ($s[$pid]->qty ?? 0);
+                $free = (float) ($s[$pid]->free_qty ?? 0);
+                $value = (float) ($s[$pid]->value ?? 0);
+
+                return [
+                    'name' => $products[$pid]->name ?? '-',
+                    'price' => isset($retail[$pid]) ? (float) $retail[$pid] : ($qty > 0 ? round($value / $qty, 2) : 0.0),
+                    'start' => $start,
+                    'left' => max(0.0, round($start - $qty - $free, 2)),
+                    'sold' => $qty,
+                    'free' => $free,
+                    'total' => $value,
+                ];
+            })->sortBy(fn ($r) => mb_strtolower($r['name']))->values();
+
+            $pay = $payments->where('branch_id', $branch->id)->pluck('amount', 'method');
+            $cash = (float) ($pay[Payment::METHOD_CASH] ?? 0);
+            $transfer = (float) ($pay[Payment::METHOD_TRANSFER] ?? 0);
+            $other = (float) ($pay[Payment::METHOD_OTHER] ?? 0);
+            $total = (float) $rows->sum('total');
+            $settled = $cash + $transfer + $other;
+
+            return [
+                'branch' => $branch,
+                'rows' => $rows,
+                'totals' => [
+                    'start' => (float) $rows->sum('start'),
+                    'left' => (float) $rows->sum('left'),
+                    'sold' => (float) $rows->sum('sold'),
+                    'free' => (float) $rows->sum('free'),
+                    'total' => $total,
+                ],
+                'cash' => $cash,
+                'transfer' => $transfer + $other,
+                'settled' => $settled,
+                'unpaid' => max(0.0, round($total - $settled, 2)),
+                'has_data' => $rows->isNotEmpty() || $settled > 0,
+            ];
+        });
+
+        // "Semua Depo": hanya Depo yang punya aktivitas; Admin satu Depo: selalu tampil.
+        if ($branchContext->isAll()) {
+            $blocks = $blocks->filter(fn ($b) => $b['has_data']);
+        }
+
+        return compact('view', 'date', 'from', 'to', 'label') + [
+            'blocks' => $blocks->values(),
+            'dateValue' => $date->toDateString(),
         ];
     }
 
