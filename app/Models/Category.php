@@ -10,12 +10,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class Category extends Model
 {
-    protected $fillable = ['code', 'name', 'is_active'];
+    protected $fillable = ['code', 'name', 'is_active', 'counts_as_ec'];
 
     protected function casts(): array
     {
         return [
             'is_active' => 'boolean',
+            'counts_as_ec' => 'boolean',
         ];
     }
 

@@ -212,10 +212,14 @@ class TransactionController extends Controller
         $totalFreeQty = 0.0;
         $totalShells = 0.0;
         $transactedCustomers = [];
+        $ecService = app(EffectiveCallService::class);
 
         foreach ($transactions as $trx) {
             $totalSales += (float) $trx->total;
-            $transactedCustomers[$trx->customer_id] = true;
+            // Hanya transaksi yang memuat produk rokok yang dihitung EC (kopi saja bukan EC).
+            if ($ecService->isEffective($trx)) {
+                $transactedCustomers[$trx->customer_id] = true;
+            }
 
             foreach ($trx->items as $line) {
                 $products[$line->product_id] ??= ['name' => $line->product->name ?? '-', 'sold' => 0.0, 'free' => 0.0, 'amount' => 0.0];
@@ -231,7 +235,8 @@ class TransactionController extends Controller
         }
 
         // Kunjungan & EC (definisi sama dengan dashboard): 1 toko dikunjungi = 1 call;
-        // EC = toko yang dikunjungi (bukan Toko Tutup) DAN ada transaksi selesai hari itu.
+        // EC = toko yang dikunjungi (bukan Toko Tutup) DAN ada transaksi selesai hari itu
+        // yang memuat produk rokok (transaksi kopi saja bukan EC).
         $visits = Visit::query()
             ->where('sales_id', $sales->id)
             ->whereDate('check_in_at', $day)

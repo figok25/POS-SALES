@@ -17,7 +17,8 @@ use Illuminate\Support\Collection;
  *
  *  - Call Made : jumlah toko-per-hari yang dikunjungi (termasuk yang transaksi).
  *                Toko Tutup ikut dihitung bila config kpi.call_made_includes_closed.
- *  - EC        : kunjungan (toko-hari) yang menghasilkan transaksi selesai.
+ *  - EC        : kunjungan (toko-hari) yang menghasilkan transaksi selesai yang memuat
+ *                produk kategori penentu EC (Rokok). Transaksi kopi saja bukan EC.
  *  - Absensi   : hari kerja (Senin-Sabtu) yang punya Sales Task (bukan draft/batal).
  *  - Produk KPI: qty per produk yang didaftarkan Admin (target = angka mingguan
  *                yang diisi Admin, sama untuk semua Sales).
@@ -122,17 +123,19 @@ class KpiAchievementService
         $volume = [];
         $productQty = [];
         $kpiProductIds = $kpiProducts->pluck('product_id')->all();
+        $ecService = app(EffectiveCallService::class);
 
         SalesTransaction::query()
-            ->with('items:id,sales_transaction_id,product_id,quantity,is_free')
+            ->with(['items:id,sales_transaction_id,product_id,quantity,is_free', 'items.product:id,category_id'])
             ->whereIn('sales_id', $salesIds)
             ->where('status', SalesTransaction::STATUS_COMPLETED)
             ->whereBetween('created_at', [$startDate, $endDate])
             ->get(['id', 'sales_id', 'customer_id', 'created_at'])
-            ->each(function (SalesTransaction $trx) use (&$ecSet, &$volume, &$productQty, $visitDays, $kpiProductIds) {
+            ->each(function (SalesTransaction $trx) use (&$ecSet, &$volume, &$productQty, $visitDays, $kpiProductIds, $ecService) {
                 $key = $trx->customer_id.'|'.$trx->created_at->toDateString();
 
-                if (isset($visitDays[$trx->sales_id][$key])) {
+                // EC hanya bila transaksi memuat produk rokok (kopi saja bukan EC).
+                if (isset($visitDays[$trx->sales_id][$key]) && $ecService->isEffective($trx)) {
                     $ecSet[$trx->sales_id][$key] = true;
                 }
 

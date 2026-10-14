@@ -166,7 +166,8 @@ class DashboardController extends Controller
         // Definisi SAMA dengan tabel Target & Pencapaian (KpiAchievementService):
         //   Call Made = TOTAL kunjungan (termasuk yang transaksi). Kunjungan Toko Tutup ikut
         //               dihitung bila config kpi.call_made_includes_closed = true.
-        //   EC        = kunjungan + transaksi selesai di hari yang sama (Toko Tutup tidak mungkin EC)
+        //   EC        = kunjungan + transaksi selesai yang memuat produk rokok di hari yang sama
+        //               (Toko Tutup tidak mungkin EC; transaksi kopi saja bukan EC)
         // toBase() pada kedua query di bawah: koleksi Eloquent yang KOSONG tetap
         // bertipe Eloquent\Collection setelah map(), dan intersect()-nya
         // mengharapkan model (getKey()) -- crash "getKey() on string" (500) saat
@@ -181,11 +182,14 @@ class DashboardController extends Controller
             ->groupBy('sales_id', 'customer_id')->groupByRaw('DATE(check_in_at)')
             ->get()->toBase();
 
+        // Hanya transaksi yang memuat produk rokok yang menjadi EC (kopi saja bukan EC).
         $transactionCalls = $branchContext->applyVia(
-            SalesTransaction::where('status', SalesTransaction::STATUS_COMPLETED)
-                ->whereNotNull('sales_id')
-                ->whereBetween('created_at', [$dateFrom, $dateTo])
-                ->when($salesId, fn ($q) => $q->where('sales_id', $salesId)),
+            app(EffectiveCallService::class)->onlyEffective(
+                SalesTransaction::where('status', SalesTransaction::STATUS_COMPLETED)
+                    ->whereNotNull('sales_id')
+                    ->whereBetween('created_at', [$dateFrom, $dateTo])
+                    ->when($salesId, fn ($q) => $q->where('sales_id', $salesId))
+            ),
             fn ($q, $branchId) => $q->whereHas('sales', fn ($qq) => $qq->where('branch_id', $branchId))
         )->select('sales_id', 'customer_id')->selectRaw('DATE(created_at) as call_day')->distinct()->get()->toBase();
 
@@ -538,7 +542,7 @@ class DashboardController extends Controller
             ->get()
             ->toBase();
 
-        $transactions = SalesTransaction::query()
+        $transactions = app(EffectiveCallService::class)->onlyEffective(SalesTransaction::query())
             ->whereIn('sales_id', $ids)
             ->where('status', SalesTransaction::STATUS_COMPLETED)
             ->whereBetween('created_at', [$from, $to])

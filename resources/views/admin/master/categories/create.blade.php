@@ -20,6 +20,12 @@
                     <input type="checkbox" name="is_active" value="1" checked class="mr-2"> Aktif
                 </label>
             </div>
+            <div class="mb-4">
+                <label class="inline-flex items-center text-sm">
+                    <input type="checkbox" name="counts_as_ec" value="1" @checked(old('counts_as_ec')) class="mr-2"> Penentu EC (Effective Call)
+                </label>
+                <p class="text-xs text-gray-500 mt-1">Toko dihitung EC hanya bila transaksinya memuat produk kategori ini (mis. Rokok). Transaksi kategori lain saja (mis. Kopi) bukan EC.</p>
+            </div>
             <div class="flex justify-end gap-2">
                 <a href="{{ route('admin.master.categories.index') }}" class="px-3 py-2 text-sm rounded border">Batal</a>
                 <button class="bg-blue-600 text-white px-3 py-2 rounded text-sm hover:bg-blue-700">Simpan</button>

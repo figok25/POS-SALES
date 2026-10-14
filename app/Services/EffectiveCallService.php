@@ -2,7 +2,9 @@
 
 namespace App\Services;
 
+use App\Models\Category;
 use App\Models\SalesTransaction;
+use Illuminate\Database\Eloquent\Builder;
 
 /**
  * Memecah Effective Call (EC) menjadi dua jenis:
@@ -19,6 +21,58 @@ use App\Models\SalesTransaction;
  */
 class EffectiveCallService
 {
+    /** @var array<int, int>|null */
+    private ?array $ecCategoryIds = null;
+
+    /**
+     * Kategori penentu EC (mis. Rokok). Kosong = belum diatur, maka semua
+     * transaksi selesai tetap dihitung (perilaku lama) agar EC tidak hilang.
+     *
+     * @return array<int, int>
+     */
+    public function categoryIds(): array
+    {
+        return $this->ecCategoryIds ??= Category::query()
+            ->where('counts_as_ec', true)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+    }
+
+    /**
+     * Batasi query SalesTransaction ke transaksi yang memenuhi syarat EC:
+     * memuat minimal 1 produk (bukan barang gratis) dari kategori penentu EC.
+     * Transaksi hanya-kopi tidak lolos. Tanpa kategori penentu = tidak difilter.
+     */
+    public function onlyEffective(Builder $query): Builder
+    {
+        $ids = $this->categoryIds();
+
+        if ($ids === []) {
+            return $query;
+        }
+
+        return $query->whereHas('items', fn ($q) => $q
+            ->where('is_free', false)
+            ->whereHas('product', fn ($p) => $p->whereIn('category_id', $ids)));
+    }
+
+    /**
+     * Versi untuk transaksi yang sudah dimuat (wajib with 'items.product').
+     */
+    public function isEffective(SalesTransaction $trx): bool
+    {
+        $ids = $this->categoryIds();
+
+        if ($ids === []) {
+            return true;
+        }
+
+        return $trx->items->contains(
+            fn ($item) => ! $item->is_free && in_array((int) ($item->product?->category_id), $ids, true)
+        );
+    }
+
     /**
      * Hari (Y-m-d) transaksi selesai pertama tiap toko.
      *

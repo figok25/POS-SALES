@@ -46,10 +46,12 @@ class DashboardController extends Controller
             ->where(fn ($q) => $q->whereNull('check_in_condition')->orWhere('check_in_condition', '!=', Visit::CONDITION_CLOSED))
             ->pluck('customer_id')->unique();
 
-        $transactedCustomers = SalesTransaction::where('sales_id', $sales->id)
-            ->where('status', SalesTransaction::STATUS_COMPLETED)
-            ->whereDate('created_at', $today)
-            ->pluck('customer_id')->unique();
+        // Hanya transaksi yang memuat produk rokok yang dihitung EC (kopi saja bukan EC).
+        $transactedCustomers = app(EffectiveCallService::class)->onlyEffective(
+            SalesTransaction::where('sales_id', $sales->id)
+                ->where('status', SalesTransaction::STATUS_COMPLETED)
+                ->whereDate('created_at', $today)
+        )->pluck('customer_id')->unique();
 
         $ecKeys = $openVisitCustomers->intersect($transactedCustomers)
             ->map(fn ($customerId) => $customerId.'|'.$today)->values();
