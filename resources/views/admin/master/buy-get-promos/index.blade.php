@@ -1,5 +1,14 @@
 @php
     $fmt = fn ($n) => rtrim(rtrim(number_format((float) $n, 2, '.', ''), '0'), '.');
+    $branchChecks = function ($selectedIds, $idPrefix) use ($branches) {
+        $html = '<div style="display:flex;flex-wrap:wrap;gap:.35rem 1rem">';
+        foreach ($branches as $b) {
+            $chk = in_array($b->id, $selectedIds, true) ? ' checked' : '';
+            $html .= '<label style="display:flex;align-items:center;gap:.3rem"><input type="checkbox" name="branch_ids[]" value="'.$b->id.'"'.$chk.'> '.e($b->name).'</label>';
+        }
+
+        return $html.'</div>';
+    };
     $productOptions = function ($selected = null) use ($products) {
         $html = '<option value="">- pilih produk -</option>';
         foreach ($products as $p) {
@@ -15,7 +24,7 @@
         <div class="frm-head">
             <div>
                 <h1 class="frm-title">Program Beli Gratis</h1>
-                <p class="frm-sub">Program distributor &ldquo;Beli X produk A, gratis Y produk B&rdquo;. Berlaku kelipatan, dan barang gratis otomatis memotong <strong>stok Sales</strong>. Kalau stok barang gratis di Sales habis, Customer tidak mendapat gratis (transaksi tetap jalan).</p>
+                <p class="frm-sub">Program distributor &ldquo;Beli X produk A, gratis Y produk B&rdquo;. Berlaku kelipatan, dan barang gratis otomatis memotong <strong>stok Sales</strong>. Kalau stok barang gratis di Sales habis, Customer tidak mendapat gratis (transaksi tetap jalan). Tiap program dipilih berlaku di Depo mana saja.</p>
             </div>
         </div>
 
@@ -63,6 +72,11 @@
                     <label class="frm-label">Catatan</label>
                     <input type="text" name="notes" value="{{ old('notes') }}" maxlength="500" class="frm-input">
                 </div>
+                <div class="frm-field" style="grid-column:1/-1">
+                    <label class="frm-label">Berlaku di Depo <span class="frm-req">*</span></label>
+                    {!! $branchChecks(array_map('intval', old('branch_ids', $defaultBranchId ? [$defaultBranchId] : [])), 'new') !!}
+                    <div class="frm-sub">Program hanya berlaku untuk Sales di Depo yang dicentang. Tiap Depo bisa punya program berbeda.</div>
+                </div>
                 <div class="frm-field">
                     <label class="frm-label"><input type="checkbox" name="is_active" value="1" checked> Aktif</label>
                 </div>
@@ -86,6 +100,7 @@
                             <tr>
                                 <th>Program</th>
                                 <th>Aturan</th>
+                                <th>Depo</th>
                                 <th>Periode</th>
                                 <th>Status</th>
                                 <th class="is-end">Aksi</th>
@@ -96,6 +111,13 @@
                                 <tr>
                                     <td><div class="frm-name">{{ $promo->name }}</div>@if ($promo->notes)<div class="frm-sub">{{ $promo->notes }}</div>@endif</td>
                                     <td data-label="Aturan">Beli {{ $fmt($promo->buy_qty) }} <strong>{{ $promo->buyProduct->name ?? '-' }}</strong> &rarr; gratis {{ $fmt($promo->free_qty) }} <strong>{{ $promo->freeProduct->name ?? '-' }}</strong></td>
+                                    <td data-label="Depo">
+                                        @forelse ($promo->branches as $b)
+                                            <span class="frm-status is-on">{{ $b->name }}</span>
+                                        @empty
+                                            <span class="frm-status is-off">Belum ada Depo</span>
+                                        @endforelse
+                                    </td>
                                     <td data-label="Periode">{{ $promo->starts_on?->format('d/m/Y') ?? 'sejak awal' }} &ndash; {{ $promo->ends_on?->format('d/m/Y') ?? 'tanpa batas' }}</td>
                                     <td class="frm-cell-status">
                                         @if ($promo->is_active)
@@ -109,7 +131,7 @@
                                     </td>
                                 </tr>
                                 <tr id="edit-{{ $promo->id }}" hidden>
-                                    <td colspan="5">
+                                    <td colspan="6">
                                         <form method="POST" action="{{ route('admin.master.buy-get-promos.update', $promo) }}" class="frm-grid">
                                             @csrf
                                             @method('PUT')
@@ -129,6 +151,8 @@
                                                 <input type="date" name="ends_on" value="{{ $promo->ends_on?->toDateString() }}" class="frm-input"></div>
                                             <div class="frm-field"><label class="frm-label">Catatan</label>
                                                 <input type="text" name="notes" value="{{ $promo->notes }}" maxlength="500" class="frm-input"></div>
+                                            <div class="frm-field" style="grid-column:1/-1"><label class="frm-label">Berlaku di Depo</label>
+                                                {!! $branchChecks($promo->branches->pluck('id')->map(fn ($i) => (int) $i)->all(), 'e'.$promo->id) !!}</div>
                                             <div class="frm-field"><label class="frm-label"><input type="checkbox" name="is_active" value="1" @checked($promo->is_active)> Aktif</label></div>
                                             <div class="frm-field"><button type="submit" class="adm-btn adm-btn-primary adm-btn-sm">Simpan</button></div>
                                         </form>

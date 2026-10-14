@@ -112,6 +112,7 @@ class TransactionController extends Controller
         // Program Beli X Gratis Y yang sedang berlaku (untuk pratinjau di form).
         $promos = BuyGetPromo::query()
             ->runningOn()
+            ->forBranch($sales->branch_id ? (int) $sales->branch_id : null)
             ->with(['buyProduct:id,name', 'freeProduct:id,name'])
             ->get()
             ->map(fn (BuyGetPromo $p) => [

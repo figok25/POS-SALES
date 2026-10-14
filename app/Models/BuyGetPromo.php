@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 /**
  * Program "Beli X produk A gratis Y produk B" dari distributor. Berlaku
@@ -37,6 +38,22 @@ class BuyGetPromo extends Model
     public function freeProduct(): BelongsTo
     {
         return $this->belongsTo(Product::class, 'free_product_id');
+    }
+
+    /** Depo tempat program ini diaktifkan. */
+    public function branches(): BelongsToMany
+    {
+        return $this->belongsToMany(Branch::class, 'branch_buy_get_promo')->withTimestamps();
+    }
+
+    /** Hanya program yang diaktifkan untuk Depo tertentu. */
+    public function scopeForBranch(Builder $query, ?int $branchId): Builder
+    {
+        if ($branchId === null) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->whereHas('branches', fn ($q) => $q->where('branches.id', $branchId));
     }
 
     public function scopeActive(Builder $query): Builder

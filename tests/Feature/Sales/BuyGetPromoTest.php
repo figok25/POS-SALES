@@ -37,9 +37,9 @@ class BuyGetPromoTest extends TestCase
         return [$user, $sales, $customer, $rokok, $kopi];
     }
 
-    private function promo($buy, $free, float $buyQty = 1, float $freeQty = 1, array $extra = []): BuyGetPromo
+    private function promo($buy, $free, float $buyQty = 1, float $freeQty = 1, array $extra = [], ?array $branchIds = null): BuyGetPromo
     {
-        return BuyGetPromo::create(array_merge([
+        $promo = BuyGetPromo::create(array_merge([
             'name' => 'Promo Test',
             'buy_product_id' => $buy->id,
             'buy_qty' => $buyQty,
@@ -47,6 +47,11 @@ class BuyGetPromoTest extends TestCase
             'free_qty' => $freeQty,
             'is_active' => true,
         ], $extra));
+
+        // Default: aktif di Depo bawaan fixture (Depo Sales di test ini).
+        $promo->branches()->attach($branchIds ?? [$this->defaultBranch()->id]);
+
+        return $promo;
     }
 
     private function sell($user, $sales, $customer, $product, float $qty)
@@ -171,6 +176,7 @@ class BuyGetPromoTest extends TestCase
             'free_product_id' => $kopi->id,
             'free_qty' => 1,
             'is_active' => 1,
+            'branch_ids' => [$this->defaultBranch()->id],
         ])->assertSessionHasNoErrors();
 
         $promo = BuyGetPromo::firstOrFail();
@@ -185,10 +191,67 @@ class BuyGetPromoTest extends TestCase
             'buy_qty' => 2,
             'free_product_id' => $kopi->id,
             'free_qty' => 1,
+            'branch_ids' => [$this->defaultBranch()->id],
         ])->assertSessionHasNoErrors();
 
         $promo->refresh();
         $this->assertFalse($promo->is_active);
         $this->assertEquals(2, $promo->buy_qty);
+    }
+
+    public function test_program_only_applies_to_depos_it_is_active_in(): void
+    {
+        [$user, $sales, $customer, $rokok, $kopi] = $this->setUpSale(10, 5);
+        $other = $this->makeBranch('CBG-LAIN', 'Depo Lain');
+        $this->promo($rokok, $kopi, 1, 1, [], [$other->id]); // hanya Depo lain
+
+        $trx = $this->sell($user, $sales, $customer, $rokok, 3);
+
+        $this->assertCount(1, $trx->items);
+        $this->assertEquals(5, $this->qty($kopi, $sales));
+    }
+
+    public function test_program_can_be_active_in_several_depos(): void
+    {
+        [$user, $sales, $customer, $rokok, $kopi] = $this->setUpSale(10, 5);
+        $other = $this->makeBranch('CBG-LAIN', 'Depo Lain');
+        $this->promo($rokok, $kopi, 1, 1, [], [$other->id, $this->defaultBranch()->id]);
+
+        $trx = $this->sell($user, $sales, $customer, $rokok, 2);
+
+        $this->assertEquals(2, $trx->items->firstWhere('is_free', true)->quantity);
+    }
+
+    public function test_program_requires_at_least_one_depo_and_admin_can_change_depos(): void
+    {
+        $admin = $this->makeAdminUser();
+        $rokok = $this->makeProduct();
+        $kopi = $this->makeProduct();
+        $other = $this->makeBranch('CBG-LAIN', 'Depo Lain');
+
+        $payload = [
+            'name' => 'Promo Depo',
+            'buy_product_id' => $rokok->id,
+            'buy_qty' => 1,
+            'free_product_id' => $kopi->id,
+            'free_qty' => 1,
+            'is_active' => 1,
+        ];
+
+        $this->actingAs($admin)->post(route('admin.master.buy-get-promos.store'), $payload)
+            ->assertSessionHasErrors('branch_ids');
+        $this->assertSame(0, BuyGetPromo::count());
+
+        $this->actingAs($admin)->post(route('admin.master.buy-get-promos.store'), $payload + ['branch_ids' => [$other->id]])
+            ->assertSessionHasNoErrors();
+
+        $promo = BuyGetPromo::firstOrFail();
+        $this->assertEquals([$other->id], $promo->branches()->pluck('branches.id')->all());
+
+        $this->actingAs($admin)->put(route('admin.master.buy-get-promos.update', $promo), $payload + [
+            'branch_ids' => [$other->id, $this->defaultBranch()->id],
+        ])->assertSessionHasNoErrors();
+
+        $this->assertCount(2, $promo->fresh()->branches);
     }
 }

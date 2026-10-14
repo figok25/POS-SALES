@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\BuyGetPromo;
+use App\Models\Sales;
 use App\Models\Stock;
 
 /**
@@ -35,8 +36,12 @@ class PromoService
             return [];
         }
 
+        // Program berbeda tiap Depo: hanya program yang aktif di Depo Sales ini.
+        $branchId = Sales::query()->whereKey($salesId)->value('branch_id');
+
         $promos = BuyGetPromo::query()
             ->runningOn()
+            ->forBranch($branchId ? (int) $branchId : null)
             ->whereIn('buy_product_id', array_keys($bought))
             ->orderBy('id')
             ->get();

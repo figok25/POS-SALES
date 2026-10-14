@@ -79,7 +79,7 @@ class DailySalesReportTest extends TestCase
         BuyGetPromo::create([
             'name' => 'Promo', 'buy_product_id' => $rokok->id, 'buy_qty' => 1,
             'free_product_id' => $kopi->id, 'free_qty' => 1, 'is_active' => true,
-        ]);
+        ])->branches()->attach($sales->branch_id);
 
         $this->sell($user, $sales, $customer, $rokok, 2);
 

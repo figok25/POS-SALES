@@ -23,6 +23,8 @@ class BuyGetPromoRequest extends FormRequest
             'ends_on' => ['nullable', 'date', 'after_or_equal:starts_on'],
             'is_active' => ['nullable', 'boolean'],
             'notes' => ['nullable', 'string', 'max:500'],
+            'branch_ids' => ['required', 'array', 'min:1'],
+            'branch_ids.*' => ['integer', 'exists:branches,id'],
         ];
     }
 
@@ -36,6 +38,7 @@ class BuyGetPromoRequest extends FormRequest
             'free_qty' => 'jumlah gratis',
             'starts_on' => 'tanggal mulai',
             'ends_on' => 'tanggal selesai',
+            'branch_ids' => 'Depo',
         ];
     }
 }
