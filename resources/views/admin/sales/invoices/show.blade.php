@@ -39,6 +39,8 @@
                         <span class="frm-status is-on">Paid</span>
                     @elseif ($invoice->status === 'partial')
                         <span class="frm-status is-warn">Partial</span>
+                    @elseif ($invoice->status === 'cancelled')
+                        <span class="frm-status is-off">Dibatalkan</span>
                     @else
                         <span class="frm-status is-danger">Unpaid</span>
                     @endif

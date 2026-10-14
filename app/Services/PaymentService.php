@@ -26,6 +26,10 @@ class PaymentService
             /** @var Invoice $invoice */
             $invoice = Invoice::query()->lockForUpdate()->findOrFail($invoice->id);
 
+            if ($invoice->status === Invoice::STATUS_CANCELLED) {
+                throw ValidationException::withMessages(['amount' => 'Invoice ini dibatalkan (transaksinya dihapus), tidak bisa menerima pembayaran.']);
+            }
+
             $amount = round((float) $data['amount'], 2);
 
             if ($amount <= 0) {

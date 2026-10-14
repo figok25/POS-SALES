@@ -32,10 +32,12 @@ class DashboardController extends Controller
             ->count('customer_id');
 
         $transaksiHariIni = SalesTransaction::where('sales_id', $sales->id)
+            ->where('status', SalesTransaction::STATUS_COMPLETED)
             ->whereDate('created_at', $today)
             ->count();
 
         $penjualanHariIni = SalesTransaction::where('sales_id', $sales->id)
+            ->where('status', SalesTransaction::STATUS_COMPLETED)
             ->whereDate('created_at', $today)
             ->sum('total');
 

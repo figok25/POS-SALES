@@ -407,6 +407,30 @@ class SalesTransactionController extends Controller
             ->with('warnings', $result['warnings']);
     }
 
+    /** Hapus (void) transaksi Sales -- khusus Super Admin; stok kembali ke Sales, invoice dibatalkan. */
+    public function void(Request $request, SalesTransaction $transaction, \App\Services\SalesTransactionVoidService $service)
+    {
+        if (! BranchContext::current()->allows($transaction->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke Transaksi ini.');
+        }
+
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'min:3', 'max:500'],
+        ], ['reason.required' => 'Alasan penghapusan wajib diisi.']);
+
+        try {
+            $result = $service->void($transaction, $data['reason']);
+        } catch (ValidationException $e) {
+            return redirect()->route('admin.sales.transactions.show', $transaction)->with('error', collect($e->errors())->flatten()->first());
+        }
+
+        $returned = collect($result['stock_impact'])->count();
+
+        return redirect()->route('admin.sales.transactions.show', $transaction)
+            ->with('status', "Transaksi {$transaction->code} dihapus. Stok Sales dikembalikan ({$returned} produk), invoice dibatalkan, dan dashboard otomatis menyesuaikan.")
+            ->with('warnings', $result['warnings']);
+    }
+
     /**
      * View print-friendly untuk Transaksi (Cetak Nota): format struk
      * (thermal ~80mm) dan A4, dipilih lewat query `?format=`.

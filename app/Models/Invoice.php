@@ -19,6 +19,9 @@ class Invoice extends Model
 
     public const STATUS_PAID = 'paid';
 
+    /** Invoice milik transaksi yang dihapus (void) -- bukan piutang. */
+    public const STATUS_CANCELLED = 'cancelled';
+
     protected $fillable = [
         'code', 'sales_transaction_id', 'customer_id', 'consumer_name', 'sales_id', 'branch_id',
         'date', 'subtotal', 'discount', 'tax', 'grand_total', 'paid_amount', 'status',

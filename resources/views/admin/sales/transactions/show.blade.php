@@ -17,6 +17,9 @@
                         <a href="{{ route('admin.sales.transactions.edit', $transaction) }}" class="adm-btn adm-btn-primary adm-btn-sm">Edit Transaksi</a>
                     @endif
                 @endcan
+                @if (auth()->user()->isSuperAdmin() && $transaction->status !== 'cancelled' && ! $transaction->isDepoSale())
+                    <button type="button" class="adm-btn adm-btn-danger adm-btn-sm" onclick="document.getElementById('voidBox').hidden = false; document.getElementById('voidReason').focus();">Hapus Transaksi</button>
+                @endif
                 <a href="{{ route('admin.sales.transactions.print', $transaction) }}" target="_blank" rel="noopener" class="adm-btn adm-btn-ghost adm-btn-sm">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
                     Cetak
@@ -37,6 +40,26 @@
         @foreach ((array) session('warnings', []) as $warning)
             <div class="frm-alert is-warn" role="alert"><span class="frm-alert-text">{{ $warning }}</span></div>
         @endforeach
+        @if ($transaction->status === 'cancelled' && $transaction->isVoided())
+            <div class="frm-alert is-error" role="status"><span class="frm-alert-text">Transaksi ini dihapus oleh {{ $transaction->voider->name ?? 'Super Admin' }} pada {{ $transaction->voided_at->format('d/m/Y H:i') }}. Alasan: {{ $transaction->void_reason }}</span></div>
+        @endif
+        @if (auth()->user()->isSuperAdmin() && $transaction->status !== 'cancelled' && ! $transaction->isDepoSale())
+            <div id="voidBox" class="panel" hidden style="margin-bottom:16px;border-color:#fca5a5">
+                <form method="POST" action="{{ route('admin.sales.transactions.void', $transaction) }}" style="padding:16px 22px">
+                    @csrf
+                    <h2 class="panel-title" style="margin:0 0 6px">Hapus Transaksi {{ $transaction->code }}</h2>
+                    <p class="frm-sub" style="margin:0 0 12px">Transaksi akan dibatalkan dan hilang dari dashboard, KPI, dan laporan. <strong>Stok barang dikembalikan ke Sales</strong>, invoice dibatalkan, dan pembayaran pada invoice ini (bila ada, belum di-Settlement) ikut dihapus. Data tetap tercatat di riwayat dan audit log.</p>
+                    <div class="frm-field">
+                        <label class="frm-label" for="voidReason">Alasan penghapusan <span class="frm-req">*</span></label>
+                        <textarea id="voidReason" name="reason" rows="2" required minlength="3" maxlength="500" class="frm-input" placeholder="mis. Sales terlanjur transaksi sebelum sistem dipakai"></textarea>
+                    </div>
+                    <div style="display:flex;gap:.5rem;margin-top:12px">
+                        <button type="submit" class="adm-btn adm-btn-danger adm-btn-sm" onclick="return confirm('Hapus transaksi {{ $transaction->code }}? Stok akan dikembalikan ke Sales.')">Ya, Hapus Transaksi</button>
+                        <button type="button" class="adm-btn adm-btn-ghost adm-btn-sm" onclick="document.getElementById('voidBox').hidden = true;">Batal</button>
+                    </div>
+                </form>
+            </div>
+        @endif
         @if ($transaction->isRevised())
             <div class="frm-alert is-info" role="status"><span class="frm-alert-text">Transaksi ini pernah dikoreksi {{ $transaction->revision_count }}x (terakhir {{ $transaction->last_revised_at?->format('d/m/Y H:i') }}).</span></div>
         @endif

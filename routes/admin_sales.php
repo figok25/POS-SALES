@@ -41,6 +41,11 @@ Route::middleware('permission:sales-management.view')->group(function () {
     Route::get('kpi/{period}/export', [KpiController::class, 'export'])->name('kpi.export');
 });
 
+Route::middleware(['permission:sales-management.manage', 'role:super_admin'])->group(function () {
+    // Hapus (void) transaksi Sales: khusus Super Admin.
+    Route::post('transactions/{transaction}/void', [SalesTransactionController::class, 'void'])->name('transactions.void');
+});
+
 Route::middleware('permission:sales-management.manage')->group(function () {
     Route::post('kpi/periods', [KpiController::class, 'storePeriod'])->name('kpi.periods.store');
     Route::get('kpi/{period}/targets', [KpiController::class, 'editTargets'])->name('kpi.targets.edit');

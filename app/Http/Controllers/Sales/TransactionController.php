@@ -46,7 +46,7 @@ class TransactionController extends Controller
             ->when($filterDate, fn ($q) => $q->whereDate('created_at', $filterDate->toDateString()));
 
         $summary = [
-            'count' => (clone $base)->count(),
+            'count' => (clone $base)->where('status', SalesTransaction::STATUS_COMPLETED)->count(),
             'total' => (float) (clone $base)->where('status', SalesTransaction::STATUS_COMPLETED)->sum('total'),
         ];
 

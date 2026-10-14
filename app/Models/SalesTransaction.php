@@ -24,6 +24,7 @@ class SalesTransaction extends Model
         'status', 'source', 'price_type', 'notes', 'created_by',
         'revision_count', 'last_revised_by', 'last_revised_at', 'revision_reason',
         'recorded_at', 'entry_reason',
+        'voided_at', 'voided_by', 'void_reason',
     ];
 
     protected function casts(): array
@@ -35,6 +36,7 @@ class SalesTransaction extends Model
             'total' => 'decimal:2',
             'last_revised_at' => 'datetime',
             'recorded_at' => 'datetime',
+            'voided_at' => 'datetime',
         ];
     }
 
@@ -50,6 +52,16 @@ class SalesTransaction extends Model
                 $trx->branch_id = Sales::query()->whereKey($trx->sales_id)->value('branch_id');
             }
         });
+    }
+
+    public function isVoided(): bool
+    {
+        return $this->voided_at !== null;
+    }
+
+    public function voider(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'voided_by');
     }
 
     public function isRevised(): bool

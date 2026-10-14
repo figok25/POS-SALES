@@ -621,7 +621,7 @@ class DashboardController extends Controller
         $invoices = $branchContext->applyTo(Invoice::query(), 'branch_id')
             ->whereNull('sales_id')
             ->where('is_credit', true)
-            ->where('status', '!=', Invoice::STATUS_PAID)
+            ->whereIn('status', [Invoice::STATUS_UNPAID, Invoice::STATUS_PARTIAL])
             ->whereHas('salesTransaction', fn ($q) => $q->where('status', SalesTransaction::STATUS_COMPLETED))
             ->with('branch:id,name')
             ->orderBy('date')
