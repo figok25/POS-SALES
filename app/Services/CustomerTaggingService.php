@@ -236,7 +236,7 @@ class CustomerTaggingService
     {
         return Customer::query()
             ->where(function ($q) use ($name, $phone) {
-                $q->where('name', 'like', "%{$name}%");
+                $q->where('name', \App\Support\Search::operator(), \App\Support\Search::like($name));
                 if ($phone) {
                     $q->orWhere('phone', $phone);
                 }

@@ -19,9 +19,7 @@ class CategoryController extends Controller
 
         $items = Category::query()
             
-            ->when($search, fn ($query) => $query
-                ->where('code', 'like', "%{$search}%")
-                ->orWhere('name', 'like', "%{$search}%"))
+            ->tap(fn ($query) => \App\Support\Search::apply($query, $search, ['code', 'name']))
             ->orderBy('id', 'desc')
             ->paginate(15)
             ->withQueryString();

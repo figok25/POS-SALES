@@ -32,7 +32,7 @@ class CustomerAssignmentController extends Controller
         $items = BranchContext::current()->applyTo(
             Customer::query()->with(['sales'])
         )
-            ->when($search, fn ($q) => $q->where('name', 'like', "%{$search}%")->orWhere('code', 'like', "%{$search}%"))
+            ->tap(fn ($q) => \App\Support\Search::apply($q, $search, ['name', 'code']))
             ->when($salesFilter, fn ($q) => $q->where('sales_id', $salesFilter))
             ->when($unassignedOnly, fn ($q) => $q->whereNull('sales_id'))
             ->orderBy('name')

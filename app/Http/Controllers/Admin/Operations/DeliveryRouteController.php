@@ -35,7 +35,7 @@ class DeliveryRouteController extends Controller
             DeliveryRoute::query()->with('sales')->withCount('routeCustomers'),
             fn ($q, $branchId) => $q->whereHas('sales', fn ($qq) => $qq->where('branch_id', $branchId))
         )
-            ->when($search, fn ($q) => $q->where('code', 'like', "%{$search}%")->orWhere('name', 'like', "%{$search}%"))
+            ->tap(fn ($q) => \App\Support\Search::apply($q, $search, ['code', 'name']))
             ->orderBy('id', 'desc')
             ->paginate(15)
             ->withQueryString();

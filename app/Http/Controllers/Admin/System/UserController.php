@@ -35,9 +35,7 @@ class UserController extends Controller
 
         $items = User::query()
             ->with('roles')
-            ->when($search, fn ($query) => $query
-                ->where('name', 'like', "%{$search}%")
-                ->orWhere('email', 'like', "%{$search}%"))
+            ->tap(fn ($query) => \App\Support\Search::apply($query, $search, ['name', 'email']))
             ->orderBy('name')
             ->paginate(15)
             ->withQueryString();

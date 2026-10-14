@@ -83,17 +83,7 @@ class SalesTransactionController extends Controller
             )
             ->when($from, fn ($q) => $q->whereDate('created_at', '>=', $from->toDateString()))
             ->when($to, fn ($q) => $q->whereDate('created_at', '<=', $to->toDateString()))
-            ->when($search !== '', function ($q) use ($search) {
-                $like = '%'.str_replace(['%', '_'], ['\\%', '\\_'], $search).'%';
-
-                $q->where(function ($w) use ($like) {
-                    $w->where('code', 'like', $like)
-                        ->orWhere('consumer_name', 'like', $like)
-                        ->orWhereHas('customer', fn ($c) => $c->where('name', 'like', $like))
-                        ->orWhereHas('sales', fn ($s) => $s->where('name', 'like', $like))
-                        ->orWhereHas('invoice', fn ($i) => $i->where('code', 'like', $like));
-                });
-            })
+            ->tap(fn ($q) => \App\Support\Search::apply($q, $search, ['code', 'consumer_name'], ['customer' => ['name'], 'sales' => ['name'], 'invoice' => ['code']]))
             ->orderBy('id', 'desc');
     }
 

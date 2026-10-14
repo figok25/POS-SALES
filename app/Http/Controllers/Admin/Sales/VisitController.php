@@ -72,13 +72,7 @@ class VisitController extends Controller
             ->when(in_array($condition, Visit::CONDITIONS, true), fn ($q) => $q->where('check_in_condition', $condition))
             ->when($from, fn ($q) => $q->whereDate('check_in_at', '>=', $from->toDateString()))
             ->when($to, fn ($q) => $q->whereDate('check_in_at', '<=', $to->toDateString()))
-            ->when($search !== '', function ($q) use ($search) {
-                $like = '%'.str_replace(['%', '_'], ['\\%', '\\_'], $search).'%';
-                $q->where(function ($w) use ($like) {
-                    $w->whereHas('customer', fn ($c) => $c->where('name', 'like', $like)->orWhere('code', 'like', $like))
-                        ->orWhereHas('sales', fn ($s) => $s->where('name', 'like', $like));
-                });
-            });
+            ->tap(fn ($q) => \App\Support\Search::apply($q, $search, [], ['customer' => ['name', 'code'], 'sales' => ['name']]));
 
         $this->applyOutcome($query, $outcome);
 

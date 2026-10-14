@@ -27,7 +27,7 @@ class VisitPlanController extends Controller
         $saless = BranchContext::current()->applyTo(
             Sales::where('is_active', true)
         )
-            ->when($search, fn ($q) => $q->where('name', 'like', "%{$search}%"))
+            ->tap(fn ($q) => \App\Support\Search::apply($q, $search, ['name']))
             ->withCount('customers')
             ->orderBy('name')
             ->paginate(20)

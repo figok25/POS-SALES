@@ -28,12 +28,7 @@ class PriceController extends Controller
         $items = Price::query()
             ->with('product')
             ->when($type !== '', fn ($query) => $query->where('price_type', $type))
-            ->when($search !== '', fn ($query) => $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                    ->orWhereHas('product', fn ($p) => $p
-                        ->where('name', 'like', "%{$search}%")
-                        ->orWhere('sku', 'like', "%{$search}%"));
-            }))
+            ->tap(fn ($query) => \App\Support\Search::apply($query, $search, ['name'], ['product' => ['name', 'sku']]))
             ->orderByDesc('id')
             ->paginate(15)
             ->withQueryString();

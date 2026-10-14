@@ -19,7 +19,7 @@ class DriverController extends Controller
         $search = $request->query('q');
 
         $items = Employee::query()
-            ->when($search, fn ($q) => $q->where('name', 'like', "%{$search}%")->orWhere('code', 'like', "%{$search}%"))
+            ->tap(fn ($q) => \App\Support\Search::apply($q, $search, ['name', 'code']))
             ->orderBy('is_driver', 'desc')
             ->orderBy('name')
             ->paginate(15)

@@ -281,10 +281,7 @@ class CustomerController extends Controller
      */
     private function applySearch(Builder $query, string $search): Builder
     {
-        return $query->when($search !== '', fn (Builder $q) => $q->where(function (Builder $w) use ($search) {
-            $w->where('code', 'like', "%{$search}%")
-                ->orWhere('name', 'like', "%{$search}%");
-        }));
+        return \App\Support\Search::apply($query, $search, ['code', 'name']);
     }
 
     /**

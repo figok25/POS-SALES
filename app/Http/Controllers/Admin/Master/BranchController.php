@@ -23,9 +23,7 @@ class BranchController extends Controller
 
         $items = Branch::query()
             ->with(['company'])
-            ->when($search, fn ($query) => $query->where(fn ($q) => $q
-                ->where('code', 'like', "%{$search}%")
-                ->orWhere('name', 'like', "%{$search}%")))
+            ->tap(fn ($query) => \App\Support\Search::apply($query, $search, ['code', 'name']))
             ->orderBy('id', 'desc')
             ->paginate(15)
             ->withQueryString();

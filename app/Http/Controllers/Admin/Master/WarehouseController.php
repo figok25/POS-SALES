@@ -27,10 +27,7 @@ class WarehouseController extends Controller
         $items = BranchContext::current()->applyTo(
             Warehouse::query()->with('branch')
         )
-            ->when($search !== '', fn ($query) => $query->where(function ($q) use ($search) {
-                $q->where('code', 'like', "%{$search}%")
-                    ->orWhere('name', 'like', "%{$search}%");
-            }))
+            ->tap(fn ($query) => \App\Support\Search::apply($query, $search, ['code', 'name']))
             ->orderByDesc('id')
             ->paginate(15)
             ->withQueryString();

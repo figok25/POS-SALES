@@ -44,6 +44,20 @@ class StockRequest extends Model
         return $this->hasMany(StockRequestItem::class);
     }
 
+    public function bkbs(): HasMany
+    {
+        return $this->hasMany(BkbDistribusi::class);
+    }
+
+    /**
+     * Satu Permintaan Barang hanya boleh dibuatkan SATU BKB (draft/applied).
+     * BKB yang dibatalkan tidak menghitung (stok tidak pernah berpindah).
+     */
+    public function activeBkb(): ?BkbDistribusi
+    {
+        return $this->bkbs()->where('status', '!=', BkbDistribusi::STATUS_CANCELLED)->orderBy('id')->first();
+    }
+
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');

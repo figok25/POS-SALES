@@ -34,9 +34,7 @@ class StockController extends Controller
         $items = BranchContext::current()->applyToLocation(
             Stock::query()->with('product')->where('location_type', Stock::LOCATION_WAREHOUSE)
         )
-            ->when($search, fn ($q) => $q->whereHas('product', fn ($p) => $p
-                ->where('name', 'like', "%{$search}%")
-                ->orWhere('sku', 'like', "%{$search}%")))
+            ->tap(fn ($q) => \App\Support\Search::apply($q, $search, [], ['product' => ['name', 'sku']]))
             ->orderBy('product_id')
             ->paginate(20)
             ->withQueryString();
@@ -89,11 +87,9 @@ class StockController extends Controller
         $items = BranchContext::current()->applyToLocation(
             Stock::query()->with('product')->where('location_type', Stock::LOCATION_SALES)
         )
-            ->when($search, fn ($q) => $q->where(function ($w) use ($search) {
-                $w->whereHas('product', fn ($p) => $p
-                    ->where('name', 'like', "%{$search}%")
-                    ->orWhere('sku', 'like', "%{$search}%"))
-                    ->orWhereIn('location_id', Sales::where('name', 'like', "%{$search}%")->pluck('id'));
+            ->when(\App\Support\Search::words($search) !== [], fn ($q) => $q->where(function ($w) use ($search) {
+                $w->whereHas('product', fn ($p) => \App\Support\Search::apply($p, $search, ['name', 'sku']))
+                    ->orWhereIn('location_id', \App\Support\Search::apply(Sales::query(), $search, ['name'])->pluck('id'));
             }))
             ->orderBy('location_id')
             ->orderBy('product_id')

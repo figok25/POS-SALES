@@ -22,7 +22,7 @@ class PromoItemController extends Controller
         $search = $request->query('q');
 
         $items = PromoItem::query()
-            ->when($search, fn ($query) => $query->where('name', 'like', "%{$search}%"))
+            ->tap(fn ($query) => \App\Support\Search::apply($query, $search, ['name']))
             ->ordered()
             ->paginate(20)
             ->withQueryString();

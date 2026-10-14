@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admin\Distribution;
 
 use App\Models\Sales;
+use App\Models\StockRequest;
 use App\Models\Warehouse;
 use App\Support\BranchContext;
 use Illuminate\Foundation\Http\FormRequest;
@@ -50,6 +51,17 @@ class BkbDistribusiRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator) {
+            // Satu Permintaan Barang = satu BKB. Mau kirim lagi? Buat Permintaan baru.
+            if ($this->filled('stock_request_id')) {
+                $stockRequest = StockRequest::find($this->input('stock_request_id'));
+
+                if ($stockRequest && ! $stockRequest->isSubmitted()) {
+                    $validator->errors()->add('stock_request_id', 'Permintaan Barang harus berstatus Submitted sebelum dibuatkan BKB.');
+                } elseif ($stockRequest && ($used = $stockRequest->activeBkb())) {
+                    $validator->errors()->add('stock_request_id', "Permintaan Barang {$stockRequest->code} sudah dibuatkan BKB {$used->code}. Satu Permintaan hanya untuk satu BKB; buat Permintaan Barang baru bila ingin mengirim lagi.");
+                }
+            }
+
             $warehouseId = $this->input('warehouse_id');
             $salesId = $this->input('sales_id');
 

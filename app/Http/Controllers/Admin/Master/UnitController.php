@@ -19,9 +19,7 @@ class UnitController extends Controller
 
         $items = Unit::query()
             
-            ->when($search, fn ($query) => $query
-                ->where('symbol', 'like', "%{$search}%")
-                ->orWhere('name', 'like', "%{$search}%"))
+            ->tap(fn ($query) => \App\Support\Search::apply($query, $search, ['symbol', 'name']))
             ->orderBy('id', 'desc')
             ->paginate(15)
             ->withQueryString();

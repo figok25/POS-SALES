@@ -81,9 +81,15 @@
             @endif
 
             @if ($stockRequest->isSubmitted())
-                @can('distribution.manage')
-                    <a href="{{ route('admin.distribution.bkb.create', ['stock_request_id' => $stockRequest->id]) }}" class="adm-btn adm-btn-primary">Buat BKB Distribusi</a>
-                @endcan
+                @php $usedBkb = $stockRequest->activeBkb(); @endphp
+                @if ($usedBkb)
+                    <a href="{{ route('admin.distribution.bkb.show', $usedBkb) }}" class="adm-btn adm-btn-ghost">Lihat BKB {{ $usedBkb->code }} ({{ $usedBkb->status }})</a>
+                    <span class="frm-meta">Permintaan ini sudah dibuatkan BKB. Untuk kirim lagi, buat Permintaan Barang baru.</span>
+                @else
+                    @can('distribution.manage')
+                        <a href="{{ route('admin.distribution.bkb.create', ['stock_request_id' => $stockRequest->id]) }}" class="adm-btn adm-btn-primary">Buat BKB Distribusi</a>
+                    @endcan
+                @endif
             @endif
 
             @if (in_array($stockRequest->status, ['draft', 'submitted']))

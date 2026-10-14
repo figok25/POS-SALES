@@ -26,10 +26,7 @@ class ProductController extends Controller
 
         $items = Product::query()
             ->with(['category', 'unit'])
-            ->when($search !== '', fn ($query) => $query->where(function ($q) use ($search) {
-                $q->where('sku', 'like', "%{$search}%")
-                    ->orWhere('name', 'like', "%{$search}%");
-            }))
+            ->tap(fn ($query) => \App\Support\Search::apply($query, $search, ['sku', 'name']))
             ->orderByDesc('id')
             ->paginate(15)
             ->withQueryString();
