@@ -35,22 +35,35 @@
         @endif
 
         <div class="panel">
-            <form method="GET" class="frm-toolbar">
-                <select name="status" class="frm-input is-select is-filter" onchange="this.form.submit()">
-                    <option value="">Semua Status</option>
-                    <option value="draft" @selected($status === 'draft')>Menunggu Check</option>
-                    <option value="applied" @selected($status === 'applied')>Approved</option>
-                    <option value="discrepancy" @selected($status === 'discrepancy')>Discrepancy</option>
-                    <option value="cancelled" @selected($status === 'cancelled')>Cancelled</option>
-                </select>
-                <input type="date" name="date_from" value="{{ request('date_from') }}" class="frm-input" aria-label="Dari tanggal">
-                <input type="date" name="date_to" value="{{ request('date_to') }}" class="frm-input" aria-label="Sampai tanggal">
-                <input type="search" name="q" value="{{ request('q') }}" class="frm-input" placeholder="Kode / Sales / Warehouse" aria-label="Cari">
-                <button type="submit" class="adm-btn adm-btn-primary adm-btn-sm">Terapkan</button>
-                @if (request()->hasAny(['q', 'date_from', 'date_to', 'status']))
-                    <a href="{{ route('admin.distribution.btb.index', request()->only('branch')) }}" class="adm-btn adm-btn-ghost adm-btn-sm">Reset</a>
-                @endif
-                <span class="frm-count">{{ $items->total() }} dokumen</span>
+            <form method="GET" class="frm-filter" style="display:block;padding:16px 18px;border-bottom:1px solid var(--adm-border,#e5e9f2)">
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px 14px;align-items:end">
+                    <label style="display:flex;flex-direction:column;gap:.3rem;font-size:.75rem;font-weight:600;color:var(--adm-muted,#64748b);margin:0">Status
+                        <select name="status" class="frm-input is-select is-filter" style="width:100%">
+                            <option value="">Semua Status</option>
+                            <option value="draft" @selected($status === 'draft')>Menunggu Check</option>
+                            <option value="applied" @selected($status === 'applied')>Approved</option>
+                            <option value="discrepancy" @selected($status === 'discrepancy')>Discrepancy</option>
+                            <option value="cancelled" @selected($status === 'cancelled')>Cancelled</option>
+                        </select>
+                    </label>
+                    <label style="display:flex;flex-direction:column;gap:.3rem;font-size:.75rem;font-weight:600;color:var(--adm-muted,#64748b);margin:0">Dari Tanggal
+                        <input type="date" name="date_from" value="{{ request('date_from') }}" class="frm-input" style="width:100%">
+                    </label>
+                    <label style="display:flex;flex-direction:column;gap:.3rem;font-size:.75rem;font-weight:600;color:var(--adm-muted,#64748b);margin:0">Sampai Tanggal
+                        <input type="date" name="date_to" value="{{ request('date_to') }}" class="frm-input" style="width:100%">
+                    </label>
+                    <label style="display:flex;flex-direction:column;gap:.3rem;font-size:.75rem;font-weight:600;color:var(--adm-muted,#64748b);margin:0">Cari
+                        <input type="search" name="q" value="{{ request('q') }}" class="frm-input" placeholder="Kode / nama Sales / Warehouse" style="width:100%">
+                    </label>
+                </div>
+                <div style="display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;margin-top:12px">
+                    <button type="submit" class="adm-btn adm-btn-primary adm-btn-sm">Terapkan Filter</button>
+                    @if (request()->hasAny(['q', 'date_from', 'date_to', 'status']))
+                        <a href="{{ route('admin.distribution.btb.index', request()->only('branch')) }}" class="adm-btn adm-btn-ghost adm-btn-sm">Reset</a>
+                    @endif
+                    <span class="frm-count" style="margin-left:auto">{{ $items->total() }} dokumen</span>
+                </div>
+                <p style="margin:8px 0 0;font-size:.72rem;color:var(--adm-muted,#64748b)">Tanggal dihitung dari tanggal dokumen. Semua filter berlaku bersamaan dan ikut terbawa saat pindah halaman.</p>
             </form>
 
             @if ($items->isEmpty())

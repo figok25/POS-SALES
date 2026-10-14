@@ -26,19 +26,27 @@
         $bfBranches = \App\Models\Branch::where('is_active', true)->orderBy('name')->get(['id', 'name']);
         $bfCurrent = \App\Support\BranchContext::current()->isAll() ? 'all' : (string) \App\Support\BranchContext::current()->branchId();
     @endphp
-    <form method="GET" action="{{ url()->current() }}" class="adm-branch-filter" style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin:0 0 12px;font-size:.8rem">
+    <form method="GET" action="{{ url()->current() }}" class="adm-branch-filter" style="display:flex;flex-wrap:wrap;align-items:flex-end;gap:.75rem;margin:0 0 16px;padding:12px 16px;border:1px solid var(--adm-border,#e5e9f2);border-radius:14px;background:var(--adm-surface,transparent)">
         @foreach (request()->except(['branch', 'page']) as $k => $v)
             @if (is_scalar($v))
                 <input type="hidden" name="{{ $k }}" value="{{ $v }}">
             @endif
         @endforeach
-        <label for="bfBranch" style="font-weight:600">Depo</label>
-        <select id="bfBranch" name="branch" class="frm-input is-select is-filter" onchange="this.form.submit()" aria-label="Filter Depo">
-            <option value="all" @selected($bfCurrent === 'all')>Semua Depo</option>
-            @foreach ($bfBranches as $b)
-                <option value="{{ $b->id }}" @selected($bfCurrent === (string) $b->id)>{{ $b->name }}</option>
-            @endforeach
-        </select>
+        <label for="bfBranch" style="display:flex;flex-direction:column;gap:.3rem;font-size:.75rem;font-weight:600;color:var(--adm-muted,#64748b);margin:0">Filter Depo
+            <select id="bfBranch" name="branch" aria-label="Filter Depo" class="frm-input is-select is-filter" onchange="this.form.submit()" style="min-width:220px">
+                <option value="all" @selected($bfCurrent === 'all')>Semua Depo</option>
+                @foreach ($bfBranches as $b)
+                    <option value="{{ $b->id }}" @selected($bfCurrent === (string) $b->id)>{{ $b->name }}</option>
+                @endforeach
+            </select>
+        </label>
+        <p style="margin:0;font-size:.78rem;color:var(--adm-muted,#64748b);flex:1;min-width:200px">
+            @if ($bfCurrent === 'all')
+                Menampilkan data <strong>seluruh Depo</strong>. Pilih satu Depo untuk mempersempit tampilan; pilihan ikut terbawa saat pindah menu.
+            @else
+                Menampilkan data <strong>{{ $bfBranches->firstWhere('id', (int) $bfCurrent)?->name ?? 'Depo terpilih' }}</strong> saja. Pilih "Semua Depo" untuk melihat semuanya.
+            @endif
+        </p>
         <noscript><button class="adm-btn adm-btn-ghost adm-btn-sm">Terapkan</button></noscript>
     </form>
 @endif

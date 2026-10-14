@@ -16,22 +16,32 @@
 
         <div class="panel">
             {{-- Filter --}}
-            <form method="GET" class="frm-toolbar" role="search">
-                <select name="movement_type" class="frm-input is-select is-filter" aria-label="Filter tipe" onchange="this.form.submit()">
-                    <option value="">Semua Tipe</option>
-                    @foreach ($movementTypes as $type)
-                        <option value="{{ $type }}" @selected($movementType === $type)>{{ $type }}</option>
-                    @endforeach
-                </select>
-                <input type="date" name="date_from" value="{{ request('date_from') }}" class="frm-input" aria-label="Dari tanggal">
-                <input type="date" name="date_to" value="{{ request('date_to') }}" class="frm-input" aria-label="Sampai tanggal">
-                <div class="frm-toolbar-actions">
-                    <button type="submit" class="adm-btn adm-btn-ghost adm-btn-sm">Filter</button>
+            <form method="GET" class="frm-filter" style="display:block;padding:16px 18px;border-bottom:1px solid var(--adm-border,#e5e9f2)">
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px 14px;align-items:end">
+                    <label style="display:flex;flex-direction:column;gap:.3rem;font-size:.75rem;font-weight:600;color:var(--adm-muted,#64748b);margin:0">Tipe Pergerakan
+                        <select name="movement_type" class="frm-input is-select is-filter" style="width:100%">
+                            <option value="">Semua Tipe</option>
+                            @foreach ($movementTypes as $type)
+                                <option value="{{ $type }}" @selected($movementType === $type)>{{ $type }}</option>
+                            @endforeach
+                        </select>
+                    </label>
+                    <label style="display:flex;flex-direction:column;gap:.3rem;font-size:.75rem;font-weight:600;color:var(--adm-muted,#64748b);margin:0">Dari Tanggal
+                        <input type="date" name="date_from" value="{{ request('date_from') }}" class="frm-input" style="width:100%">
+                    </label>
+                    <label style="display:flex;flex-direction:column;gap:.3rem;font-size:.75rem;font-weight:600;color:var(--adm-muted,#64748b);margin:0">Sampai Tanggal
+                        <input type="date" name="date_to" value="{{ request('date_to') }}" class="frm-input" style="width:100%">
+                    </label>
+
+                </div>
+                <div style="display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;margin-top:12px">
+                    <button type="submit" class="adm-btn adm-btn-primary adm-btn-sm">Terapkan Filter</button>
                     @if ($hasFilter)
                         <a href="{{ route('admin.inventory.movements.index', request()->only('branch')) }}" class="adm-btn adm-btn-ghost adm-btn-sm">Reset</a>
                     @endif
+                    <span class="frm-count" style="margin-left:auto">{{ $total }} pergerakan</span>
                 </div>
-                <span class="frm-count">{{ $total }} pergerakan</span>
+                <p style="margin:8px 0 0;font-size:.72rem;color:var(--adm-muted,#64748b)">Tanggal dihitung dari {{ 'tanggal pergerakan' }}. Semua filter berlaku bersamaan dan ikut terbawa saat pindah halaman.</p>
             </form>
 
             @if ($items->isEmpty())
