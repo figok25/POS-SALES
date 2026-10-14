@@ -8,7 +8,7 @@
         <div class="frm-head">
             <div>
                 <h1 class="frm-title">Kasir Depo</h1>
-                <p class="frm-sub">Kasir Depo: jual langsung ke konsumen dari Gudang Depo dengan harga Konsumen. Bukan transaksi Customer/Outlet, tidak terkait Sales, tanpa Delivery Order.</p>
+                <p class="frm-sub">Kasir Depo: jual langsung ke konsumen dari Gudang Depo; kategori harga dipilih Admin dan boleh dijual kredit. Bukan transaksi Customer/Outlet, tidak terkait Sales, tanpa Delivery Order.</p>
             </div>
             <div class="frm-head-actions">
                 <a href="{{ route('admin.depo.transactions.index') }}" class="adm-btn adm-btn-ghost adm-btn-sm">Kembali</a>
@@ -27,7 +27,7 @@
 
         {{-- Langkah 1: Depo, Gudang, Kategori Harga, Customer --}}
         <section class="panel" style="margin-bottom:12px">
-            <div class="panel-head"><h2 class="panel-title">1. Depo &amp; Gudang</h2></div>
+            <div class="panel-head"><h2 class="panel-title">1. Depo, Gudang &amp; Kategori Harga</h2></div>
             <form method="GET" action="{{ route('admin.depo.create') }}" class="frm-toolbar" style="flex-wrap:wrap;gap:8px">
                 @if ($isAll)
                     <select name="branch_id" class="frm-input is-select" aria-label="Depo" onchange="this.form.submit()">
@@ -42,6 +42,12 @@
                     <option value="">- Pilih Gudang -</option>
                     @foreach ($warehouses as $w)
                         <option value="{{ $w->id }}" @selected($warehouseId === $w->id)>{{ $w->name }}</option>
+                    @endforeach
+                </select>
+
+                <select name="price_type" class="frm-input is-select" aria-label="Kategori harga" onchange="this.form.submit()">
+                    @foreach ($priceTypes as $key => $label)
+                        <option value="{{ $key }}" @selected($priceType === $key)>Harga {{ $label }}</option>
                     @endforeach
                 </select>
 
@@ -60,11 +66,12 @@
                     @csrf
                     <input type="hidden" name="branch_id" value="{{ $branchId }}">
                     <input type="hidden" name="warehouse_id" value="{{ $warehouseId }}">
+                    <input type="hidden" name="price_type" value="{{ $priceType }}">
 
                     <section class="panel" style="margin-bottom:12px">
                         <div class="panel-head">
                             <h2 class="panel-title">2. Produk</h2>
-                            <span class="frm-count">Harga Konsumen</span>
+                            <span class="frm-count">Harga {{ $priceTypes[$priceType] ?? $priceType }}</span>
                         </div>
 
                         <div class="frm-table-wrap">
@@ -85,8 +92,20 @@
                     <section class="panel" style="margin-bottom:12px;padding:16px">
                         <div class="panel-head" style="padding:0 0 8px"><h2 class="panel-title">3. Pembeli &amp; Pembayaran</h2></div>
 
-                        <label class="frm-label" for="consumerName">Nama Pembeli (opsional)</label>
+                        <label class="frm-label" for="consumerName">Nama Pembeli <span id="nameHint" class="frm-meta">(opsional)</span></label>
                         <input type="text" id="consumerName" name="consumer_name" maxlength="120" value="{{ old('consumer_name') }}" class="frm-input" style="max-width:320px;margin-bottom:12px" placeholder="Kosongkan untuk konsumen umum">
+
+                        <div style="margin-bottom:12px">
+                            <label style="display:flex;align-items:center;gap:.4rem">
+                                <input type="checkbox" name="is_credit" id="isCredit" value="1" @checked(old('is_credit'))>
+                                <strong>Jual Kredit</strong> <span class="frm-meta">(dibayar nanti; hanya di Toko Depo)</span>
+                            </label>
+                            <div id="creditBox" style="display:none;margin-top:8px">
+                                <label class="frm-label" for="creditDue">Jatuh tempo (opsional)</label>
+                                <input type="date" id="creditDue" name="credit_due_date" value="{{ old('credit_due_date') }}" class="frm-input" style="max-width:200px">
+                                <p class="frm-meta" style="margin:4px 0 0">Nama pembeli wajib diisi. Uang diterima di bawah dianggap uang muka (DP) dan harus kurang dari total. Pelunasan dicatat lewat menu Pembayaran invoice.</p>
+                            </div>
+                        </div>
 
                         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
                             <input type="number" step="0.01" min="0" id="received" class="frm-input" style="width:180px" placeholder="Uang diterima (Rp)">
@@ -162,6 +181,18 @@
                             });
                             body.appendChild(tr);
                         }
+
+                        const creditBox = document.getElementById('isCredit');
+                        function syncCredit() {
+                            const on = creditBox.checked;
+                            document.getElementById('creditBox').style.display = on ? 'block' : 'none';
+                            document.getElementById('consumerName').required = on;
+                            document.getElementById('nameHint').textContent = on ? '(wajib untuk kredit)' : '(opsional)';
+                            document.getElementById('received').placeholder = on ? 'Uang muka / DP (Rp, opsional)' : 'Uang diterima (Rp)';
+                            document.getElementById('payFull').style.display = on ? 'none' : '';
+                        }
+                        creditBox.addEventListener('change', syncCredit);
+                        syncCredit();
 
                         document.getElementById('addRow').addEventListener('click', addRow);
                         document.getElementById('received').addEventListener('input', updatePay);

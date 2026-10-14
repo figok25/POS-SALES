@@ -698,6 +698,76 @@
         </section>
     </div>
 
+    {{-- Kredit Toko Depo yang belum lunas --}}
+    <section class="panel dash-section" id="depo-credit">
+        <div class="panel-head">
+            <div>
+                <h2 class="panel-title">Kredit Toko Depo (Belum Lunas)</h2>
+                <span class="dash-section-note">Pembeli kasir Depo yang masih berutang. Sales tidak punya kredit.</span>
+            </div>
+            <span class="frm-count">{{ $depoCredit['count'] }} pembeli &middot; Rp{{ number_format($depoCredit['total'], 0, ',', '.') }}</span>
+        </div>
+
+        @if ($depoCredit['groups']->isEmpty())
+            <p class="panel-empty">Tidak ada kredit Toko Depo yang belum lunas.</p>
+        @else
+            <div class="frm-table-wrap">
+                <table class="frm-table">
+                    <thead>
+                        <tr>
+                            <th>Pembeli</th>
+                            <th>Depo</th>
+                            <th class="is-num">Invoice</th>
+                            <th class="is-num">Total Kredit</th>
+                            <th class="is-num">Sudah Dibayar</th>
+                            <th class="is-num">Sisa Utang</th>
+                            <th>Sejak</th>
+                            <th>Jatuh Tempo</th>
+                            <th>Invoice &amp; Bayar</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($depoCredit['groups'] as $g)
+                            <tr>
+                                <td><span class="frm-name">{{ $g['name'] }}</span></td>
+                                <td data-label="Depo">{{ $g['branch'] }}</td>
+                                <td data-label="Invoice" class="is-num">{{ $g['count'] }}</td>
+                                <td data-label="Total Kredit" class="is-num">Rp{{ number_format($g['total'], 0, ',', '.') }}</td>
+                                <td data-label="Sudah Dibayar" class="is-num">Rp{{ number_format($g['paid'], 0, ',', '.') }}</td>
+                                <td data-label="Sisa Utang" class="is-num"><strong>Rp{{ number_format($g['outstanding'], 0, ',', '.') }}</strong></td>
+                                <td data-label="Sejak" class="frm-nowrap">{{ $g['oldest']?->format('d/m/Y') }}</td>
+                                <td data-label="Jatuh Tempo" class="frm-nowrap">
+                                    @if ($g['due'])
+                                        {{ $g['due']->format('d/m/Y') }}
+                                        @if ($g['overdue'])<span class="frm-status is-danger">Lewat</span>@endif
+                                    @else
+                                        -
+                                    @endif
+                                </td>
+                                <td data-label="Invoice">
+                                    @foreach ($g['invoices'] as $inv)
+                                        <a href="{{ route('admin.sales.invoices.show', $inv) }}" class="row-code">{{ $inv->code }}</a>
+                                        @can('finance.manage')
+                                            <a href="{{ route('admin.finance.payments.create', $inv) }}" class="adm-btn adm-btn-ghost adm-btn-sm">Bayar</a>
+                                        @endcan
+                                        <br>
+                                    @endforeach
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <th colspan="5">Total sisa utang</th>
+                            <th class="is-num">Rp{{ number_format($depoCredit['total'], 0, ',', '.') }}</th>
+                            <th colspan="3"></th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        @endif
+    </section>
+
     <section class="dash-section">
         <div class="dash-section-head">
             <h2 class="dash-section-title">Akses Cepat</h2>

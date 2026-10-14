@@ -148,20 +148,112 @@ class AdminCreatesTransactionTest extends TestCase
         $this->assertDatabaseCount('sales_transactions', 0);
     }
 
-    public function test_price_is_always_consumer_even_if_other_category_is_sent(): void
+    public function test_price_defaults_to_consumer_and_admin_can_choose_another_category(): void
     {
         $admin = $this->makeAdminUser();
         $warehouse = $this->makeWarehouse();
         $product = $this->makeProduct(); // Retail 10.000
         $this->consumerPrice($product, 25000);
-        $this->stockWarehouse($warehouse, $product, 5);
+        $this->stockWarehouse($warehouse, $product, 10);
+
+        $this->actingAs($admin)->post(route('admin.depo.store'), $this->payload($warehouse, $product, 2))
+            ->assertSessionHasNoErrors();
+        $default = SalesTransaction::firstOrFail();
+        $this->assertSame('consumer', $default->price_type);
+        $this->assertEquals(50000, $default->total);
 
         $this->actingAs($admin)->post(route('admin.depo.store'), $this->payload($warehouse, $product, 2, ['price_type' => 'retail']))
             ->assertSessionHasNoErrors();
+        $retail = SalesTransaction::latest('id')->first();
+        $this->assertSame('retail', $retail->price_type);
+        $this->assertEquals(20000, $retail->total);
 
-        $trx = SalesTransaction::firstOrFail();
-        $this->assertSame('consumer', $trx->price_type);
-        $this->assertEquals(50000, $trx->total);
+        $this->actingAs($admin)->post(route('admin.depo.store'), $this->payload($warehouse, $product, 1, ['price_type' => 'bogus']))
+            ->assertSessionHasErrors('price_type');
+    }
+
+    public function test_credit_sale_requires_buyer_name_and_leaves_balance(): void
+    {
+        $admin = $this->makeAdminUser();
+        $warehouse = $this->makeWarehouse();
+        $product = $this->makeProduct();
+        $this->consumerPrice($product, 20000);
+        $this->stockWarehouse($warehouse, $product, 10);
+
+        $this->actingAs($admin)->post(route('admin.depo.store'), $this->payload($warehouse, $product, 5, ['is_credit' => 1]))
+            ->assertSessionHasErrors('consumer_name');
+        $this->assertSame(0, SalesTransaction::count());
+
+        $this->actingAs($admin)->post(route('admin.depo.store'), $this->payload($warehouse, $product, 5, [
+            'is_credit' => 1, 'consumer_name' => 'Toko Maju', 'credit_due_date' => now()->addDays(7)->toDateString(),
+            'pay_amount' => 30000,
+        ]))->assertSessionHasNoErrors();
+
+        $invoice = Invoice::firstOrFail();
+        $this->assertTrue($invoice->is_credit);
+        $this->assertSame('partial', $invoice->status);
+        $this->assertEquals(70000, $invoice->outstanding());
+        $this->assertSame(now()->addDays(7)->toDateString(), $invoice->credit_due_date->toDateString());
+    }
+
+    public function test_credit_sale_cannot_be_fully_paid_upfront(): void
+    {
+        $admin = $this->makeAdminUser();
+        $warehouse = $this->makeWarehouse();
+        $product = $this->makeProduct();
+        $this->consumerPrice($product, 20000);
+        $this->stockWarehouse($warehouse, $product, 10);
+
+        $this->actingAs($admin)->post(route('admin.depo.store'), $this->payload($warehouse, $product, 1, [
+            'is_credit' => 1, 'consumer_name' => 'Pak Budi', 'pay_amount' => 20000,
+        ]))->assertSessionHasErrors('pay_amount');
+        $this->assertSame(0, SalesTransaction::count());
+    }
+
+    public function test_regular_depo_sale_is_not_credit(): void
+    {
+        $admin = $this->makeAdminUser();
+        $warehouse = $this->makeWarehouse();
+        $product = $this->makeProduct();
+        $this->consumerPrice($product, 20000);
+        $this->stockWarehouse($warehouse, $product, 10);
+
+        $this->actingAs($admin)->post(route('admin.depo.store'), $this->payload($warehouse, $product, 1))
+            ->assertSessionHasNoErrors();
+
+        $this->assertFalse(Invoice::firstOrFail()->is_credit);
+    }
+
+    public function test_dashboard_lists_unpaid_depo_credit_per_buyer_until_paid(): void
+    {
+        $admin = $this->makeAdminUser();
+        $warehouse = $this->makeWarehouse();
+        $product = $this->makeProduct();
+        $this->consumerPrice($product, 20000);
+        $this->stockWarehouse($warehouse, $product, 20);
+
+        $this->actingAs($admin)->post(route('admin.depo.store'), $this->payload($warehouse, $product, 2, [
+            'is_credit' => 1, 'consumer_name' => 'Toko Maju',
+        ]))->assertSessionHasNoErrors();
+        $this->actingAs($admin)->post(route('admin.depo.store'), $this->payload($warehouse, $product, 1, [
+            'is_credit' => 1, 'consumer_name' => 'toko maju',
+        ]))->assertSessionHasNoErrors();
+        $this->actingAs($admin)->post(route('admin.depo.store'), $this->payload($warehouse, $product, 1, [
+            'consumer_name' => 'Pembeli Tunai',
+        ]))->assertSessionHasNoErrors();
+
+        $this->actingAs($admin)->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertSee('Kredit Toko Depo')
+            ->assertSee('Toko Maju')
+            ->assertViewHas('depoCredit', fn (array $c) => $c['count'] === 1 && (float) $c['total'] === 60000.0);
+
+        foreach (Invoice::where('is_credit', true)->get() as $inv) {
+            app(PaymentService::class)->create($inv, ['amount' => $inv->grand_total, 'method' => 'cash'], $admin->id);
+        }
+
+        $this->actingAs($admin)->get(route('admin.dashboard'))
+            ->assertViewHas('depoCredit', fn (array $c) => $c['count'] === 0);
     }
 
     public function test_consumer_name_is_optional_and_shown_instead_of_customer(): void

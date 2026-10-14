@@ -15,7 +15,8 @@ use Illuminate\Validation\ValidationException;
 
 /**
  * Penjualan langsung Depo (toko Depo / kasir): Admin menjual ke konsumen umum
- * (bukan Customer/Outlet) langsung dari Gudang Depo, harga kategori Konsumen. Berdiri sendiri -- tanpa Sales, tanpa
+ * (bukan Customer/Outlet) langsung dari Gudang Depo; kategori harga dipilih Admin
+ * (default Konsumen) dan boleh kredit (hanya di Toko Depo, Sales tidak ada kredit). Berdiri sendiri -- tanpa Sales, tanpa
  * Delivery Order, tidak masuk KPI/Settlement Sales. Stok dipotong dari
  * Gudang, invoice terbit, dan pembayaran (bila diisi) masuk Buku Kas Depo.
  */
@@ -39,10 +40,22 @@ class DepoSaleService
             throw ValidationException::withMessages(['warehouse_id' => 'Gudang tidak valid untuk Depo ini.']);
         }
 
-        // Konsumen umum (seperti kasir): harga selalu kategori Konsumen.
-        $priceType = Price::TYPE_CONSUMER;
+        // Admin memilih kategori harga (default Konsumen / kasir).
+        $priceType = $data['price_type'] ?? Price::TYPE_CONSUMER;
+
+        if (! array_key_exists($priceType, Price::types())) {
+            throw ValidationException::withMessages(['price_type' => 'Kategori harga tidak valid.']);
+        }
+
         $consumerName = isset($data['consumer_name']) ? trim((string) $data['consumer_name']) : null;
-        $consumerName = $consumerName === '' ? null : mb_substr($consumerName, 0, 120);
+        $consumerName = ($consumerName === null || $consumerName === '') ? null : mb_substr($consumerName, 0, 120);
+
+        // Kredit hanya untuk Toko Depo: pembeli wajib dicatat namanya.
+        $isCredit = (bool) ($data['is_credit'] ?? false);
+
+        if ($isCredit && $consumerName === null) {
+            throw ValidationException::withMessages(['consumer_name' => 'Nama pembeli wajib diisi untuk transaksi kredit.']);
+        }
 
         if (empty($data['items'])) {
             throw ValidationException::withMessages(['items' => 'Transaksi harus memiliki minimal 1 produk.']);
@@ -96,8 +109,14 @@ class DepoSaleService
             throw ValidationException::withMessages(['pay_amount' => 'Jumlah pembayaran tidak boleh melebihi total transaksi.']);
         }
 
+        if ($isCredit && $payAmount >= $total - 0.01) {
+            throw ValidationException::withMessages(['pay_amount' => 'Transaksi kredit harus punya sisa tagihan. Kosongkan uang muka atau isi kurang dari total.']);
+        }
+
+        $dueDate = $isCredit && ! empty($data['credit_due_date']) ? $data['credit_due_date'] : null;
+
         try {
-            return DB::transaction(function () use ($branchId, $warehouse, $userId, $consumerName, $lines, $data, $priceType, $total, $payAmount, $payMethod) {
+            return DB::transaction(function () use ($branchId, $warehouse, $userId, $consumerName, $lines, $data, $priceType, $total, $payAmount, $payMethod, $isCredit, $dueDate) {
                 $trx = SalesTransaction::create([
                     'code' => 'TEMP',
                     'sales_id' => null,
@@ -140,12 +159,16 @@ class DepoSaleService
 
                 $invoice = $this->invoiceService->generateFromSalesTransaction($trx->fresh('items'));
 
+                if ($isCredit) {
+                    $invoice->update(['is_credit' => true, 'credit_due_date' => $dueDate]);
+                }
+
                 if ($payAmount > 0) {
                     $this->paymentService->create($invoice, [
                         'amount' => $payAmount,
                         'method' => $payMethod,
                         'paid_at' => now()->toDateString(),
-                        'notes' => 'Dibayar saat transaksi',
+                        'notes' => $isCredit ? 'Uang muka kredit' : 'Dibayar saat transaksi',
                     ], $userId);
                 }
 

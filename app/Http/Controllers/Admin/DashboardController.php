@@ -116,6 +116,9 @@ class DashboardController extends Controller
         // Laporan global semua Sales per Depo (harian / mingguan), filter sendiri.
         $depoReport = $this->buildDepoReport($request, $branchContext);
 
+        // Kredit Toko Depo yang belum lunas (siapa saja yang berutang).
+        $depoCredit = $this->buildDepoCredit($branchContext);
+
         $transactions = fn () => $branchContext->applyVia(
             SalesTransaction::where('status', SalesTransaction::STATUS_COMPLETED)
                 ->whereNotNull('sales_id')
@@ -299,6 +302,7 @@ class DashboardController extends Controller
             'salesPerformance' => $salesPerformance,
             'visitCoverage' => $visitCoverage,
             'depoReport' => $depoReport,
+            'depoCredit' => $depoCredit,
             'tblView' => $tblView,
             'tblDate' => $tblDate->toDateString(),
             'tblSalesId' => $tblSalesId,
@@ -602,6 +606,55 @@ class DashboardController extends Controller
      * atau minggu ISO yang memuat tanggal itu). Dibatasi Branch context;
      * "Semua Depo" menampilkan satu blok per Depo yang punya aktivitas.
      */
+    /**
+     * Kredit Toko Depo (kasir Depo) yang belum lunas, dikelompokkan per pembeli
+     * dan Depo. Sales tidak punya kredit, jadi hanya invoice tanpa Sales.
+     *
+     * @return array{groups: Collection, total: float, count: int}
+     */
+    private function buildDepoCredit(BranchContext $branchContext): array
+    {
+        $invoices = $branchContext->applyTo(Invoice::query(), 'branch_id')
+            ->whereNull('sales_id')
+            ->where('is_credit', true)
+            ->where('status', '!=', Invoice::STATUS_PAID)
+            ->whereHas('salesTransaction', fn ($q) => $q->where('status', SalesTransaction::STATUS_COMPLETED))
+            ->with('branch:id,name')
+            ->orderBy('date')
+            ->orderBy('id')
+            ->get();
+
+        $today = now()->toDateString();
+
+        $groups = $invoices
+            ->groupBy(fn (Invoice $i) => $i->branch_id.'|'.mb_strtolower(trim((string) $i->consumer_name)))
+            ->map(function (Collection $rows) use ($today) {
+                $first = $rows->first();
+                $due = $rows->pluck('credit_due_date')->filter()->min();
+
+                return [
+                    'name' => $first->consumer_name ?: 'Tanpa nama',
+                    'branch' => $first->branch->name ?? '-',
+                    'invoices' => $rows,
+                    'count' => $rows->count(),
+                    'total' => round((float) $rows->sum('grand_total'), 2),
+                    'paid' => round((float) $rows->sum('paid_amount'), 2),
+                    'outstanding' => round((float) $rows->sum(fn (Invoice $i) => $i->outstanding()), 2),
+                    'oldest' => $rows->min('date'),
+                    'due' => $due,
+                    'overdue' => $due !== null && $due->toDateString() < $today,
+                ];
+            })
+            ->sortByDesc('outstanding')
+            ->values();
+
+        return [
+            'groups' => $groups,
+            'total' => round((float) $groups->sum('outstanding'), 2),
+            'count' => $groups->count(),
+        ];
+    }
+
     private function buildDepoReport(Request $request, BranchContext $branchContext): array
     {
         $view = in_array($request->query('rpt_view'), ['today', 'date', 'week'], true)

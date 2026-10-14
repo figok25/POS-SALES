@@ -22,6 +22,7 @@ class Invoice extends Model
     protected $fillable = [
         'code', 'sales_transaction_id', 'customer_id', 'consumer_name', 'sales_id', 'branch_id',
         'date', 'subtotal', 'discount', 'tax', 'grand_total', 'paid_amount', 'status',
+        'is_credit', 'credit_due_date',
     ];
 
     protected function casts(): array
@@ -33,6 +34,8 @@ class Invoice extends Model
             'tax' => 'decimal:2',
             'grand_total' => 'decimal:2',
             'paid_amount' => 'decimal:2',
+            'is_credit' => 'boolean',
+            'credit_due_date' => 'date',
         ];
     }
 

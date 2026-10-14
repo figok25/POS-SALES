@@ -187,8 +187,11 @@ class SalesTransactionController extends Controller
             $warehouseId = $warehouses->count() === 1 ? $warehouses->first()->id : null;
         }
 
-        // Penjualan Depo = konsumen umum (kasir): harga otomatis kategori Konsumen.
-        $priceType = Price::TYPE_CONSUMER;
+        // Kategori harga dipilih Admin (default Konsumen / kasir).
+        $priceTypes = Price::types();
+        $priceType = array_key_exists((string) $request->query('price_type'), $priceTypes)
+            ? (string) $request->query('price_type')
+            : Price::TYPE_CONSUMER;
 
         $stocks = collect();
         $prices = collect();
@@ -210,7 +213,7 @@ class SalesTransactionController extends Controller
         }
 
         return view('admin.sales.transactions.create', compact(
-            'isAll', 'branches', 'branchId', 'warehouses', 'warehouseId', 'priceType', 'stocks', 'prices'
+            'isAll', 'branches', 'branchId', 'warehouses', 'warehouseId', 'priceType', 'priceTypes', 'stocks', 'prices'
         ));
     }
 
@@ -222,6 +225,9 @@ class SalesTransactionController extends Controller
             'branch_id' => [$context->isAll() ? 'required' : 'nullable', 'exists:branches,id'],
             'warehouse_id' => ['required', 'exists:warehouses,id'],
             'consumer_name' => ['nullable', 'string', 'max:120'],
+            'price_type' => ['nullable', 'in:'.implode(',', array_keys(Price::types()))],
+            'is_credit' => ['nullable', 'boolean'],
+            'credit_due_date' => ['nullable', 'date'],
             'notes' => ['nullable', 'string', 'max:1000'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.product_id' => ['required', 'exists:products,id'],
@@ -235,6 +241,8 @@ class SalesTransactionController extends Controller
         if (! $context->allows($branchId)) {
             abort(403, 'Anda tidak memiliki akses ke Depo ini.');
         }
+
+        $data['is_credit'] = $request->boolean('is_credit');
 
         try {
             $trx = $service->create($branchId, (int) $data['warehouse_id'], auth()->id(), $data);
