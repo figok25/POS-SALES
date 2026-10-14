@@ -45,7 +45,15 @@
                     <input type="text" name="name" value="{{ old('name') }}" required maxlength="255" class="frm-input" placeholder="mis. Promo Slim Vanila + Kopi">
                 </div>
                 <div class="frm-field">
-                    <label class="frm-label">Produk yang dibeli <span class="frm-req">*</span></label>
+                    <label class="frm-label">Jenis program <span class="frm-req">*</span></label>
+                    <select name="type" class="frm-input">
+                        <option value="buy_get" @selected(old('type', 'buy_get') === 'buy_get')>Beli Gratis (beli produk, dapat gratis)</option>
+                        <option value="shell_exchange" @selected(old('type') === 'shell_exchange')>Tukar Cangkang (serahkan bungkus kosong, dapat gratis)</option>
+                    </select>
+                    <div class="frm-sub">Tukar Cangkang: &ldquo;Produk yang dibeli&rdquo; = produk cangkang, &ldquo;Jumlah beli&rdquo; = jumlah cangkang per tukar (mis. 8). Contoh: 8 cangkang Ori Kretek = gratis 1 Ori Kretek.</div>
+                </div>
+                <div class="frm-field">
+                    <label class="frm-label">Produk yang dibeli / cangkang <span class="frm-req">*</span></label>
                     <select name="buy_product_id" required class="frm-input">{!! $productOptions(old('buy_product_id')) !!}</select>
                 </div>
                 <div class="frm-field">
@@ -110,7 +118,7 @@
                             @foreach ($promos as $promo)
                                 <tr>
                                     <td><div class="frm-name">{{ $promo->name }}</div>@if ($promo->notes)<div class="frm-sub">{{ $promo->notes }}</div>@endif</td>
-                                    <td data-label="Aturan">Beli {{ $fmt($promo->buy_qty) }} <strong>{{ $promo->buyProduct->name ?? '-' }}</strong> &rarr; gratis {{ $fmt($promo->free_qty) }} <strong>{{ $promo->freeProduct->name ?? '-' }}</strong></td>
+                                    <td data-label="Aturan">@if ($promo->isShellExchange())<span class="frm-status is-off">Tukar Cangkang</span> {{ $fmt($promo->buy_qty) }} cangkang @else Beli {{ $fmt($promo->buy_qty) }} @endif<strong>{{ $promo->buyProduct->name ?? '-' }}</strong> &rarr; gratis {{ $fmt($promo->free_qty) }} <strong>{{ $promo->freeProduct->name ?? '-' }}</strong></td>
                                     <td data-label="Depo">
                                         @forelse ($promo->branches as $b)
                                             <span class="frm-status is-on">{{ $b->name }}</span>
@@ -137,7 +145,12 @@
                                             @method('PUT')
                                             <div class="frm-field"><label class="frm-label">Nama program</label>
                                                 <input type="text" name="name" value="{{ $promo->name }}" required maxlength="255" class="frm-input"></div>
-                                            <div class="frm-field"><label class="frm-label">Produk dibeli</label>
+                                            <div class="frm-field"><label class="frm-label">Jenis program</label>
+                                                <select name="type" class="frm-input">
+                                                    <option value="buy_get" @selected($promo->type === 'buy_get')>Beli Gratis</option>
+                                                    <option value="shell_exchange" @selected($promo->type === 'shell_exchange')>Tukar Cangkang</option>
+                                                </select></div>
+                                            <div class="frm-field"><label class="frm-label">Produk dibeli / cangkang</label>
                                                 <select name="buy_product_id" required class="frm-input">{!! $productOptions($promo->buy_product_id) !!}</select></div>
                                             <div class="frm-field"><label class="frm-label">Jumlah beli</label>
                                                 <input type="number" name="buy_qty" value="{{ $promo->buy_qty }}" step="0.01" min="0.01" required class="frm-input"></div>

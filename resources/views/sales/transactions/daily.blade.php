@@ -20,6 +20,12 @@
         <div class="flex justify-between"><span class="text-gray-500">Sales</span><span>{{ $report['sales_name'] }}</span></div>
     </div>
 
+    @if (($sum['shell_qty'] ?? 0) > 0)
+        <div class="bg-green-50 border border-green-200 text-green-800 rounded-lg p-3 text-sm mb-3">
+            Cangkang diterima: <strong>{{ $q($sum['shell_qty']) }}</strong> bungkus (tukar cangkang)
+        </div>
+    @endif
+
     <p class="text-sm font-semibold text-gray-700 mb-2">Penjualan Produk</p>
     <div class="bg-white rounded-lg shadow divide-y text-sm mb-3">
         @forelse ($report['products'] as $p)

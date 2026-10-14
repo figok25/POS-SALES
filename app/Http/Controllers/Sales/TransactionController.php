@@ -111,6 +111,7 @@ class TransactionController extends Controller
 
         // Program Beli X Gratis Y yang sedang berlaku (untuk pratinjau di form).
         $promos = BuyGetPromo::query()
+            ->buyGet()
             ->runningOn()
             ->forBranch($sales->branch_id ? (int) $sales->branch_id : null)
             ->with(['buyProduct:id,name', 'freeProduct:id,name'])
@@ -125,7 +126,26 @@ class TransactionController extends Controller
             ])
             ->values();
 
-        return view('sales.transactions.create', compact('visit', 'myStock', 'prices', 'sales', 'promos'));
+        // Program Tukar Cangkang yang aktif di Depo Sales ini.
+        $shellPromos = BuyGetPromo::query()
+            ->shellExchange()
+            ->runningOn()
+            ->forBranch($sales->branch_id ? (int) $sales->branch_id : null)
+            ->with(['buyProduct:id,name', 'freeProduct:id,name'])
+            ->orderBy('id')
+            ->get()
+            ->map(fn (BuyGetPromo $p) => [
+                'id' => $p->id,
+                'name' => $p->name,
+                'shell_name' => $p->buyProduct->name ?? '-',
+                'rate' => (float) $p->buy_qty,
+                'free_id' => $p->free_product_id,
+                'free_name' => $p->freeProduct->name ?? '-',
+                'free_qty' => (float) $p->free_qty,
+            ])
+            ->values();
+
+        return view('sales.transactions.create', compact('visit', 'myStock', 'prices', 'sales', 'promos', 'shellPromos'));
     }
 
     public function store(SalesTransactionRequest $request)
@@ -190,6 +210,7 @@ class TransactionController extends Controller
         $products = [];
         $totalSales = 0.0;
         $totalFreeQty = 0.0;
+        $totalShells = 0.0;
         $transactedCustomers = [];
 
         foreach ($transactions as $trx) {
@@ -201,6 +222,7 @@ class TransactionController extends Controller
                 if ($line->is_free) {
                     $products[$line->product_id]['free'] += (float) $line->quantity;
                     $totalFreeQty += (float) $line->quantity;
+                    $totalShells += (float) $line->shell_qty;
                 } else {
                     $products[$line->product_id]['sold'] += (float) $line->quantity;
                     $products[$line->product_id]['amount'] += (float) $line->subtotal;
@@ -237,6 +259,7 @@ class TransactionController extends Controller
                 'transactions' => $transactions->count(),
                 'total_sales' => round($totalSales, 2),
                 'free_qty' => round($totalFreeQty, 2),
+                'shell_qty' => round($totalShells, 2),
                 'visits' => $visitCount,
                 'ec' => $ecKeys->count(),
                 'ec_new' => $ecSplit['new'],

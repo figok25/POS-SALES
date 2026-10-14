@@ -51,7 +51,7 @@
                 <template x-for="(row, index) in rows" :key="index">
                     <div class="border rounded p-2 mb-2">
                         <div class="flex gap-2 items-start">
-                            <select :name="'items[' + index + '][product_id]'" x-model="row.product_id" required class="flex-1 border rounded px-2 py-1.5 text-sm">
+                            <select :name="'items[' + index + '][product_id]'" x-model="row.product_id" :required="!hasShells()" class="flex-1 border rounded px-2 py-1.5 text-sm">
                                 <option value="">- Produk -</option>
                                 @foreach ($myStock as $stock)
                                     <option value="{{ $stock->product_id }}">{{ $stock->product->name ?? '-' }} (stok: {{ rtrim(rtrim(number_format($stock->quantity, 2, '.', ''), '0'), '.') }})</option>
@@ -60,7 +60,7 @@
                             <button type="button" @click="removeRow(index)" class="text-red-500 text-sm px-2">&times;</button>
                         </div>
                         <div class="flex gap-2 mt-2 items-center">
-                            <input type="number" step="0.01" min="0.01" :name="'items[' + index + '][quantity]'" x-model.number="row.quantity" placeholder="Qty" required class="w-24 border rounded px-2 py-1.5 text-sm">
+                            <input type="number" step="0.01" min="0.01" :name="'items[' + index + '][quantity]'" x-model.number="row.quantity" placeholder="Qty" :required="!hasShells()" class="w-24 border rounded px-2 py-1.5 text-sm">
                             <span class="text-xs" :class="row.product_id && !priceOf(row.product_id) ? 'text-red-600' : 'text-gray-500'"
                                   x-text="row.product_id && !priceOf(row.product_id) ? 'Harga {{ $sales->typeLabel() }} belum diatur' : 'Harga: Rp ' + formatRupiah(priceOf(row.product_id))"></span>
                             <span class="text-xs text-gray-700 ml-auto font-medium" x-text="'Subtotal: Rp ' + formatRupiah(priceOf(row.product_id) * (row.quantity || 0))"></span>
@@ -68,6 +68,19 @@
                     </div>
                 </template>
             </div>
+
+            @if ($shellPromos->isNotEmpty())
+            <div class="border rounded p-2 bg-amber-50 border-amber-200">
+                <label class="block text-sm text-gray-700 mb-1">Tukar Cangkang <span class="text-xs text-gray-500">(isi jumlah bungkus kosong yang diserahkan outlet)</span></label>
+                <template x-for="(p, i) in shellPromos" :key="p.id">
+                    <div class="flex items-center gap-2 mb-1">
+                        <input type="hidden" :name="'shells[' + i + '][promo_id]'" :value="p.id">
+                        <span class="flex-1 text-sm" x-text="p.shell_name + ' (' + fmt(p.rate) + ' cangkang = gratis ' + fmt(p.free_qty) + ' ' + p.free_name + ')'"></span>
+                        <input type="number" step="1" min="0" :name="'shells[' + i + '][quantity]'" x-model.number="shellQty[p.id]" placeholder="0" class="w-20 border rounded px-2 py-1.5 text-sm">
+                    </div>
+                </template>
+            </div>
+            @endif
 
             <template x-if="freeLines().length || promoHints().length">
                 <div class="rounded border border-green-200 bg-green-50 p-2 text-xs text-green-800 space-y-1">
@@ -110,10 +123,17 @@
                 @endforeach
             };
             const promos = @json($promos);
+            const shellPromos = @json($shellPromos);
             const fmt = (n) => (Math.round(n * 100) / 100).toString();
 
             return {
                 rows: [{ product_id: '', quantity: null }],
+                shellPromos: shellPromos,
+                shellQty: Object.fromEntries(shellPromos.map((p) => [p.id, null])),
+                fmt: fmt,
+                hasShells() {
+                    return shellPromos.some((p) => Number(this.shellQty[p.id]) > 0);
+                },
                 boughtQty(productId) {
                     return this.rows.reduce((sum, r) => sum + (String(r.product_id) === String(productId) ? (Number(r.quantity) || 0) : 0), 0);
                 },
@@ -130,6 +150,20 @@
                         if (give <= 0) return;
                         left[p.free_id] -= give;
                         out.push({ key: 'f' + i, name: p.free_name, qty: fmt(give), wanted: fmt(wanted), short: give < wanted });
+                    });
+                    // Tukar cangkang (hitungan final di server).
+                    shellPromos.forEach((p) => {
+                        const q = Number(this.shellQty[p.id]) || 0;
+                        if (q <= 0) return;
+                        const wanted = Math.floor(Math.round(q / p.rate * 1e6) / 1e6) * p.free_qty;
+                        if (wanted <= 0) {
+                            out.push({ key: 's' + p.id, name: p.free_name + ' (cangkang kurang, minimal ' + fmt(p.rate) + ')', qty: 0, wanted: 0, short: false });
+                            return;
+                        }
+                        if (left[p.free_id] === undefined) left[p.free_id] = (stockQty[p.free_id] || 0) - this.boughtQty(p.free_id);
+                        const give = Math.min(wanted, Math.max(0, left[p.free_id]));
+                        left[p.free_id] -= give;
+                        out.push({ key: 's' + p.id, name: p.free_name + ' (tukar cangkang)', qty: fmt(give), wanted: fmt(wanted), short: give < wanted });
                     });
                     return out;
                 },

@@ -68,7 +68,10 @@ class SalesTransactionService
             ]);
         }
 
-        if (empty($data['items'])) {
+        $shells = $data['shells'] ?? [];
+        $hasShells = collect($shells)->contains(fn ($s) => (float) ($s['quantity'] ?? 0) > 0);
+
+        if (empty($data['items']) && ! $hasShells) {
             throw ValidationException::withMessages([
                 'items' => 'Transaksi harus memiliki minimal 1 produk.',
             ]);
@@ -83,7 +86,7 @@ class SalesTransactionService
         // Product, Validate Price) dilakukan sebelum masuk DB transaction
         // supaya pesan error jelas per baris.
         $lines = [];
-        foreach ($data['items'] as $line) {
+        foreach ($data['items'] ?? [] as $line) {
             $product = Product::find($line['product_id']);
 
             if (! $product || ! $product->is_active) {
@@ -121,7 +124,7 @@ class SalesTransactionService
         }
 
         // Program Beli X Gratis Y: hitung barang gratis (dibatasi stok Sales).
-        $freeLines = $this->promoService->freeLinesFor($salesId, $lines);
+        $freeLines = $this->promoService->freeLinesFor($salesId, $lines, $shells);
 
         try {
             return DB::transaction(function () use ($salesId, $createdByUserId, $customer, $lines, $freeLines, $data, $priceType) {
@@ -179,7 +182,7 @@ class SalesTransactionService
                         'sales_transaction',
                         SalesTransaction::class,
                         $trx->id,
-                        "Gratis program: {$free['promo']->name} ({$trx->code})",
+                        (isset($free['shells']) ? 'Tukar cangkang: ' : 'Gratis program: ')."{$free['promo']->name} ({$trx->code})",
                     );
 
                     $trx->items()->create([
@@ -189,6 +192,7 @@ class SalesTransactionService
                         'subtotal' => 0,
                         'is_free' => true,
                         'buy_get_promo_id' => $free['promo']->id,
+                        'shell_qty' => $free['shells'] ?? null,
                     ]);
                 }
 

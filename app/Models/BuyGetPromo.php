@@ -14,8 +14,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
  */
 class BuyGetPromo extends Model
 {
+    public const TYPE_BUY_GET = 'buy_get';
+
+    public const TYPE_SHELL = 'shell_exchange';
+
     protected $fillable = [
-        'name', 'buy_product_id', 'buy_qty', 'free_product_id', 'free_qty',
+        'name', 'type', 'buy_product_id', 'buy_qty', 'free_product_id', 'free_qty',
         'starts_on', 'ends_on', 'is_active', 'notes', 'created_by',
     ];
 
@@ -38,6 +42,21 @@ class BuyGetPromo extends Model
     public function freeProduct(): BelongsTo
     {
         return $this->belongsTo(Product::class, 'free_product_id');
+    }
+
+    public function scopeBuyGet(Builder $query): Builder
+    {
+        return $query->where('type', self::TYPE_BUY_GET);
+    }
+
+    public function scopeShellExchange(Builder $query): Builder
+    {
+        return $query->where('type', self::TYPE_SHELL);
+    }
+
+    public function isShellExchange(): bool
+    {
+        return $this->type === self::TYPE_SHELL;
     }
 
     /** Depo tempat program ini diaktifkan. */
@@ -86,6 +105,11 @@ class BuyGetPromo extends Model
     public function summary(): string
     {
         $fmt = fn ($n) => rtrim(rtrim(number_format((float) $n, 2, '.', ''), '0'), '.');
+
+        if ($this->isShellExchange()) {
+            return 'Tukar '.$fmt($this->buy_qty).' cangkang '.($this->buyProduct->name ?? '-')
+                .' gratis '.$fmt($this->free_qty).' '.($this->freeProduct->name ?? '-');
+        }
 
         return 'Beli '.$fmt($this->buy_qty).' '.($this->buyProduct->name ?? '-')
             .' gratis '.$fmt($this->free_qty).' '.($this->freeProduct->name ?? '-');

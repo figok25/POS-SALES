@@ -7,6 +7,7 @@ use App\Models\Stock;
 use App\Services\SalesTransactionService;
 use App\Services\StockService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Validation\ValidationException;
 use Tests\Concerns\SetsUpSalesFixtures;
 use Tests\TestCase;
 
@@ -253,5 +254,116 @@ class BuyGetPromoTest extends TestCase
         ])->assertSessionHasNoErrors();
 
         $this->assertCount(2, $promo->fresh()->branches);
+    }
+
+    private function shellPromo($shellProduct, $free, float $rate = 8, float $freeQty = 1, ?array $branchIds = null): BuyGetPromo
+    {
+        return $this->promo($shellProduct, $free, $rate, $freeQty, ['type' => BuyGetPromo::TYPE_SHELL, 'name' => 'Tukar Cangkang'], $branchIds);
+    }
+
+    private function exchange($user, $sales, $customer, $promo, float $shells, array $items = [])
+    {
+        return app(SalesTransactionService::class)->create($sales->id, $user->id, [
+            'customer_id' => $customer->id,
+            'items' => $items,
+            'shells' => [['promo_id' => $promo->id, 'quantity' => $shells]],
+        ]);
+    }
+
+    public function test_shell_exchange_gives_free_item_per_multiple_and_records_shells(): void
+    {
+        [$user, $sales, $customer, $kretek] = $this->setUpSale(10, null);
+        $promo = $this->shellPromo($kretek, $kretek, 8, 1); // 8 cangkang = gratis 1
+
+        $trx = $this->exchange($user, $sales, $customer, $promo, 17); // 2 kelipatan
+
+        $free = $trx->items->firstWhere('is_free', true);
+        $this->assertEquals(2, $free->quantity);
+        $this->assertEquals(17, $free->shell_qty);
+        $this->assertEquals(0, $free->subtotal);
+        $this->assertEquals(8, $this->qty($kretek, $sales));
+        $this->assertEquals(0, $trx->total);
+        $this->assertSame('paid', $trx->invoice->status);
+    }
+
+    public function test_shell_exchange_can_be_combined_with_a_purchase(): void
+    {
+        [$user, $sales, $customer, $kretek, $kopi] = $this->setUpSale(10, 5);
+        $promo = $this->shellPromo($kretek, $kretek, 5, 1);
+
+        $trx = $this->exchange($user, $sales, $customer, $promo, 10, [['product_id' => $kopi->id, 'quantity' => 2]]);
+
+        $this->assertEquals(10000, $trx->total);
+        $this->assertEquals(2, $trx->items->firstWhere('is_free', true)->quantity);
+        $this->assertEquals(8, $this->qty($kretek, $sales));
+        $this->assertEquals(3, $this->qty($kopi, $sales));
+    }
+
+    public function test_shell_exchange_below_rate_is_rejected(): void
+    {
+        [$user, $sales, $customer, $kretek] = $this->setUpSale(10, null);
+        $promo = $this->shellPromo($kretek, $kretek, 8, 1);
+
+        $this->expectException(ValidationException::class);
+        $this->exchange($user, $sales, $customer, $promo, 7);
+    }
+
+    public function test_shell_exchange_is_rejected_when_free_stock_is_empty(): void
+    {
+        [$user, $sales, $customer, $kretek, $kopi] = $this->setUpSale(0, 5);
+        $promo = $this->shellPromo($kretek, $kretek, 8, 1);
+
+        try {
+            $this->exchange($user, $sales, $customer, $promo, 8, [['product_id' => $kopi->id, 'quantity' => 1]]);
+            $this->fail('Seharusnya ditolak');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('shells', $e->errors());
+        }
+
+        $this->assertEquals(5, $this->qty($kopi, $sales));
+    }
+
+    public function test_shell_exchange_only_works_in_depos_where_it_is_active(): void
+    {
+        [$user, $sales, $customer, $kretek] = $this->setUpSale(10, null);
+        $other = $this->makeBranch('CBG-LAIN', 'Depo Lain');
+        $promo = $this->shellPromo($kretek, $kretek, 8, 1, [$other->id]);
+
+        $this->expectException(ValidationException::class);
+        $this->exchange($user, $sales, $customer, $promo, 8);
+    }
+
+    public function test_shell_exchange_program_does_not_trigger_on_purchase(): void
+    {
+        [$user, $sales, $customer, $kretek] = $this->setUpSale(10, null);
+        $this->shellPromo($kretek, $kretek, 1, 1);
+
+        $trx = $this->sell($user, $sales, $customer, $kretek, 3);
+
+        $this->assertCount(1, $trx->items);
+        $this->assertEquals(7, $this->qty($kretek, $sales));
+    }
+
+    public function test_admin_can_create_shell_exchange_program(): void
+    {
+        $admin = $this->makeAdminUser();
+        $kretek = $this->makeProduct();
+
+        $this->actingAs($admin)->post(route('admin.master.buy-get-promos.store'), [
+            'name' => 'Tukar Cangkang Ori Kretek',
+            'type' => 'shell_exchange',
+            'buy_product_id' => $kretek->id,
+            'buy_qty' => 8,
+            'free_product_id' => $kretek->id,
+            'free_qty' => 1,
+            'is_active' => 1,
+            'branch_ids' => [$this->defaultBranch()->id],
+        ])->assertSessionHasNoErrors();
+
+        $promo = BuyGetPromo::firstOrFail();
+        $this->assertSame('shell_exchange', $promo->type);
+
+        $this->actingAs($admin)->get(route('admin.master.buy-get-promos.index'))
+            ->assertOk()->assertSee('Tukar Cangkang');
     }
 }

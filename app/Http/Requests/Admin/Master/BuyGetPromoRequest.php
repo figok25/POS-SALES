@@ -15,6 +15,7 @@ class BuyGetPromoRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
+            'type' => ['nullable', 'in:buy_get,shell_exchange'],
             'buy_product_id' => ['required', 'exists:products,id'],
             'buy_qty' => ['required', 'numeric', 'min:0.01', 'max:99999'],
             'free_product_id' => ['required', 'exists:products,id'],
@@ -39,6 +40,7 @@ class BuyGetPromoRequest extends FormRequest
             'starts_on' => 'tanggal mulai',
             'ends_on' => 'tanggal selesai',
             'branch_ids' => 'Depo',
+            'type' => 'jenis program',
         ];
     }
 }

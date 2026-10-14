@@ -35,7 +35,7 @@ class BuyGetPromoController extends Controller
 
     public function store(BuyGetPromoRequest $request)
     {
-        $data = $request->safe()->except('branch_ids');
+        $data = array_filter($request->safe()->except('branch_ids'), fn ($v, $k) => $k !== 'type' || filled($v), ARRAY_FILTER_USE_BOTH);
 
         $promo = BuyGetPromo::create($data + ['created_by' => auth()->id()]);
         $promo->update(['is_active' => $request->boolean('is_active', true)]);
@@ -50,7 +50,7 @@ class BuyGetPromoController extends Controller
     {
         $before = $promo->load('branches:id,name')->toArray();
 
-        $promo->update($request->safe()->except('branch_ids'));
+        $promo->update(array_filter($request->safe()->except('branch_ids'), fn ($v, $k) => $k !== 'type' || filled($v), ARRAY_FILTER_USE_BOTH));
         $promo->update(['is_active' => $request->boolean('is_active')]);
         $promo->branches()->sync($request->validated('branch_ids'));
 

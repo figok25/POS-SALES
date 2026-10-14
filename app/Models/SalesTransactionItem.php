@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class SalesTransactionItem extends Model
 {
-    protected $fillable = ['sales_transaction_id', 'product_id', 'quantity', 'price', 'subtotal', 'is_free', 'buy_get_promo_id'];
+    protected $fillable = ['sales_transaction_id', 'product_id', 'quantity', 'price', 'subtotal', 'is_free', 'buy_get_promo_id', 'shell_qty'];
 
     protected function casts(): array
     {
@@ -16,6 +16,7 @@ class SalesTransactionItem extends Model
             'price' => 'decimal:2',
             'subtotal' => 'decimal:2',
             'is_free' => 'boolean',
+            'shell_qty' => 'decimal:2',
         ];
     }
 

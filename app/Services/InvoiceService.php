@@ -30,7 +30,8 @@ class InvoiceService
             'tax' => $trx->tax,
             'grand_total' => $trx->total,
             'paid_amount' => 0,
-            'status' => Invoice::STATUS_UNPAID,
+            // Transaksi murni tukar cangkang (total Rp 0) tidak perlu ditagih.
+            'status' => (float) $trx->total <= 0 ? Invoice::STATUS_PAID : Invoice::STATUS_UNPAID,
         ]);
 
         $invoice->update(['code' => DocumentCode::make('INV', $invoice->id)]);
