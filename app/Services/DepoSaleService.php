@@ -43,7 +43,7 @@ class DepoSaleService
         // Admin memilih kategori harga (default Konsumen / kasir).
         $priceType = $data['price_type'] ?? Price::TYPE_CONSUMER;
 
-        if (! array_key_exists($priceType, Price::types())) {
+        if (! array_key_exists($priceType, Price::depoTypes())) {
             throw ValidationException::withMessages(['price_type' => 'Kategori harga tidak valid.']);
         }
 
@@ -62,6 +62,11 @@ class DepoSaleService
         }
 
         $priceLabel = Price::typeLabel($priceType);
+        $isTester = $priceType === Price::TYPE_TESTER;
+
+        if ($isTester && $isCredit) {
+            throw ValidationException::withMessages(['is_credit' => 'Barang tester tidak bisa dikreditkan (harganya Rp 0).']);
+        }
 
         // Gabungkan baris produk yang sama agar pengecekan stok akurat.
         $merged = [];
@@ -81,11 +86,14 @@ class DepoSaleService
                 throw ValidationException::withMessages(['items' => "Quantity untuk produk {$product->name} harus lebih besar dari 0."]);
             }
 
-            $price = Price::where('product_id', $product->id)
-                ->where('price_type', $priceType)
-                ->where('is_active', true)
-                ->latest('id')
-                ->first();
+            // Tester: harga selalu Rp 0 dan tidak membutuhkan baris harga di master.
+            $price = $isTester
+                ? (object) ['amount' => 0]
+                : Price::where('product_id', $product->id)
+                    ->where('price_type', $priceType)
+                    ->where('is_active', true)
+                    ->latest('id')
+                    ->first();
 
             if (! $price) {
                 throw ValidationException::withMessages([
@@ -116,7 +124,7 @@ class DepoSaleService
         $dueDate = $isCredit && ! empty($data['credit_due_date']) ? $data['credit_due_date'] : null;
 
         try {
-            return DB::transaction(function () use ($branchId, $warehouse, $userId, $consumerName, $lines, $data, $priceType, $total, $payAmount, $payMethod, $isCredit, $dueDate) {
+            return DB::transaction(function () use ($branchId, $warehouse, $userId, $consumerName, $lines, $data, $priceType, $total, $payAmount, $payMethod, $isCredit, $dueDate, $isTester) {
                 $trx = SalesTransaction::create([
                     'code' => 'TEMP',
                     'sales_id' => null,
@@ -143,10 +151,10 @@ class DepoSaleService
                         Stock::LOCATION_WAREHOUSE,
                         $warehouse->id,
                         $line['quantity'],
-                        'depo_sale',
+                        $isTester ? 'depo_tester' : 'depo_sale',
                         SalesTransaction::class,
                         $trx->id,
-                        "Penjualan Depo {$trx->code}",
+                        ($isTester ? 'Tester Depo ' : 'Penjualan Depo ').$trx->code,
                     );
 
                     $trx->items()->create([

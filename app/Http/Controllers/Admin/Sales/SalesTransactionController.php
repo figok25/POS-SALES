@@ -184,7 +184,7 @@ class SalesTransactionController extends Controller
         }
 
         // Kategori harga dipilih Admin (default Konsumen / kasir).
-        $priceTypes = Price::types();
+        $priceTypes = Price::depoTypes();
         $priceType = array_key_exists((string) $request->query('price_type'), $priceTypes)
             ? (string) $request->query('price_type')
             : Price::TYPE_CONSUMER;
@@ -202,10 +202,12 @@ class SalesTransactionController extends Controller
                 ->sortBy(fn ($stock) => $stock->product->name)
                 ->values();
 
-            $prices = Price::where('is_active', true)
-                ->where('price_type', $priceType)
-                ->orderBy('id')
-                ->pluck('amount', 'product_id');
+            $prices = $priceType === Price::TYPE_TESTER
+                ? collect()   // Tester: selalu Rp 0, tidak memakai harga master
+                : Price::where('is_active', true)
+                    ->where('price_type', $priceType)
+                    ->orderBy('id')
+                    ->pluck('amount', 'product_id');
         }
 
         return view('admin.sales.transactions.create', compact(
@@ -221,7 +223,7 @@ class SalesTransactionController extends Controller
             'branch_id' => [$context->isAll() ? 'required' : 'nullable', 'exists:branches,id'],
             'warehouse_id' => ['required', 'exists:warehouses,id'],
             'consumer_name' => ['nullable', 'string', 'max:120'],
-            'price_type' => ['nullable', 'in:'.implode(',', array_keys(Price::types()))],
+            'price_type' => ['nullable', 'in:'.implode(',', array_keys(Price::depoTypes()))],
             'is_credit' => ['nullable', 'boolean'],
             'credit_due_date' => ['nullable', 'date'],
             'notes' => ['nullable', 'string', 'max:1000'],

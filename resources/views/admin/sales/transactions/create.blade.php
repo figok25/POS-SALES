@@ -132,6 +132,7 @@
 
                 <script>
                     (function () {
+                        const isTester = {{ $priceType === \App\Models\Price::TYPE_TESTER ? 'true' : 'false' }};
                         const products = [
                             @foreach ($stocks as $stock)
                                 { id: {{ $stock->product_id }}, name: @js($stock->product->name), stock: {{ $qty($stock->quantity) }}, price: {{ (float) ($prices[$stock->product_id] ?? 0) }} },
@@ -148,7 +149,7 @@
                                 const p = products.find((x) => String(x.id) === tr.querySelector('select').value);
                                 const q = parseFloat(tr.querySelector('input').value) || 0;
                                 const price = p ? p.price : 0;
-                                tr.querySelector('.price').textContent = p ? (price ? 'Rp ' + fmt(price) : 'Belum diatur') : '-';
+                                tr.querySelector('.price').textContent = p ? (price ? 'Rp ' + fmt(price) : (isTester ? 'Rp 0 (Tester)' : 'Belum diatur')) : '-';
                                 tr.querySelector('.sub').textContent = 'Rp ' + fmt(price * q);
                                 total += price * q;
                             });

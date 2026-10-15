@@ -13,6 +13,8 @@ class Price extends Model
     public const TYPE_RETAIL = 'retail';
     public const TYPE_WHOLESALE = 'wholesale';
     public const TYPE_CONSUMER = 'consumer';
+    /** Tester: harga tetap Rp 0, khusus penjualan Depo (hanya memotong stok gudang Depo). */
+    public const TYPE_TESTER = 'tester';
 
     protected $fillable = ['product_id', 'name', 'price_type', 'amount', 'is_active'];
 
@@ -41,9 +43,19 @@ class Price extends Model
         ]);
     }
 
+    /**
+     * Kategori harga untuk penjualan langsung Depo: semua kategori biasa +
+     * Tester. Tester tidak punya baris harga di master (selalu Rp 0) dan tidak
+     * boleh menjadi jenis Sales.
+     */
+    public static function depoTypes(): array
+    {
+        return static::types() + [self::TYPE_TESTER => 'Tester'];
+    }
+
     public static function typeLabel(?string $type): string
     {
-        return static::types()[$type] ?? '-';
+        return static::depoTypes()[$type] ?? '-';
     }
 
     protected function casts(): array
