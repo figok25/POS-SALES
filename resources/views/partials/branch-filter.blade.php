@@ -50,3 +50,14 @@
         <noscript><button class="adm-btn adm-btn-ghost adm-btn-sm">Terapkan</button></noscript>
     </form>
 @endif
+
+{{-- Halaman yang tidak punya filter Depo sendiri: beri tahu bila Depo tersimpan sedang membatasi tampilan, dan beri jalan keluar. --}}
+@if (auth()->user()?->isSuperAdmin() && request()->isMethod('GET') && ! $bfShow
+    && ! request()->routeIs('admin.system.*', 'admin.master.branches.*')
+    && ! \App\Support\BranchContext::current()->isAll())
+    @php $bfName = \App\Models\Branch::whereKey(\App\Support\BranchContext::current()->branchId())->value('name'); @endphp
+    <div class="adm-branch-note" role="status" style="margin:0 0 16px;padding:10px 16px;border:1px solid var(--adm-border,#e5e9f2);border-radius:14px;font-size:.8rem;color:var(--adm-muted,#64748b)">
+        Tampilan dibatasi ke Depo <strong>{{ $bfName ?? 'terpilih' }}</strong>.
+        <a href="{{ request()->fullUrlWithQuery(['branch' => 'all']) }}" style="font-weight:600">Tampilkan semua Depo</a>
+    </div>
+@endif

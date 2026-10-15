@@ -62,8 +62,12 @@
             </div>
 
             @can('sales-management.manage')
-                <form method="POST" action="{{ route('admin.sales.kpi.periods.store') }}" class="kpi-bar" style="margin-top:10px">
+                <form method="POST" action="{{ route('admin.sales.kpi.periods.store', request()->only('branch')) }}" class="kpi-bar" style="margin-top:10px">
                     @csrf
+                    @if (! $isAll && ! empty($contextBranchId))
+                        {{-- Superadmin yang sudah memilih Depo lewat filter: kirim Depo itu juga di body. --}}
+                        <input type="hidden" name="branch_id" value="{{ $contextBranchId }}">
+                    @endif
                     <div class="kpi-field"><label>Nama (opsional)</label><input type="text" name="name" value="{{ old('name') }}" placeholder="Minggu ke-40"></div>
                     <div class="kpi-field"><label>Mulai</label><input type="date" name="start_date" value="{{ old('start_date', now()->startOfWeek()->toDateString()) }}" required></div>
                     <div class="kpi-field"><label>Selesai</label><input type="date" name="end_date" value="{{ old('end_date', now()->startOfWeek()->addDays(5)->toDateString()) }}" required></div>

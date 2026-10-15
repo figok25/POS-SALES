@@ -49,6 +49,39 @@
             </dl>
         </div>
 
+        @if (session('status'))
+            <div class="frm-alert" role="status" style="margin-bottom:16px"><span class="frm-alert-text">{{ session('status') }}</span></div>
+        @endif
+        @if ($errors->any())
+            <div class="frm-alert is-error" role="alert" style="margin-bottom:16px"><span class="frm-alert-text">{{ $errors->first() }}</span></div>
+        @endif
+
+        @if ($supportsRestore)
+            <div class="panel" style="margin-bottom: 16px;">
+                <div class="panel-head">
+                    <h2 class="panel-title">Pulihkan Data</h2>
+                </div>
+                <div style="padding: 16px 22px;">
+                    @if ($restoreBlockedReason === null)
+                        <p class="frm-meta" style="margin:0 0 12px">
+                            Data {{ class_basename($auditLog->document_type) }} ini terhapus. Anda bisa mengembalikannya persis seperti sebelum dihapus
+                            (ID dan kode sama, serta penugasan ke Sales). Keanggotaan Rute distribusi dan Rencana Kunjungan harian tidak ikut kembali.
+                        </p>
+                        @can('master-data.manage')
+                            <form method="POST" action="{{ route('admin.system.audit-log.restore', $auditLog) }}">
+                                @csrf
+                                <button type="submit" class="adm-btn adm-btn-primary" onclick="return confirm('Pulihkan data ini?')">Pulihkan Data</button>
+                            </form>
+                        @else
+                            <p class="frm-meta" style="margin:0">Anda tidak memiliki izin untuk memulihkan data.</p>
+                        @endcan
+                    @else
+                        <p class="frm-meta" style="margin:0">{{ $restoreBlockedReason }}</p>
+                    @endif
+                </div>
+            </div>
+        @endif
+
         @php
             $before = $auditLog->before ?? [];
             $after = $auditLog->after ?? [];

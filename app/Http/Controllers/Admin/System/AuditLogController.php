@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Branch;
 use App\Models\User;
+use App\Services\AuditRestoreService;
 use App\Support\BranchContext;
 use Illuminate\Http\Request;
 
@@ -58,7 +59,7 @@ class AuditLogController extends Controller
         ));
     }
 
-    public function show(AuditLog $auditLog)
+    public function show(AuditLog $auditLog, AuditRestoreService $restore)
     {
         // Anti-IDOR (Multi Branch/Depo): log Depo lain & log Global tidak
         // boleh dibuka Admin walau ID-nya diketahui.
@@ -68,6 +69,31 @@ class AuditLogController extends Controller
 
         $auditLog->load(['user', 'branch']);
 
-        return view('admin.system.audit-log.show', compact('auditLog'));
+        $supportsRestore = $restore->supports($auditLog);
+        $restoreBlockedReason = $supportsRestore ? $restore->blockedReason($auditLog) : null;
+
+        return view('admin.system.audit-log.show', compact('auditLog', 'supportsRestore', 'restoreBlockedReason'));
+    }
+
+    /**
+     * Pulihkan data master yang terhapus tidak sengaja dari snapshot audit log
+     * (saat ini: Customer). Butuh izin kelola master data + akses ke Depo datanya.
+     */
+    public function restore(AuditLog $auditLog, AuditRestoreService $restore)
+    {
+        if (! BranchContext::current()->allows($auditLog->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke log ini.');
+        }
+
+        try {
+            $result = $restore->restore($auditLog, auth()->user());
+        } catch (\DomainException $e) {
+            return redirect()->route('admin.system.audit-log.show', $auditLog)->withErrors(['restore' => $e->getMessage()]);
+        }
+
+        $record = $result['record'];
+
+        return redirect()->route('admin.system.audit-log.show', $auditLog)
+            ->with('status', 'Data '.class_basename($record).' "'.($record->name ?? '#'.$record->id).'" berhasil dipulihkan. '.implode(' ', $result['notes']));
     }
 }

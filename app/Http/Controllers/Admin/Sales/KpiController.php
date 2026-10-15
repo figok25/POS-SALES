@@ -51,6 +51,8 @@ class KpiController extends Controller
             'result' => $result,
             'branches' => $branches,
             'isAll' => $ctx->isAll(),
+            // Depo yang sedang dipilih (Superadmin lewat filter Depo) -- ikut dikirim saat membuat periode.
+            'contextBranchId' => $ctx->isAll() ? null : $ctx->branchId(),
         ]);
     }
 
@@ -92,7 +94,7 @@ class KpiController extends Controller
 
         AuditLogger::log('create', 'Target & Pencapaian', KpiPeriod::class, $period->id, null, $period->toArray());
 
-        return redirect()->route('admin.sales.kpi.targets.edit', $period)->with('status', 'Periode dibuat. Atur target di bawah ini.');
+        return redirect()->route('admin.sales.kpi.targets.edit', array_filter(['period' => $period->id, 'branch' => $request->query('branch')]))->with('status', 'Periode dibuat. Atur target di bawah ini.');
     }
 
     public function editTargets(KpiPeriod $period)

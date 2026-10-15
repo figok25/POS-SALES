@@ -38,3 +38,8 @@ Route::middleware('permission:audit-log.view')->group(function () {
     Route::get('audit-log', [AuditLogController::class, 'index'])->name('audit-log.index');
     Route::get('audit-log/{auditLog}', [AuditLogController::class, 'show'])->name('audit-log.show');
 });
+
+// Pulihkan data master yang terhapus tidak sengaja (snapshot dari Audit Log).
+Route::middleware(['permission:audit-log.view', 'permission:master-data.manage'])->group(function () {
+    Route::post('audit-log/{auditLog}/restore', [AuditLogController::class, 'restore'])->name('audit-log.restore');
+});
