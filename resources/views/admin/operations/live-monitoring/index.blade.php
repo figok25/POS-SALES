@@ -136,9 +136,23 @@
             return STATUS_LABEL[status] || status;
         }
 
+        // Tautan Google Maps ke lokasi terakhir Sales (tanpa API key; di HP membuka aplikasi Maps).
+        function googleMapsUrl(item) {
+            return 'https://www.google.com/maps/search/?api=1&query='
+                + encodeURIComponent(parseFloat(item.latitude) + ',' + parseFloat(item.longitude));
+        }
+
         function buildPopupContent(name, item) {
             const box = el('div');
             box.append(el('div', 'frm-popup-title', name), el('div', 'frm-popup-sub', detailText(item)));
+
+            const link = el('a', null, 'Buka di Google Maps ↗');
+            link.href = googleMapsUrl(item);
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            link.style.cssText = 'display:inline-block;margin-top:6px;font-size:12px;font-weight:600;color:#2563eb;text-decoration:none';
+            box.appendChild(link);
+
             return box;
         }
 
