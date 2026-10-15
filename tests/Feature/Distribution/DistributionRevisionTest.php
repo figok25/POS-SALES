@@ -5,6 +5,8 @@ namespace Tests\Feature\Distribution;
 use App\Models\AuditLog;
 use App\Models\BkbDistribusi;
 use App\Models\BtbDistribusi;
+use App\Models\SalesTask;
+use App\Models\SalesTaskStock;
 use App\Models\Stock;
 use App\Services\StockService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -247,5 +249,71 @@ class DistributionRevisionTest extends TestCase
         $this->actingAs($super)->put(route('admin.distribution.bkb.revise', $bkb), $this->revisePayload($product, 10))
             ->assertSessionHasNoErrors();
         $this->actingAs($super)->get(route('admin.distribution.bkb.show', $bkb))->assertOk()->assertSee('Riwayat Revisi');
+    }
+    private function taskFor($bkb, $sales, $product, float $qty, string $status): SalesTask
+    {
+        $task = SalesTask::create([
+            'code' => 'TSK-'.(SalesTask::count() + 1), 'sales_id' => $sales->id, 'bkb_distribusi_id' => $bkb->id,
+            'branch_id' => $sales->branch_id, 'task_date' => now()->toDateString(), 'status' => $status,
+        ]);
+        SalesTaskStock::create(['sales_task_id' => $task->id, 'product_id' => $product->id, 'quantity_assigned' => $qty]);
+
+        return $task;
+    }
+
+    public function test_bkb_revision_rebuilds_unverified_task_stock_list(): void
+    {
+        [$admin, $sales, , $product, $bkb] = $this->appliedBkb(20);
+        $task = $this->taskFor($bkb, $sales, $product, 20, SalesTask::STATUS_DOCUMENT_AVAILABLE);
+
+        $this->actingAs($admin)->put(route('admin.distribution.bkb.revise', $bkb), $this->revisePayload($product, 12))
+            ->assertSessionHasNoErrors();
+
+        $lines = $task->fresh()->taskStocks;
+        $this->assertCount(1, $lines);
+        $this->assertSame(12.0, (float) $lines->first()->quantity_assigned);
+        $this->assertNull($lines->first()->quantity_verified);
+        $this->assertSame(SalesTask::STATUS_DOCUMENT_AVAILABLE, $task->fresh()->status);
+    }
+
+    public function test_bkb_revision_resets_half_verified_task_back_to_document_available(): void
+    {
+        [$admin, $sales, , $product, $bkb] = $this->appliedBkb(20);
+        $task = $this->taskFor($bkb, $sales, $product, 20, SalesTask::STATUS_STOCK_VARIANCE);
+        $task->taskStocks()->update(['quantity_verified' => 18, 'verified_at' => now()]);
+
+        $this->actingAs($admin)->put(route('admin.distribution.bkb.revise', $bkb), $this->revisePayload($product, 25))
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(SalesTask::STATUS_DOCUMENT_AVAILABLE, $task->fresh()->status);
+        $line = $task->fresh()->taskStocks->first();
+        $this->assertSame(25.0, (float) $line->quantity_assigned);
+        $this->assertNull($line->quantity_verified);
+    }
+
+    public function test_bkb_revision_updates_running_task_and_keeps_verification(): void
+    {
+        [$admin, $sales, , $product, $bkb] = $this->appliedBkb(20);
+        $task = $this->taskFor($bkb, $sales, $product, 20, SalesTask::STATUS_WORKING);
+        $task->taskStocks()->update(['quantity_verified' => 20, 'verified_at' => now()]);
+
+        $this->actingAs($admin)->put(route('admin.distribution.bkb.revise', $bkb), $this->revisePayload($product, 14))
+            ->assertSessionHasNoErrors();
+
+        $line = $task->fresh()->taskStocks->first();
+        $this->assertSame(14.0, (float) $line->quantity_assigned);
+        $this->assertSame(14.0, (float) $line->quantity_verified);   // tadinya sama, ikut angka baru
+        $this->assertSame(SalesTask::STATUS_WORKING, $task->fresh()->status);
+    }
+
+    public function test_bkb_revision_leaves_completed_task_untouched(): void
+    {
+        [$admin, $sales, , $product, $bkb] = $this->appliedBkb(20);
+        $task = $this->taskFor($bkb, $sales, $product, 20, SalesTask::STATUS_COMPLETED);
+
+        $this->actingAs($admin)->put(route('admin.distribution.bkb.revise', $bkb), $this->revisePayload($product, 5))
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(20.0, (float) $task->fresh()->taskStocks->first()->quantity_assigned);
     }
 }

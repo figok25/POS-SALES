@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Models\BkbDistribusi;
 use App\Models\BtbDistribusi;
+use App\Models\SalesTask;
+use App\Models\SalesTaskStock;
 use App\Models\Settlement;
 use App\Models\Stock;
 use Illuminate\Database\Eloquent\Model;
@@ -85,6 +87,11 @@ class DistributionRevisionService
                 $locked->items()->create(['product_id' => $productId, 'quantity' => $qty]);
             }
 
+            // Daftar "Verifikasi Stock" di aplikasi Sales dibaca dari sales_task_stocks
+            // (snapshot saat Task dibuat). Tanpa sinkronisasi, revisi BKB tidak
+            // tampil di layar Sales.
+            $taskSync = $kind === 'bkb' ? $this->syncTaskStocks($locked, $old, $new) : null;
+
             $locked->update(array_filter([
                 'document_date' => $documentDate,
             ], fn ($v) => $v !== null) + [
@@ -99,11 +106,76 @@ class DistributionRevisionService
             $after['reason'] = $reason;
             $after['stock_applied'] = $stockApplied;
             $after['stock_impact'] = $impact;
+            if ($taskSync !== null) {
+                $after['task_sync'] = $taskSync;
+            }
 
             AuditLogger::log('revise', 'Distribution', $class, $locked->id, $before, $after);
 
             return $impact;
         });
+    }
+
+    /**
+     * Samakan sales_task_stocks milik Sales Task BKB ini dengan item BKB hasil revisi.
+     *
+     *  - Task belum diverifikasi Sales (applied/document_available/stock_verification/
+     *    stock_variance): daftar dibangun ulang, verifikasi dikosongkan supaya Sales
+     *    memverifikasi angka yang BARU. Task yang sedang verifikasi/selisih kembali
+     *    ke "document_available".
+     *  - Task sudah siap/berjalan (ready_to_work/working): angka "dari Admin" diganti,
+     *    hasil verifikasi dipertahankan (bila tadinya sama dengan angka lama, ikut
+     *    angka baru).
+     *  - Task selesai/batal: tidak disentuh.
+     *
+     * @param  array<int, float>  $old  product_id => qty sebelum revisi
+     * @param  array<int, float>  $new  product_id => qty sesudah revisi
+     * @return array{task_id:int, mode:string}|null
+     */
+    private function syncTaskStocks(Model $bkb, array $old, array $new): ?array
+    {
+        $task = SalesTask::query()->where('bkb_distribusi_id', $bkb->id)->lockForUpdate()->first();
+
+        if (! $task || in_array($task->status, [SalesTask::STATUS_COMPLETED, SalesTask::STATUS_CANCELLED], true)) {
+            return null;
+        }
+
+        if (in_array($task->status, [SalesTask::STATUS_READY_TO_WORK, SalesTask::STATUS_WORKING], true)) {
+            $existing = $task->taskStocks()->get()->keyBy('product_id');
+
+            foreach ($existing as $productId => $line) {
+                if (! isset($new[$productId])) {
+                    $line->delete();
+                    continue;
+                }
+                $wasSame = $line->quantity_verified !== null
+                    && round((float) $line->quantity_verified, 2) === round((float) $line->quantity_assigned, 2);
+                $line->update([
+                    'quantity_assigned' => $new[$productId],
+                    'quantity_verified' => $wasSame ? $new[$productId] : $line->quantity_verified,
+                ]);
+            }
+            foreach ($new as $productId => $qty) {
+                if (! $existing->has($productId)) {
+                    SalesTaskStock::create([
+                        'sales_task_id' => $task->id, 'product_id' => $productId,
+                        'quantity_assigned' => $qty, 'quantity_verified' => $qty, 'verified_at' => now(),
+                    ]);
+                }
+            }
+
+            return ['task_id' => $task->id, 'mode' => 'updated_in_place'];
+        }
+
+        $task->taskStocks()->delete();
+        foreach ($new as $productId => $qty) {
+            SalesTaskStock::create(['sales_task_id' => $task->id, 'product_id' => $productId, 'quantity_assigned' => $qty]);
+        }
+        if (in_array($task->status, [SalesTask::STATUS_STOCK_VERIFICATION, SalesTask::STATUS_STOCK_VARIANCE], true)) {
+            $task->update(['status' => SalesTask::STATUS_DOCUMENT_AVAILABLE]);
+        }
+
+        return ['task_id' => $task->id, 'mode' => 'rebuilt'];
     }
 
     private function void(Model $doc, string $kind, string $reason): void
