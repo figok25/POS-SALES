@@ -8,14 +8,6 @@
                 Klik marker atau nama Sales untuk melihat jejak perjalanan hari ini.
             </p>
         </div>
-        <div class="frm-head-actions">
-            <select id="branch-filter" class="frm-input is-select is-filter" aria-label="Filter branch">
-                <option value="all">Semua Branch</option>
-                @foreach ($branches as $b)
-                    <option value="{{ $b->id }}">{{ $b->name }}</option>
-                @endforeach
-            </select>
-        </div>
     </div>
 
     {{-- Gagal memuat data (ditampilkan lewat JS) --}}
@@ -284,8 +276,8 @@
         }
 
         async function poll() {
-            const branchFilterEl = document.getElementById('branch-filter');
-            const branch = branchFilterEl ? branchFilterEl.value : null;
+            // Depo mengikuti Filter Depo global di atas halaman (BranchContext).
+            const branch = @json($currentBranch);
             const url = branch ? `${liveSalesUrl}?branch=${encodeURIComponent(branch)}` : liveSalesUrl;
             const errorEl = document.getElementById('live-error');
 
@@ -316,9 +308,6 @@
                 poll();
                 pollTimer = setInterval(poll, refreshSeconds * 1000);
             });
-
-            const branchFilterEl = document.getElementById('branch-filter');
-            if (branchFilterEl) branchFilterEl.addEventListener('change', poll);
         });
 
         window.addEventListener('beforeunload', () => {

@@ -57,7 +57,12 @@ class LiveSalesController extends Controller
         $mapStyleUrl = config('services.maps.style_url');
         $refreshSeconds = config('services.maps.admin_live_refresh_seconds', 15);
 
-        return view('admin.operations.live-monitoring.index', compact('branches', 'mapStyleUrl', 'refreshSeconds'));
+        // Depo aktif = Filter Depo global (sticky). Dipakai polling JS supaya
+        // halaman ini tidak punya dropdown Depo sendiri yang bentrok.
+        $ctx = BranchContext::current();
+        $currentBranch = $ctx->isAll() ? 'all' : (string) $ctx->branchId();
+
+        return view('admin.operations.live-monitoring.index', compact('branches', 'mapStyleUrl', 'refreshSeconds', 'currentBranch'));
     }
 
     public function liveSales(Request $request)
