@@ -119,9 +119,9 @@
                 @endforeach
             </select>
         </div>
-        {{-- Pertahankan filter tabel "Penjualan per Sales" saat filter utama diterapkan --}}
-        @foreach (['tbl_view' => $tblView, 'tbl_date' => request('tbl_date'), 'tbl_sales' => $tblSalesId] as $k => $v)
-            @if (filled($v))<input type="hidden" name="{{ $k }}" value="{{ $v }}">@endif
+        {{-- Pertahankan filter masing-masing tabel (Penjualan, Laporan Global, Kunjungan) saat filter utama diterapkan --}}
+        @foreach (request()->only(['tbl_view', 'tbl_date', 'tbl_sales', 'rpt_view', 'rpt_date', 'ps_branch', 'ps_from', 'ps_to', 'ps_sales', 'rg_branch', 'rg_from', 'rg_to', 'rg_sales', 'kv_branch', 'kv_from', 'kv_to', 'kv_sales']) as $k => $v)
+            @if (is_scalar($v) && filled($v))<input type="hidden" name="{{ $k }}" value="{{ $v }}">@endif
         @endforeach
         <div class="dash-actions">
             <button type="submit" class="adm-btn adm-btn-primary">Terapkan</button>
@@ -231,16 +231,12 @@
         $fmtQty = fn ($n) => rtrim(rtrim(number_format($n, 2, ',', '.'), '0'), ',');
         $perfRows = $salesPerformance['rows'];
         $perfTotals = $salesPerformance['totals'];
-        $perfPeriod = $tblFrom === $tblTo
-            ? \Carbon\Carbon::parse($tblFrom)->format('d M Y')
-            : \Carbon\Carbon::parse($tblFrom)->format('d M Y').' – '.\Carbon\Carbon::parse($tblTo)->format('d M Y');
-        $perfLabel = match ($tblView) {
-            'date' => 'Tanggal '.$perfPeriod,
-            'all' => 'Seluruh periode · '.$perfPeriod,
-            default => 'Hari ini · '.$perfPeriod,
-        };
-        // Query string dasar (filter utama) untuk tombol Reset tabel.
-        $perfResetQuery = request()->except(['tbl_view', 'tbl_date', 'tbl_sales']);
+        $boxPeriodText = fn ($bx) => $bx['from']->isSameDay($bx['to'])
+            ? $bx['from']->format('d M Y')
+            : $bx['from']->format('d M Y').' – '.$bx['to']->format('d M Y');
+        $boxDepoText = fn ($bx) => $bx['ctx']->isAll() ? 'Semua Depo' : ($branches->firstWhere('id', $bx['ctx']->branchId())->name ?? '-');
+        $perfBox = $boxes['ps'];
+        $perfLabel = ($perfBox['from']->isToday() && $perfBox['to']->isToday() ? 'Hari ini · ' : '').$boxPeriodText($perfBox).' · '.$boxDepoText($perfBox);
     @endphp
 
     <section class="panel dash-section" id="sales-performance">
@@ -252,37 +248,7 @@
             <span class="frm-count">{{ number_format($perfRows->count(), 0, ',', '.') }} sales</span>
         </div>
 
-        <form method="GET" action="{{ route('admin.dashboard') }}#sales-performance" class="frm-toolbar">
-            {{-- Pertahankan filter utama (Depo, periode, sales) --}}
-            @foreach (request()->only(['branch', 'date_from', 'date_to', 'sales_id']) as $k => $v)
-                @if (filled($v))<input type="hidden" name="{{ $k }}" value="{{ $v }}">@endif
-            @endforeach
-
-            <select name="tbl_view" id="tbl_view" class="frm-input is-select is-filter" aria-label="Tampilan data"
-                    onchange="document.getElementById('tbl_date').hidden = (this.value !== 'date'); this.form.submit()">
-                <option value="today" @selected($tblView === 'today')>Hari Ini</option>
-                <option value="date" @selected($tblView === 'date')>Pilih Tanggal</option>
-                <option value="all" @selected($tblView === 'all')>Keseluruhan (sesuai periode di atas)</option>
-            </select>
-
-            <input type="date" name="tbl_date" id="tbl_date" class="frm-input is-filter" value="{{ $tblDate }}"
-                   aria-label="Tanggal" @if ($tblView !== 'date') hidden @endif onchange="this.form.submit()">
-
-            <select name="tbl_sales" class="frm-input is-select is-filter" aria-label="Filter Sales" onchange="this.form.submit()">
-                <option value="">Semua Sales</option>
-                @foreach ($salesList as $s)
-                    <option value="{{ $s->id }}" @selected($tblSalesId === $s->id)>{{ $s->name }}</option>
-                @endforeach
-            </select>
-
-            <noscript><button type="submit" class="adm-btn adm-btn-primary adm-btn-sm">Terapkan</button></noscript>
-
-            <button type="button" class="adm-btn adm-btn-ghost adm-btn-sm" data-perf-toggle-all>Buka semua rincian produk</button>
-
-            @if ($tblView !== 'today' || $tblSalesId)
-                <a href="{{ route('admin.dashboard', $perfResetQuery) }}#sales-performance" class="adm-btn adm-btn-ghost adm-btn-sm">Reset</a>
-            @endif
-        </form>
+        @include('partials.dash-box-filter', ['p' => 'ps', 'anchor' => 'sales-performance', 'box' => $boxes['ps'], 'exportBox' => 'sales', 'withToggle' => true])
 
         @if ($perfRows->isNotEmpty())
             <div class="frm-table-wrap">
@@ -431,7 +397,6 @@
     @php
         $rptQty = fn ($n) => rtrim(rtrim(number_format($n, 2, ',', '.'), '0'), ',') ?: '0';
         $rptRp = fn ($n) => 'Rp'.number_format((float) $n, 0, ',', '.');
-        $rptView = $depoReport['view'];
     @endphp
 
     <section class="panel dash-section" id="depo-report">
@@ -443,25 +408,7 @@
             <span class="frm-count">{{ $depoReport['blocks']->count() }} depo</span>
         </div>
 
-        <form method="GET" action="{{ route('admin.dashboard') }}#depo-report" class="frm-toolbar">
-            @foreach (request()->except(['rpt_view', 'rpt_date']) as $k => $v)
-                @if (is_scalar($v) && filled($v))<input type="hidden" name="{{ $k }}" value="{{ $v }}">@endif
-            @endforeach
-
-            <select name="rpt_view" id="rpt_view" class="frm-input is-select is-filter" aria-label="Periode laporan"
-                    onchange="document.getElementById('rpt_date').hidden = (this.value === 'today'); this.form.submit()">
-                <option value="today" @selected($rptView === 'today')>Hari Ini</option>
-                <option value="date" @selected($rptView === 'date')>Pilih Tanggal</option>
-                <option value="week" @selected($rptView === 'week')>Mingguan (minggu dari tanggal dipilih)</option>
-            </select>
-
-            <input type="date" name="rpt_date" id="rpt_date" class="frm-input is-filter" value="{{ $depoReport['dateValue'] }}"
-                   aria-label="Tanggal laporan" @if ($rptView === 'today') hidden @endif onchange="this.form.submit()">
-
-            @if ($rptView !== 'today')
-                <a href="{{ route('admin.dashboard', request()->except(['rpt_view', 'rpt_date'])) }}#depo-report" class="adm-btn adm-btn-ghost adm-btn-sm">Reset</a>
-            @endif
-        </form>
+        @include('partials.dash-box-filter', ['p' => 'rg', 'anchor' => 'depo-report', 'box' => $boxes['rg'], 'exportBox' => 'report'])
 
         @forelse ($depoReport['blocks'] as $blk)
             <div class="frm-table-wrap" style="margin-bottom:1.25rem">
@@ -546,10 +493,12 @@
         <div class="panel-head">
             <div>
                 <h2 class="panel-title">Kunjungan per Sales (Call Made &amp; EC)</h2>
-                <span class="dash-section-note">{{ $perfLabel }} &middot; mengikuti filter tabel Penjualan per Sales</span>
+                <span class="dash-section-note">{{ ($boxes['kv']['from']->isToday() && $boxes['kv']['to']->isToday() ? 'Hari ini · ' : '').$boxPeriodText($boxes['kv']).' · '.$boxDepoText($boxes['kv']) }}</span>
             </div>
             <span class="frm-count">{{ number_format($cov->count(), 0, ',', '.') }} sales</span>
         </div>
+
+        @include('partials.dash-box-filter', ['p' => 'kv', 'anchor' => 'visit-coverage', 'box' => $boxes['kv'], 'exportBox' => 'visits'])
 
         @if ($cov->isNotEmpty())
             <div class="frm-table-wrap">

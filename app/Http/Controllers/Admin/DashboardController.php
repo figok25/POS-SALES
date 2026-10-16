@@ -86,7 +86,6 @@ class DashboardController extends Controller
         $salesName = $d['selectedSalesId'] ? optional($d['salesList']->firstWhere('id', $d['selectedSalesId']))->name : null;
         $depoName = $branchContext->isAll() ? 'Semua Depo' : (Branch::find($branchContext->branchId())?->name ?? '-');
         $period = $date($d['dateFrom']).' s/d '.$date($d['dateTo']);
-        $tblPeriod = $date($d['tblFrom']).' s/d '.$date($d['tblTo']);
 
         $sections = [];
 
@@ -121,78 +120,11 @@ class DashboardController extends Controller
             'note' => 'Aktivitas Periode mengikuti periode '.$period.($salesName ? ' dan Sales '.$salesName : '').'. Kondisi Saat Ini adalah posisi hari ini.',
         ];
 
-        // 2) Penjualan per Sales
-        $perf = $d['salesPerformance'];
-        $perfRows = $perf['rows']->map(fn ($r) => [
-            $r['name'], $r['code'] ?? '-',
-            $num($r['carried_qty']), $num($r['sold_qty']), $num($r['free_qty']), $num($r['returned_qty']),
-            $num($r['sold_value']), $num($r['trx_count']), $num($r['trx_total']),
-            $num($r['trx_count'] - $r['admin_trx_count']), $num($r['admin_trx_count']), $num($r['admin_trx_total']),
-        ])->all();
-        if ($perfRows) {
-            $t = $perf['totals'];
-            $perfRows[] = ['TOTAL', '', $num($t['carried_qty']), $num($t['sold_qty']), $num($t['free_qty']), $num($t['returned_qty']), $num($t['sold_value']), $num($t['trx_count']), $num($t['trx_total']), $num($t['trx_count'] - $t['admin_trx_count']), $num($t['admin_trx_count']), $num($t['admin_trx_total'])];
-        }
-        $sections[] = [
-            'title' => 'Penjualan per Sales',
-            'columns' => ['Sales', 'Kode', 'Stok Dibawa', 'Terjual', 'Gratis', 'Kembali', 'Nilai Terjual (Rp)', 'Jml Transaksi', 'Total Transaksi (Rp)', 'Trx Langsung Sales', 'Trx Input Admin', 'Total Input Admin (Rp)'],
-            'rows' => $perfRows,
-            'note' => 'Periode: '.$tblPeriod.'.',
-        ];
-
-        // 3) Rincian Produk per Sales
-        $productRows = [];
-        foreach ($perf['rows'] as $r) {
-            foreach ($r['products'] as $p) {
-                $productRows[] = [$r['name'], $p['name'], $p['sku'] ?? '-', $num($p['carried_qty']), $num($p['sold_qty']), $num($p['free_qty']), $num($p['returned_qty']), $num($p['sold_value'])];
-            }
-        }
-        $sections[] = [
-            'title' => 'Rincian Produk',
-            'columns' => ['Sales', 'Produk', 'SKU', 'Dibawa', 'Terjual', 'Gratis', 'Kembali', 'Nilai Terjual (Rp)'],
-            'rows' => $productRows,
-            'note' => 'Periode: '.$tblPeriod.'.',
-        ];
-
-        // 4) Kunjungan per Sales
-        $cov = $d['visitCoverage'];
-        $covRows = $cov['rows']->map(fn ($r) => [
-            $r['name'], $r['code'] ?? '-', $num($r['call_made']), $num($r['ec']), $num($r['ec_new']), $num($r['ec_repeat']), $num($r['ec_pct']).'%', $num($r['stores']),
-        ])->all();
-        if ($covRows) {
-            $t = $cov['totals'];
-            $covRows[] = ['TOTAL', '', $num($t['call_made']), $num($t['ec']), $num($t['ec_new']), $num($t['ec_repeat']), $num($t['ec_pct']).'%', ''];
-        }
-        $sections[] = [
-            'title' => 'Kunjungan per Sales',
-            'columns' => ['Sales', 'Kode', 'Call Made', 'EC', 'EC Toko Baru', 'EC Toko Repeat', '% EC', 'Toko Unik'],
-            'rows' => $covRows,
-            'note' => 'Periode: '.$tblPeriod.'.',
-        ];
-
-        // 5) Laporan Depo (rekap produk + setoran)
-        $report = $d['depoReport'];
-        $reportRows = [];
-        $payRows = [];
-        foreach ($report['blocks'] as $b) {
-            foreach ($b['rows'] as $r) {
-                $reportRows[] = [$b['branch']->name, $r['name'], $num($r['price']), $num($r['start']), $num($r['sold']), $num($r['free']), $num($r['left']), $num($r['total'])];
-            }
-            $reportRows[] = [$b['branch']->name, 'TOTAL', '', $num($b['totals']['start']), $num($b['totals']['sold']), $num($b['totals']['free']), $num($b['totals']['left']), $num($b['totals']['total'])];
-            $payRows[] = [$b['branch']->name, $num($b['totals']['total']), $num($b['cash']), $num($b['transfer']), $num($b['settled']), $num($b['unpaid'])];
-        }
-        $sections[] = [
-            'title' => 'Laporan Depo',
-            'columns' => ['Depo', 'Produk', 'Harga Retail (Rp)', 'Stok Awal', 'Stok Jual', 'Gratis', 'Sisa Stok', 'Total (Rp)'],
-            'rows' => $reportRows,
-            'note' => $report['label'].'.',
-        ];
-        $sections[] = [
-            'title' => 'Setoran Depo',
-            'columns' => ['Depo', 'Total Penjualan (Rp)', 'Tunai (Rp)', 'Transfer (Rp)', 'Total Setoran (Rp)', 'Belum Setor (Rp)'],
-            'rows' => $payRows,
-            'note' => $report['label'].'.',
-        ];
+        // 2-5) Tiga tabel dengan filternya masing-masing (Penjualan, Kunjungan, Laporan Depo + Setoran)
+        $boxes = $d['boxes'];
+        $sections = array_merge($sections, $this->salesSections($d['salesPerformance'], $boxes['ps']));
+        $sections[] = $this->visitSection($d['visitCoverage'], $boxes['kv']);
+        $sections = array_merge($sections, $this->reportSections($d['depoReport'], $boxes['rg']));
 
         // 6) Kredit Toko Depo (belum lunas)
         $creditRows = $d['depoCredit']['groups']->map(fn ($g) => [
@@ -220,14 +152,7 @@ class DashboardController extends Controller
     {
         $branchContext = BranchContext::current();
 
-        $dateFrom = $this->parseDate($request->query('date_from'), now()->startOfMonth());
-        $dateTo = $this->parseDate($request->query('date_to'), now()->endOfMonth(), endOfDay: true);
-
-        // Kalau user salah isi (dari > sampai), tukar saja supaya query
-        // tetap masuk akal daripada mengembalikan hasil kosong membingungkan.
-        if ($dateFrom->greaterThan($dateTo)) {
-            [$dateFrom, $dateTo] = [$dateTo->copy()->startOfDay(), $dateFrom->copy()->endOfDay()];
-        }
+        [$dateFrom, $dateTo] = $this->topRange($request);
 
         $salesId = $request->filled('sales_id') ? (int) $request->query('sales_id') : null;
 
@@ -245,36 +170,15 @@ class DashboardController extends Controller
 
         $salesList = $branchContext->applyTo(Sales::where('is_active', true))->orderBy('name')->get();
 
-        // ---- Tabel Penjualan per Sales (filter sendiri, default hari ini) ----
-        $tblView = in_array($request->query('tbl_view'), ['today', 'date', 'all'], true)
-            ? $request->query('tbl_view')
-            : 'today';
+        // ---- Tiga tabel: Penjualan per Sales, Laporan Global per Depo, Kunjungan per Sales ----
+        // Masing-masing punya filter SENDIRI (Depo, Dari, Sampai, Sales) yang terpisah dari
+        // filter utama di atas dan dari satu sama lain. Parameter lama (tbl_*, rpt_*) tetap
+        // dipahami sebagai cadangan bila filter baru belum dipakai.
+        $boxes = $this->resolveBoxes($request, $dateFrom, $dateTo, $salesList);
 
-        $tblDate = $this->parseDate($request->query('tbl_date'), now()->startOfDay());
-
-        [$tblFrom, $tblTo] = match ($tblView) {
-            'date' => [$tblDate->copy()->startOfDay(), $tblDate->copy()->endOfDay()],
-            'all' => [$dateFrom->copy(), $dateTo->copy()],
-            default => [now()->startOfDay(), now()->endOfDay()],
-        };
-
-        // Anti-IDOR: hanya Sales yang ada di $salesList (sudah di-scope
-        // Branch context) yang boleh dipilih; selain itu diabaikan.
-        $tblSalesId = $request->filled('tbl_sales') ? (int) $request->query('tbl_sales') : null;
-        if ($tblSalesId !== null && ! $salesList->contains('id', $tblSalesId)) {
-            $tblSalesId = null;
-        }
-
-        $tblSalesRows = $tblSalesId ? $salesList->where('id', $tblSalesId)->values() : $salesList;
-
-        $salesPerformance = $this->buildSalesPerformance($tblSalesRows, $tblFrom, $tblTo);
-
-        // Tabel "Kunjungan per Sales" memakai filter periode & Sales yang SAMA
-        // dengan tabel Penjualan per Sales di atas, supaya keduanya sejajar.
-        $visitCoverage = $this->buildVisitCoverage($tblSalesRows, $tblFrom, $tblTo);
-
-        // Laporan global semua Sales per Depo (harian / mingguan), filter sendiri.
-        $depoReport = $this->buildDepoReport($request, $branchContext);
+        $salesPerformance = $this->buildSalesPerformance($this->boxSalesRows($boxes['ps']), $boxes['ps']['from'], $boxes['ps']['to']);
+        $visitCoverage = $this->buildVisitCoverage($this->boxSalesRows($boxes['kv']), $boxes['kv']['from'], $boxes['kv']['to']);
+        $depoReport = $this->buildDepoReport($request, $boxes['rg']);
 
         // Kredit Toko Depo yang belum lunas (siapa saja yang berutang).
         $depoCredit = $this->buildDepoCredit($branchContext);
@@ -476,11 +380,13 @@ class DashboardController extends Controller
             'visitCoverage' => $visitCoverage,
             'depoReport' => $depoReport,
             'depoCredit' => $depoCredit,
-            'tblView' => $tblView,
-            'tblDate' => $tblDate->toDateString(),
-            'tblSalesId' => $tblSalesId,
-            'tblFrom' => $tblFrom->toDateString(),
-            'tblTo' => $tblTo->toDateString(),
+            'tblView' => $boxes['tblView'],
+            'tblDate' => $boxes['tblDate'],
+            'tblSalesId' => $boxes['tblSalesId'],
+            'tblFrom' => $boxes['ps']['from']->toDateString(),
+            'tblTo' => $boxes['ps']['to']->toDateString(),
+            'boxes' => $boxes,
+            'boxSalesOptions' => $this->boxSalesOptions($salesList, $boxes),
             'selectedSalesId' => $salesId,
             'dateFrom' => $dateFrom->toDateString(),
             'dateTo' => $dateTo->toDateString(),
@@ -855,24 +761,29 @@ class DashboardController extends Controller
         ];
     }
 
-    private function buildDepoReport(Request $request, BranchContext $branchContext): array
+    private function buildDepoReport(Request $request, array $box): array
     {
-        $view = in_array($request->query('rpt_view'), ['today', 'date', 'week'], true)
-            ? $request->query('rpt_view')
-            : 'today';
+        $branchContext = $box['ctx'];
+        $salesId = $box['salesId'];
+        $from = $box['from'];
+        $to = $box['to'];
 
-        $date = $this->parseDate($request->query('rpt_date'), now()->startOfDay());
+        if ($box['custom']) {
+            $view = 'range';
+            $date = $from->copy();
+        } else {
+            $legacy = $this->legacyReportRange($request);
+            $view = $legacy['view'];
+            $date = $legacy['date'];
+        }
 
-        [$from, $to] = match ($view) {
-            'date' => [$date->copy()->startOfDay(), $date->copy()->endOfDay()],
-            'week' => [$date->copy()->startOfWeek(), $date->copy()->endOfWeek()],
-            default => [now()->startOfDay(), now()->endOfDay()],
-        };
+        $dayLabel = fn (Carbon $d) => mb_strtoupper($d->copy()->locale('id')->translatedFormat('l, d-m-Y'));
 
         $label = match ($view) {
             'week' => 'WEEK '.$from->isoWeek().' ('.$from->format('d/m').' - '.$to->format('d/m/Y').')',
-            'date' => mb_strtoupper($from->locale('id')->translatedFormat('l, d-m-Y')),
-            default => mb_strtoupper(now()->locale('id')->translatedFormat('l, d-m-Y')),
+            'date' => $dayLabel($from),
+            'range' => $from->isSameDay($to) ? $dayLabel($from) : $from->format('d/m/Y').' - '.$to->format('d/m/Y'),
+            default => $dayLabel(now()),
         };
 
         $branches = $branchContext->applyTo(Branch::query()->where('is_active', true), 'id')->orderBy('name')->get();
@@ -886,6 +797,7 @@ class DashboardController extends Controller
             ->join('sales_tasks', 'sales_tasks.id', '=', 'sales_task_stocks.sales_task_id')
             ->join('sales', 'sales.id', '=', 'sales_tasks.sales_id')
             ->whereIn('sales.branch_id', $branchIds)
+            ->when($salesId, fn ($q) => $q->where('sales.id', $salesId))
             ->whereDate('sales_tasks.task_date', '>=', $from->toDateString())
             ->whereDate('sales_tasks.task_date', '<=', $to->toDateString())
             ->whereNotIn('sales_tasks.status', [SalesTask::STATUS_DRAFT, SalesTask::STATUS_CANCELLED])
@@ -898,6 +810,7 @@ class DashboardController extends Controller
             ->join('sales_transactions', 'sales_transactions.id', '=', 'sales_transaction_items.sales_transaction_id')
             ->join('sales', 'sales.id', '=', 'sales_transactions.sales_id')
             ->whereIn('sales.branch_id', $branchIds)
+            ->when($salesId, fn ($q) => $q->where('sales.id', $salesId))
             ->where('sales_transactions.status', SalesTransaction::STATUS_COMPLETED)
             ->whereBetween('sales_transactions.created_at', [$from, $to])
             ->groupBy('sales.branch_id', 'sales_transaction_items.product_id')
@@ -911,6 +824,7 @@ class DashboardController extends Controller
             ->join('invoices', 'invoices.id', '=', 'payments.invoice_id')
             ->join('sales', 'sales.id', '=', 'invoices.sales_id')
             ->whereIn('sales.branch_id', $branchIds)
+            ->when($salesId, fn ($q) => $q->where('sales.id', $salesId))
             ->whereDate('payments.paid_at', '>=', $from->toDateString())
             ->whereDate('payments.paid_at', '<=', $to->toDateString())
             ->groupBy('sales.branch_id', 'payments.method')
@@ -983,6 +897,321 @@ class DashboardController extends Controller
             'blocks' => $blocks->values(),
             'dateValue' => $date->toDateString(),
         ];
+    }
+
+    /** Periode filter utama dashboard (default: bulan berjalan). */
+    private function topRange(Request $request): array
+    {
+        $from = $this->parseDate($request->query('date_from'), now()->startOfMonth());
+        $to = $this->parseDate($request->query('date_to'), now()->endOfMonth(), endOfDay: true);
+
+        // Kalau user salah isi (dari > sampai), tukar saja.
+        if ($from->greaterThan($to)) {
+            [$from, $to] = [$to->copy()->startOfDay(), $from->copy()->endOfDay()];
+        }
+
+        return [$from, $to];
+    }
+
+    /**
+     * Filter lama tabel Penjualan/Kunjungan per Sales (tbl_view/tbl_date/tbl_sales),
+     * dipertahankan sebagai cadangan bila filter baru (ps_/kv_) tidak dikirim.
+     */
+    private function legacyTableFilter(Request $request, Carbon $dateFrom, Carbon $dateTo, Collection $salesList): array
+    {
+        $view = in_array($request->query('tbl_view'), ['today', 'date', 'all'], true)
+            ? $request->query('tbl_view')
+            : 'today';
+
+        $date = $this->parseDate($request->query('tbl_date'), now()->startOfDay());
+
+        [$from, $to] = match ($view) {
+            'date' => [$date->copy()->startOfDay(), $date->copy()->endOfDay()],
+            'all' => [$dateFrom->copy(), $dateTo->copy()],
+            default => [now()->startOfDay(), now()->endOfDay()],
+        };
+
+        $salesId = $request->filled('tbl_sales') ? (int) $request->query('tbl_sales') : null;
+        if ($salesId !== null && ! $salesList->contains('id', $salesId)) {
+            $salesId = null;
+        }
+
+        return ['view' => $view, 'date' => $date, 'from' => $from, 'to' => $to, 'salesId' => $salesId];
+    }
+
+    /** Filter lama Laporan Global (rpt_view/rpt_date), cadangan bila rg_* tidak dikirim. */
+    private function legacyReportRange(Request $request): array
+    {
+        $view = in_array($request->query('rpt_view'), ['today', 'date', 'week'], true)
+            ? $request->query('rpt_view')
+            : 'today';
+
+        $date = $this->parseDate($request->query('rpt_date'), now()->startOfDay());
+
+        [$from, $to] = match ($view) {
+            'date' => [$date->copy()->startOfDay(), $date->copy()->endOfDay()],
+            'week' => [$date->copy()->startOfWeek(), $date->copy()->endOfWeek()],
+            default => [now()->startOfDay(), now()->endOfDay()],
+        };
+
+        return ['view' => $view, 'date' => $date, 'from' => $from, 'to' => $to];
+    }
+
+    /**
+     * Tiga box (ps = Penjualan per Sales, rg = Laporan Global, kv = Kunjungan per Sales),
+     * masing-masing dengan filter sendiri. Default tiap box = hari ini.
+     */
+    private function resolveBoxes(Request $request, Carbon $dateFrom, Carbon $dateTo, Collection $salesList): array
+    {
+        $legacy = $this->legacyTableFilter($request, $dateFrom, $dateTo, $salesList);
+        $rpt = $this->legacyReportRange($request);
+
+        return [
+            'ps' => $this->resolveBox($request, 'ps', [$legacy['from'], $legacy['to']], $legacy['salesId']),
+            'kv' => $this->resolveBox($request, 'kv', [$legacy['from'], $legacy['to']], $legacy['salesId']),
+            'rg' => $this->resolveBox($request, 'rg', [$rpt['from'], $rpt['to']], null),
+            'tblView' => $legacy['view'],
+            'tblDate' => $legacy['date']->toDateString(),
+            'tblSalesId' => $legacy['salesId'],
+        ];
+    }
+
+    /**
+     * Satu box: Depo (khusus Super Admin; Admin selalu Depo sendiri), periode, Sales.
+     * Parameter: {p}_branch, {p}_from, {p}_to, {p}_sales.
+     */
+    private function resolveBox(Request $request, string $p, array $legacyRange, ?int $legacySalesId): array
+    {
+        $user = $request->user();
+        $ctx = BranchContext::current();
+
+        $branchParam = $request->query($p.'_branch');
+        if ($user && $user->isSuperAdmin() && is_string($branchParam) && $branchParam !== '') {
+            $ctx = BranchContext::resolveForUser($user, $branchParam);
+        }
+
+        $str = fn ($v) => is_string($v) && $v !== '' ? $v : null;
+        $custom = $str($request->query($p.'_from')) !== null || $str($request->query($p.'_to')) !== null;
+
+        if ($custom) {
+            $fromRaw = $str($request->query($p.'_from')) ?? $str($request->query($p.'_to'));
+            $toRaw = $str($request->query($p.'_to')) ?? $str($request->query($p.'_from'));
+            $from = $this->parseDate($fromRaw, now()->startOfDay());
+            $to = $this->parseDate($toRaw, now()->endOfDay(), endOfDay: true);
+            if ($from->greaterThan($to)) {
+                [$from, $to] = [$to->copy()->startOfDay(), $from->copy()->endOfDay()];
+            }
+        } else {
+            [$from, $to] = [$legacyRange[0]->copy(), $legacyRange[1]->copy()];
+        }
+
+        $salesId = $request->has($p.'_sales')
+            ? ($request->integer($p.'_sales') ?: null)
+            : $legacySalesId;
+
+        // Anti-IDOR: Sales harus berada pada Depo yang diizinkan untuk box ini.
+        if ($salesId !== null) {
+            $s = Sales::find($salesId);
+            if (! $s || ! $ctx->allows($s->branch_id)) {
+                $salesId = null;
+            }
+        }
+
+        return [
+            'prefix' => $p,
+            'ctx' => $ctx,
+            'from' => $from,
+            'to' => $to,
+            'salesId' => $salesId,
+            'custom' => $custom,
+            'custom_branch' => $ctx !== BranchContext::current(),
+            'branch' => $ctx->isAll() ? 'all' : (string) $ctx->branchId(),
+        ];
+    }
+
+    /** Sales aktif pada Depo box (dibatasi Sales terpilih bila ada). */
+    private function boxSalesRows(array $box): Collection
+    {
+        return $box['ctx']->applyTo(Sales::where('is_active', true))
+            ->orderBy('name')->get()
+            ->when($box['salesId'], fn ($c, $id) => $c->where('id', $id)->values());
+    }
+
+    /**
+     * Pilihan Sales untuk dropdown tiap box: Sales pada Depo filter utama ditambah Sales pada
+     * Depo yang dipilih khusus di tiap box (Super Admin). Server tetap memvalidasi pilihan.
+     */
+    private function boxSalesOptions(Collection $topSalesList, array $boxes): Collection
+    {
+        $list = $topSalesList->values();
+
+        foreach (['ps', 'rg', 'kv'] as $key) {
+            if ($boxes[$key]['custom_branch']) {
+                $list = $list->merge($boxes[$key]['ctx']->applyTo(Sales::where('is_active', true))->get(['id', 'name', 'branch_id']));
+            }
+        }
+
+        return $list->unique('id')->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)
+            ->map(fn ($s) => ['id' => $s->id, 'name' => $s->name, 'branch_id' => $s->branch_id])->values();
+    }
+
+    private function boxDepoName(array $box): string
+    {
+        return $box['ctx']->isAll() ? 'Semua Depo' : (Branch::find($box['ctx']->branchId())?->name ?? '-');
+    }
+
+    private function boxPeriod(array $box): string
+    {
+        $f = $box['from']->format('d/m/Y');
+        $t = $box['to']->format('d/m/Y');
+
+        return $f === $t ? $f : $f.' s/d '.$t;
+    }
+
+    private function boxSubtitle(array $box): string
+    {
+        $salesName = $box['salesId'] ? Sales::find($box['salesId'])?->name : null;
+
+        return implode(' | ', [
+            'Depo: '.$this->boxDepoName($box),
+            'Periode: '.$this->boxPeriod($box),
+            'Sales: '.($salesName ?? 'Semua Sales'),
+            'Diunduh: '.now()->format('d/m/Y H:i'),
+        ]);
+    }
+
+    private function exportNum(): \Closure
+    {
+        return function ($v) {
+            $v = is_numeric($v) ? (float) $v : 0.0;
+
+            return floor($v) == $v ? (int) $v : round($v, 2);
+        };
+    }
+
+    /** Section Excel/PDF: Penjualan per Sales + Rincian Produk. */
+    private function salesSections(array $perf, array $box): array
+    {
+        $num = $this->exportNum();
+        $rows = $perf['rows']->map(fn ($r) => [
+            $r['name'], $r['code'] ?? '-',
+            $num($r['carried_qty']), $num($r['sold_qty']), $num($r['free_qty']), $num($r['returned_qty']),
+            $num($r['sold_value']), $num($r['trx_count']), $num($r['trx_total']),
+            $num($r['trx_count'] - $r['admin_trx_count']), $num($r['admin_trx_count']), $num($r['admin_trx_total']),
+        ])->all();
+        if ($rows) {
+            $t = $perf['totals'];
+            $rows[] = ['TOTAL', '', $num($t['carried_qty']), $num($t['sold_qty']), $num($t['free_qty']), $num($t['returned_qty']), $num($t['sold_value']), $num($t['trx_count']), $num($t['trx_total']), $num($t['trx_count'] - $t['admin_trx_count']), $num($t['admin_trx_count']), $num($t['admin_trx_total'])];
+        }
+
+        $productRows = [];
+        foreach ($perf['rows'] as $r) {
+            foreach ($r['products'] as $p) {
+                $productRows[] = [$r['name'], $p['name'], $p['sku'] ?? '-', $num($p['carried_qty']), $num($p['sold_qty']), $num($p['free_qty']), $num($p['returned_qty']), $num($p['sold_value'])];
+            }
+        }
+
+        $note = 'Depo: '.$this->boxDepoName($box).' · Periode: '.$this->boxPeriod($box).'.';
+
+        return [
+            [
+                'title' => 'Penjualan per Sales',
+                'columns' => ['Sales', 'Kode', 'Stok Dibawa', 'Terjual', 'Gratis', 'Kembali', 'Nilai Terjual (Rp)', 'Jml Transaksi', 'Total Transaksi (Rp)', 'Trx Langsung Sales', 'Trx Input Admin', 'Total Input Admin (Rp)'],
+                'rows' => $rows,
+                'note' => $note,
+            ],
+            [
+                'title' => 'Rincian Produk',
+                'columns' => ['Sales', 'Produk', 'SKU', 'Dibawa', 'Terjual', 'Gratis', 'Kembali', 'Nilai Terjual (Rp)'],
+                'rows' => $productRows,
+                'note' => $note,
+            ],
+        ];
+    }
+
+    /** Section Excel/PDF: Kunjungan per Sales (Call Made & EC). */
+    private function visitSection(array $cov, array $box): array
+    {
+        $num = $this->exportNum();
+        $rows = $cov['rows']->map(fn ($r) => [
+            $r['name'], $r['code'] ?? '-', $num($r['call_made']), $num($r['ec']), $num($r['ec_new']), $num($r['ec_repeat']), $num($r['ec_pct']).'%', $num($r['stores']),
+        ])->all();
+        if ($rows) {
+            $t = $cov['totals'];
+            $rows[] = ['TOTAL', '', $num($t['call_made']), $num($t['ec']), $num($t['ec_new']), $num($t['ec_repeat']), $num($t['ec_pct']).'%', ''];
+        }
+
+        return [
+            'title' => 'Kunjungan per Sales',
+            'columns' => ['Sales', 'Kode', 'Call Made', 'EC', 'EC Toko Baru', 'EC Toko Repeat', '% EC', 'Toko Unik'],
+            'rows' => $rows,
+            'note' => 'Depo: '.$this->boxDepoName($box).' · Periode: '.$this->boxPeriod($box).'.',
+        ];
+    }
+
+    /** Section Excel/PDF: Laporan Global per Depo + Setoran. */
+    private function reportSections(array $report, array $box): array
+    {
+        $num = $this->exportNum();
+        $reportRows = [];
+        $payRows = [];
+        foreach ($report['blocks'] as $b) {
+            foreach ($b['rows'] as $r) {
+                $reportRows[] = [$b['branch']->name, $r['name'], $num($r['price']), $num($r['start']), $num($r['sold']), $num($r['free']), $num($r['left']), $num($r['total'])];
+            }
+            $reportRows[] = [$b['branch']->name, 'TOTAL', '', $num($b['totals']['start']), $num($b['totals']['sold']), $num($b['totals']['free']), $num($b['totals']['left']), $num($b['totals']['total'])];
+            $payRows[] = [$b['branch']->name, $num($b['totals']['total']), $num($b['cash']), $num($b['transfer']), $num($b['settled']), $num($b['unpaid'])];
+        }
+
+        $note = $report['label'].' · Depo: '.$this->boxDepoName($box).'.';
+
+        return [
+            [
+                'title' => 'Laporan Depo',
+                'columns' => ['Depo', 'Produk', 'Harga Retail (Rp)', 'Stok Awal', 'Stok Jual', 'Gratis', 'Sisa Stok', 'Total (Rp)'],
+                'rows' => $reportRows,
+                'note' => $note,
+            ],
+            [
+                'title' => 'Setoran Depo',
+                'columns' => ['Depo', 'Total Penjualan (Rp)', 'Tunai (Rp)', 'Transfer (Rp)', 'Total Setoran (Rp)', 'Belum Setor (Rp)'],
+                'rows' => $payRows,
+                'note' => $note,
+            ],
+        ];
+    }
+
+    /**
+     * Export SATU box saja (Penjualan per Sales / Laporan Global / Kunjungan per Sales)
+     * dengan filter box itu sendiri.
+     */
+    public function exportBox(Request $request, string $box)
+    {
+        abort_unless(in_array($box, ['sales', 'report', 'visits'], true), 404);
+
+        $format = ReportExport::normalizeFormat($request->query('format'));
+        [$dateFrom, $dateTo] = $this->topRange($request);
+        $salesList = BranchContext::current()->applyTo(Sales::where('is_active', true))->get();
+        $boxes = $this->resolveBoxes($request, $dateFrom, $dateTo, $salesList);
+
+        if ($box === 'sales') {
+            $b = $boxes['ps'];
+            $perf = $this->buildSalesPerformance($this->boxSalesRows($b), $b['from'], $b['to']);
+
+            return ReportExport::download($format, 'Penjualan per Sales', $this->boxSubtitle($b), $this->salesSections($perf, $b), 'penjualan-per-sales');
+        }
+
+        if ($box === 'visits') {
+            $b = $boxes['kv'];
+            $cov = $this->buildVisitCoverage($this->boxSalesRows($b), $b['from'], $b['to']);
+
+            return ReportExport::download($format, 'Kunjungan per Sales (Call Made & EC)', $this->boxSubtitle($b), [$this->visitSection($cov, $b)], 'kunjungan-per-sales');
+        }
+
+        $b = $boxes['rg'];
+        $report = $this->buildDepoReport($request, $b);
+
+        return ReportExport::download($format, 'Laporan Global Seluruh Sales per Depo', $this->boxSubtitle($b), $this->reportSections($report, $b), 'laporan-global-per-depo');
     }
 
     private function parseDate(?string $value, Carbon $default, bool $endOfDay = false): Carbon
