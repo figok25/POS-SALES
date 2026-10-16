@@ -53,6 +53,7 @@ Route::middleware(['auth', 'verified', 'role:admin|super_admin', 'branch_context
     ->name('admin.')
     ->group(function () {
         Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
+        Route::get('/dashboard/export', [AdminDashboardController::class, 'export'])->name('dashboard.export');
 
         // Fase 2 - Master Data (Blueprint #32, #47)
         Route::prefix('master')->name('master.')->group(base_path('routes/admin_master.php'));

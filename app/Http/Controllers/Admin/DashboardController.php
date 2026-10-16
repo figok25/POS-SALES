@@ -21,6 +21,7 @@ use App\Models\SettlementItem;
 use App\Models\Visit;
 use App\Services\EffectiveCallService;
 use App\Support\BranchContext;
+use App\Support\ReportExport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -57,6 +58,164 @@ use Illuminate\Support\Facades\DB;
 class DashboardController extends Controller
 {
     public function index(Request $request)
+    {
+        return view('admin.dashboard', $this->dashboardData($request));
+    }
+
+    /**
+     * Export Dashboard (Excel / PDF) memakai data & filter yang SAMA dengan
+     * halaman (Depo, periode, Sales, serta filter tabel Penjualan/Kunjungan
+     * per Sales dan Laporan Depo), jadi isi file = apa yang sedang tampil.
+     */
+    public function export(Request $request)
+    {
+        $format = ReportExport::normalizeFormat($request->query('format'));
+        $d = $this->dashboardData($request);
+
+        $kpi = $d['kpi'];
+        $depo = $d['depo'];
+        $branchContext = $d['branchContext'];
+
+        $num = function ($v) {
+            $v = is_numeric($v) ? (float) $v : 0.0;
+
+            return floor($v) == $v ? (int) $v : round($v, 2);
+        };
+        $date = fn ($v) => $v ? Carbon::parse($v)->format('d/m/Y') : '-';
+
+        $salesName = $d['selectedSalesId'] ? optional($d['salesList']->firstWhere('id', $d['selectedSalesId']))->name : null;
+        $depoName = $branchContext->isAll() ? 'Semua Depo' : (Branch::find($branchContext->branchId())?->name ?? '-');
+        $period = $date($d['dateFrom']).' s/d '.$date($d['dateTo']);
+        $tblPeriod = $date($d['tblFrom']).' s/d '.$date($d['tblTo']);
+
+        $sections = [];
+
+        // 1) Ringkasan KPI
+        $ecPct = $kpi['call_made'] > 0 ? (int) round($kpi['effective_call'] / $kpi['call_made'] * 100) : 0;
+        $sections[] = [
+            'title' => 'Ringkasan',
+            'columns' => ['Kelompok', 'Indikator', 'Nilai', 'Keterangan'],
+            'rows' => [
+                ['Aktivitas Periode', 'Toko Unik Dikunjungi', $num($kpi['visit_stores']), 'Toko berbeda yang dikunjungi'],
+                ['Aktivitas Periode', 'Call Made (Total Kunjungan)', $num($kpi['call_made']), 'Semua kunjungan, termasuk yang transaksi'],
+                ['Aktivitas Periode', 'EC (Kunjungan + Transaksi)', $num($kpi['effective_call']), $ecPct.'% dari kunjungan'],
+                ['Aktivitas Periode', 'EC Toko Baru', $num($kpi['ec_new']), 'Toko pertama kali order'],
+                ['Aktivitas Periode', 'EC Toko Repeat', $num($kpi['ec_repeat']), 'Toko repeat order'],
+                ['Aktivitas Periode', 'Transaksi', $num($kpi['sales_count']), ''],
+                ['Aktivitas Periode', 'Penjualan (Rp)', $num($kpi['sales_total']), ''],
+                ['Aktivitas Periode', 'Delivered', $num($kpi['do_delivered']), 'DO terkirim'],
+                ['Aktivitas Periode', 'Settlement Di-Apply', $num($kpi['settlement_applied']), ''],
+                ['Aktivitas Periode', 'Selisih Uang (Rp)', $num($kpi['settlement_cash_variance']), ''],
+                ['Aktivitas Periode', 'Selisih Barang (unit)', $num($kpi['settlement_goods_variance']), ''],
+                ['Kondisi Saat Ini', 'Total Produk', $num($kpi['total_products']), ''],
+                ['Kondisi Saat Ini', $d['selectedSalesId'] ? 'Customer Sales Ini' : 'Total Customer', $num($kpi['total_customers']), ''],
+                ['Kondisi Saat Ini', 'Invoice Outstanding', $num($kpi['outstanding_invoices']), 'Rp '.number_format((float) $kpi['outstanding_amount'], 0, ',', '.')],
+                ['Kondisi Saat Ini', 'DO Draft', $num($kpi['do_draft']), ''],
+                ['Kondisi Saat Ini', 'DO Dispatched', $num($kpi['do_dispatched']), ''],
+                ['Kondisi Saat Ini', 'Settlement Draft Pending', $num($kpi['settlement_draft_count']), ''],
+                ['Toko Depo', 'Transaksi Depo', $num($depo['count']), 'Penjualan langsung Admin (tanpa Sales)'],
+                ['Toko Depo', 'Penjualan Depo (Rp)', $num($depo['total']), ''],
+                ['Toko Depo', 'Kas Masuk Depo (Rp)', $num($depo['cash_in']), ''],
+                ['Toko Depo', 'Piutang Depo (Rp)', $num($depo['outstanding_amount']), $depo['outstanding_count'].' invoice belum lunas'],
+            ],
+            'note' => 'Aktivitas Periode mengikuti periode '.$period.($salesName ? ' dan Sales '.$salesName : '').'. Kondisi Saat Ini adalah posisi hari ini.',
+        ];
+
+        // 2) Penjualan per Sales
+        $perf = $d['salesPerformance'];
+        $perfRows = $perf['rows']->map(fn ($r) => [
+            $r['name'], $r['code'] ?? '-',
+            $num($r['carried_qty']), $num($r['sold_qty']), $num($r['free_qty']), $num($r['returned_qty']),
+            $num($r['sold_value']), $num($r['trx_count']), $num($r['trx_total']),
+        ])->all();
+        if ($perfRows) {
+            $t = $perf['totals'];
+            $perfRows[] = ['TOTAL', '', $num($t['carried_qty']), $num($t['sold_qty']), $num($t['free_qty']), $num($t['returned_qty']), $num($t['sold_value']), $num($t['trx_count']), $num($t['trx_total'])];
+        }
+        $sections[] = [
+            'title' => 'Penjualan per Sales',
+            'columns' => ['Sales', 'Kode', 'Stok Dibawa', 'Terjual', 'Gratis', 'Kembali', 'Nilai Terjual (Rp)', 'Jml Transaksi', 'Total Transaksi (Rp)'],
+            'rows' => $perfRows,
+            'note' => 'Periode: '.$tblPeriod.'.',
+        ];
+
+        // 3) Rincian Produk per Sales
+        $productRows = [];
+        foreach ($perf['rows'] as $r) {
+            foreach ($r['products'] as $p) {
+                $productRows[] = [$r['name'], $p['name'], $p['sku'] ?? '-', $num($p['carried_qty']), $num($p['sold_qty']), $num($p['free_qty']), $num($p['returned_qty']), $num($p['sold_value'])];
+            }
+        }
+        $sections[] = [
+            'title' => 'Rincian Produk',
+            'columns' => ['Sales', 'Produk', 'SKU', 'Dibawa', 'Terjual', 'Gratis', 'Kembali', 'Nilai Terjual (Rp)'],
+            'rows' => $productRows,
+            'note' => 'Periode: '.$tblPeriod.'.',
+        ];
+
+        // 4) Kunjungan per Sales
+        $cov = $d['visitCoverage'];
+        $covRows = $cov['rows']->map(fn ($r) => [
+            $r['name'], $r['code'] ?? '-', $num($r['call_made']), $num($r['ec']), $num($r['ec_new']), $num($r['ec_repeat']), $num($r['ec_pct']).'%', $num($r['stores']),
+        ])->all();
+        if ($covRows) {
+            $t = $cov['totals'];
+            $covRows[] = ['TOTAL', '', $num($t['call_made']), $num($t['ec']), $num($t['ec_new']), $num($t['ec_repeat']), $num($t['ec_pct']).'%', ''];
+        }
+        $sections[] = [
+            'title' => 'Kunjungan per Sales',
+            'columns' => ['Sales', 'Kode', 'Call Made', 'EC', 'EC Toko Baru', 'EC Toko Repeat', '% EC', 'Toko Unik'],
+            'rows' => $covRows,
+            'note' => 'Periode: '.$tblPeriod.'.',
+        ];
+
+        // 5) Laporan Depo (rekap produk + setoran)
+        $report = $d['depoReport'];
+        $reportRows = [];
+        $payRows = [];
+        foreach ($report['blocks'] as $b) {
+            foreach ($b['rows'] as $r) {
+                $reportRows[] = [$b['branch']->name, $r['name'], $num($r['price']), $num($r['start']), $num($r['sold']), $num($r['free']), $num($r['left']), $num($r['total'])];
+            }
+            $reportRows[] = [$b['branch']->name, 'TOTAL', '', $num($b['totals']['start']), $num($b['totals']['sold']), $num($b['totals']['free']), $num($b['totals']['left']), $num($b['totals']['total'])];
+            $payRows[] = [$b['branch']->name, $num($b['totals']['total']), $num($b['cash']), $num($b['transfer']), $num($b['settled']), $num($b['unpaid'])];
+        }
+        $sections[] = [
+            'title' => 'Laporan Depo',
+            'columns' => ['Depo', 'Produk', 'Harga Retail (Rp)', 'Stok Awal', 'Stok Jual', 'Gratis', 'Sisa Stok', 'Total (Rp)'],
+            'rows' => $reportRows,
+            'note' => $report['label'].'.',
+        ];
+        $sections[] = [
+            'title' => 'Setoran Depo',
+            'columns' => ['Depo', 'Total Penjualan (Rp)', 'Tunai (Rp)', 'Transfer (Rp)', 'Total Setoran (Rp)', 'Belum Setor (Rp)'],
+            'rows' => $payRows,
+            'note' => $report['label'].'.',
+        ];
+
+        // 6) Kredit Toko Depo (belum lunas)
+        $creditRows = $d['depoCredit']['groups']->map(fn ($g) => [
+            $g['name'], $g['branch'], $num($g['count']), $num($g['total']), $num($g['paid']), $num($g['outstanding']),
+            $date($g['oldest']), $date($g['due']), $g['overdue'] ? 'Lewat jatuh tempo' : ($g['due'] ? 'Belum jatuh tempo' : '-'),
+        ])->all();
+        $sections[] = [
+            'title' => 'Kredit Depo',
+            'columns' => ['Pembeli', 'Depo', 'Jml Invoice', 'Total (Rp)', 'Terbayar (Rp)', 'Sisa (Rp)', 'Invoice Tertua', 'Jatuh Tempo', 'Status'],
+            'rows' => $creditRows,
+            'note' => 'Posisi hari ini: seluruh kredit yang belum lunas, tidak terbatas periode.',
+        ];
+
+        $subtitle = implode(' | ', array_filter([
+            'Depo: '.$depoName,
+            'Periode: '.$period,
+            'Sales: '.($salesName ?? 'Semua Sales'),
+            'Diunduh: '.now()->format('d/m/Y H:i'),
+        ]));
+
+        return ReportExport::download($format, 'Laporan Dashboard', $subtitle, $sections, 'laporan-dashboard');
+    }
+
+    private function dashboardData(Request $request): array
     {
         $branchContext = BranchContext::current();
 
@@ -297,7 +456,7 @@ class DashboardController extends Controller
             )->latest()->limit(5)->get(),
         ];
 
-        return view('admin.dashboard', [
+        return [
             'kpi' => $kpi,
             'depo' => $depo,
             'recentTransactions' => $recentTransactions,
@@ -322,7 +481,7 @@ class DashboardController extends Controller
             // admin/sales biasa, memakai data $branches + $branchContext ini).
             'branches' => Branch::where('is_active', true)->orderBy('name')->get(),
             'branchContext' => $branchContext,
-        ]);
+        ];
     }
 
     /**

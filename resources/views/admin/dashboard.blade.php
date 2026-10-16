@@ -126,6 +126,16 @@
         <div class="dash-actions">
             <button type="submit" class="adm-btn adm-btn-primary">Terapkan</button>
             <a href="{{ route('admin.dashboard') }}" class="adm-btn adm-btn-ghost">Reset</a>
+
+            {{-- Export mengikuti SEMUA filter yang sedang aktif di halaman ini. --}}
+            @php $dashExportQuery = array_filter(request()->except(['format']), fn ($v) => $v !== '' && $v !== null); @endphp
+            <details class="dash-export" style="position:relative;display:inline-block">
+                <summary class="adm-btn adm-btn-ghost" style="list-style:none;cursor:pointer">Export ▾</summary>
+                <div style="position:absolute;right:0;top:calc(100% + 4px);z-index:30;min-width:190px;background:#fff;border:1px solid #d1d5db;border-radius:.5rem;box-shadow:0 8px 24px rgba(0,0,0,.12);padding:.25rem;display:flex;flex-direction:column">
+                    <a href="{{ route('admin.dashboard.export', $dashExportQuery + ['format' => 'xlsx']) }}" class="adm-btn adm-btn-ghost adm-btn-sm" style="justify-content:flex-start">Excel (.xlsx)</a>
+                    <a href="{{ route('admin.dashboard.export', $dashExportQuery + ['format' => 'pdf']) }}" class="adm-btn adm-btn-ghost adm-btn-sm" style="justify-content:flex-start">PDF (.pdf)</a>
+                </div>
+            </details>
         </div>
     </form>
 

@@ -10,6 +10,7 @@ use App\Models\SalesTransaction;
 use App\Models\Visit;
 use App\Services\VisitService;
 use App\Support\BranchContext;
+use App\Support\ReportExport;
 use Illuminate\Validation\ValidationException;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -137,6 +138,105 @@ class VisitController extends Controller
             || (auth()->user()?->isSuperAdmin() && ! $context->isAll());
 
         return view('admin.sales.visits.index', compact('items', 'status', 'filters', 'summary', 'salesList', 'branches', 'isFiltered'));
+    }
+
+    /**
+     * Export kunjungan (Excel / PDF) mengikuti SEMUA filter halaman index
+     * (Depo, tanggal, Sales, status, kondisi, hasil, pencarian). Mengekspor
+     * seluruh baris yang cocok, bukan hanya halaman yang sedang tampil.
+     */
+    public function export(Request $request)
+    {
+        $format = ReportExport::normalizeFormat($request->query('format'));
+        $context = BranchContext::current();
+
+        $query = $this->filteredQuery($request);
+        $total = (clone $query)->toBase()->count();
+
+        // Hasil (EC / tanpa transaksi) dihitung di SQL (satu query), bukan per baris.
+        $query->addSelect('visits.*')->selectRaw(
+            'EXISTS (SELECT 1 FROM sales_transactions st WHERE st.sales_id = visits.sales_id'
+            .' AND st.customer_id = visits.customer_id AND st.status = ?'
+            .' AND st.created_at >= visits.check_in_at'
+            .' AND (visits.check_out_at IS NULL OR st.created_at <= visits.check_out_at)) as has_trx',
+            [SalesTransaction::STATUS_COMPLETED]
+        );
+
+        if ($format === 'pdf') {
+            $query->limit(ReportExport::PDF_MAX_ROWS);
+        }
+
+        $items = $query->get();
+
+        $rows = $items->values()->map(function (Visit $v, int $i) {
+            $outcome = $v->isOutletClosed()
+                ? Visit::OUTCOME_CLOSED
+                : ($v->isOngoing()
+                    ? Visit::OUTCOME_ONGOING
+                    : ((bool) $v->getAttribute('has_trx') ? Visit::OUTCOME_TRANSACTION : Visit::OUTCOME_NO_TRANSACTION));
+
+            $duration = '-';
+            if ($v->check_out_at && ! $v->isAssisted()) {
+                $mins = abs((int) $v->check_in_at->diffInMinutes($v->check_out_at));
+                $duration = $mins >= 60 ? intdiv($mins, 60).' j '.($mins % 60).' m' : $mins.' m';
+            }
+
+            return [
+                $i + 1,
+                $v->check_in_at->format('d/m/Y'),
+                $v->sales->name ?? '-',
+                $v->customer->code ?? '-',
+                $v->customer->name ?? '-',
+                Visit::conditionLabel($v->check_in_condition),
+                Visit::outcomeLabel($outcome),
+                $v->check_in_at->format('H:i'),
+                $v->check_out_at?->format('d/m/Y H:i') ?? '-',
+                $duration,
+                $v->status === Visit::STATUS_ONGOING ? 'Berjalan' : 'Selesai',
+                $v->assistedLabel() ?? '-',
+            ];
+        });
+
+        $depo = $context->isAll() ? 'Semua Depo' : (Branch::find($context->branchId())?->name ?? '-');
+        $from = $this->parseDate($request->query('date_from'));
+        $to = $this->parseDate($request->query('date_to'));
+        if ($from && $to && $from->gt($to)) {
+            [$from, $to] = [$to, $from];
+        }
+
+        $parts = ['Depo: '.$depo];
+        $parts[] = 'Periode: '.($from || $to
+            ? ($from?->format('d/m/Y') ?? '...').' s/d '.($to?->format('d/m/Y') ?? '...')
+            : 'Semua tanggal');
+        if ($salesId = $request->query('sales_id')) {
+            $parts[] = 'Sales: '.(Sales::find($salesId)?->name ?? '-');
+        }
+        if (in_array($request->query('status'), [Visit::STATUS_ONGOING, Visit::STATUS_COMPLETED], true)) {
+            $parts[] = 'Status: '.($request->query('status') === Visit::STATUS_ONGOING ? 'Sedang Berjalan' : 'Selesai');
+        }
+        if (in_array($request->query('condition'), Visit::CONDITIONS, true)) {
+            $parts[] = 'Kondisi: '.Visit::conditionLabel($request->query('condition'));
+        }
+        if (in_array($request->query('outcome'), [Visit::OUTCOME_ONGOING, Visit::OUTCOME_CLOSED, Visit::OUTCOME_TRANSACTION, Visit::OUTCOME_NO_TRANSACTION], true)) {
+            $parts[] = 'Hasil: '.Visit::outcomeLabel($request->query('outcome'));
+        }
+        if (($q = trim((string) $request->query('q', ''))) !== '') {
+            $parts[] = 'Cari: "'.$q.'"';
+        }
+        $parts[] = 'Total: '.number_format($total, 0, ',', '.').' kunjungan';
+        $parts[] = 'Diunduh: '.now()->format('d/m/Y H:i');
+
+        return ReportExport::download(
+            $format,
+            'Laporan Kunjungan (Visit)',
+            implode(' | ', $parts),
+            [[
+                'title' => 'Kunjungan',
+                'columns' => ['No', 'Tanggal', 'Sales', 'Kode Customer', 'Customer', 'Kondisi', 'Hasil', 'Jam Check-in', 'Check-out', 'Durasi', 'Status', 'Keterangan'],
+                'rows' => $rows,
+            ]],
+            'laporan-kunjungan',
+        );
     }
 
     public function show(Visit $visit)

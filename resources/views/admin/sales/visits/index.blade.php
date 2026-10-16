@@ -103,6 +103,19 @@
             @if ($isFiltered)
                 <a href="{{ route('admin.sales.visits.index', ['branch' => 'all']) }}" class="adm-btn adm-btn-ghost adm-btn-sm">Reset</a>
             @endif
+
+            {{-- Export mengikuti filter yang sedang aktif (seluruh hasil, bukan hanya halaman ini). --}}
+            @php $exportQuery = array_filter(request()->except(['page', 'format']), fn ($v) => $v !== '' && $v !== null); @endphp
+            <details class="export-menu" style="position:relative;margin-left:auto">
+                <summary class="adm-btn adm-btn-ghost adm-btn-sm" style="list-style:none;cursor:pointer">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Export ▾
+                </summary>
+                <div style="position:absolute;right:0;top:calc(100% + 4px);z-index:20;min-width:190px;background:#fff;border:1px solid #d1d5db;border-radius:.5rem;box-shadow:0 8px 24px rgba(0,0,0,.12);padding:.25rem;display:flex;flex-direction:column">
+                    <a href="{{ route('admin.sales.visits.export', $exportQuery + ['format' => 'xlsx']) }}" class="adm-btn adm-btn-ghost adm-btn-sm" style="justify-content:flex-start">Excel (.xlsx)</a>
+                    <a href="{{ route('admin.sales.visits.export', $exportQuery + ['format' => 'pdf']) }}" class="adm-btn adm-btn-ghost adm-btn-sm" style="justify-content:flex-start">PDF (.pdf)</a>
+                </div>
+            </details>
         </form>
 
         @if ($items->count())

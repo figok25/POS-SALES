@@ -25,6 +25,8 @@ Route::middleware('permission:sales-management.view')->group(function () {
     Route::get('customer-taggings/{tagging}', [CustomerTaggingController::class, 'show'])->name('customer-taggings.show');
 
     Route::get('visits', [VisitController::class, 'index'])->name('visits.index');
+    // Harus sebelum visits/{visit} supaya 'export' tidak dibaca sebagai ID kunjungan.
+    Route::get('visits/export', [VisitController::class, 'export'])->name('visits.export');
     Route::get('visits/{visit}', [VisitController::class, 'show'])->name('visits.show');
 
     Route::get('transactions', [SalesTransactionController::class, 'index'])->name('transactions.index');
