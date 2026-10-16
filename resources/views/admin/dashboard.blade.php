@@ -343,7 +343,7 @@
                                 </td>
                                 <td data-label="Total Transaksi" class="is-num">
                                     <span class="frm-num is-strong">{{ $fmtRp($row['trx_total']) }}</span>
-                                    <p class="frm-meta">{{ number_format($row['trx_count'], 0, ',', '.') }} transaksi</p>
+                                    <p class="frm-meta">{{ number_format($row['trx_count'], 0, ',', '.') }} transaksi @if (($row['admin_trx_count'] ?? 0) > 0) &middot; <span title="Diinput Admin atas nama Sales: Rp {{ number_format($row['admin_trx_total'], 0, ',', '.') }}">{{ number_format($row['admin_trx_count'], 0, ',', '.') }} input Admin</span>@endif</p>
                                 </td>
                             </tr>
                             @if (count($row['products']))

@@ -246,7 +246,18 @@ class TransactionController extends Controller
         $openCustomers = $visits
             ->filter(fn ($rows) => $rows->contains(fn ($v) => $v->check_in_condition !== Visit::CONDITION_CLOSED))
             ->keys();
-        $visitCount = config('kpi.call_made_includes_closed') ? $visits->count() : $openCustomers->count();
+
+        // Transaksi Admin atas nama Sales (memuat produk EC) dihitung 1 kunjungan + EC di toko-hari
+        // itu walau tanpa check-in; kuota kunjungan mingguan (tabel Visit) tidak berubah.
+        $assistedCustomers = $ecService->assistedCallsQuery($date->copy()->startOfDay(), $date->copy()->endOfDay())
+            ->where('sales_id', $sales->id)
+            ->pluck('customer_id')
+            ->unique();
+        $openCustomers = $openCustomers->merge($assistedCustomers)->unique()->values();
+
+        $visitCount = config('kpi.call_made_includes_closed')
+            ? $visits->keys()->merge($assistedCustomers)->unique()->count()
+            : $openCustomers->count();
 
         $ecKeys = $openCustomers
             ->filter(fn ($customerId) => isset($transactedCustomers[$customerId]))

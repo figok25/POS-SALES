@@ -11,6 +11,9 @@
                 <p class="frm-sub">Kasir Depo: jual langsung ke konsumen dari Gudang Depo; kategori harga dipilih Admin dan boleh dijual kredit. Bukan transaksi Customer/Outlet, tidak terkait Sales, tanpa Delivery Order.</p>
             </div>
             <div class="frm-head-actions">
+                @can('sales-management.manage')
+                    <a href="{{ route('admin.sales.transactions.create-for-sales') }}" class="adm-btn adm-btn-ghost adm-btn-sm" title="Pembelian tambahan outlet yang dikaitkan ke Sales (memotong stok Sales)">Transaksi atas Nama Sales</a>
+                @endcan
                 <a href="{{ route('admin.depo.transactions.index') }}" class="adm-btn adm-btn-ghost adm-btn-sm">Kembali</a>
             </div>
         </div>

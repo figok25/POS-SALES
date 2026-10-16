@@ -129,7 +129,7 @@
                     <tbody>
                         @foreach ($items as $item)
                             <tr>
-                                <td><span class="frm-code">{{ $item->code }}</span>@if ($item->isDepoSale()) <span class="frm-status is-off" title="Penjualan langsung Depo (tanpa Sales)">Depo</span>@endif</td>
+                                <td><span class="frm-code">{{ $item->code }}</span>@if ($item->isDepoSale()) <span class="frm-status is-off" title="Penjualan langsung Depo (tanpa Sales)">Depo</span>@endif @if ($item->isEnteredForSales())<span class="frm-status is-warn" title="Diinput Admin atas nama Sales{{ $item->creator ? ' ('.$item->creator->name.')' : '' }}">Input Admin</span>@endif</td>
                                 <td data-label="Tanggal" class="frm-nowrap">{{ $item->created_at->format('d M Y H:i') }}</td>
                                 @if ($branches->isNotEmpty())<td data-label="Depo">{{ $item->branch->name ?? '-' }}</td>@endif
                                 @unless ($depoOnly)<td data-label="Sales">{{ $item->sales->name ?? 'Toko Depo' }}</td>@endunless

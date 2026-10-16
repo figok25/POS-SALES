@@ -127,14 +127,15 @@ class DashboardController extends Controller
             $r['name'], $r['code'] ?? '-',
             $num($r['carried_qty']), $num($r['sold_qty']), $num($r['free_qty']), $num($r['returned_qty']),
             $num($r['sold_value']), $num($r['trx_count']), $num($r['trx_total']),
+            $num($r['trx_count'] - $r['admin_trx_count']), $num($r['admin_trx_count']), $num($r['admin_trx_total']),
         ])->all();
         if ($perfRows) {
             $t = $perf['totals'];
-            $perfRows[] = ['TOTAL', '', $num($t['carried_qty']), $num($t['sold_qty']), $num($t['free_qty']), $num($t['returned_qty']), $num($t['sold_value']), $num($t['trx_count']), $num($t['trx_total'])];
+            $perfRows[] = ['TOTAL', '', $num($t['carried_qty']), $num($t['sold_qty']), $num($t['free_qty']), $num($t['returned_qty']), $num($t['sold_value']), $num($t['trx_count']), $num($t['trx_total']), $num($t['trx_count'] - $t['admin_trx_count']), $num($t['admin_trx_count']), $num($t['admin_trx_total'])];
         }
         $sections[] = [
             'title' => 'Penjualan per Sales',
-            'columns' => ['Sales', 'Kode', 'Stok Dibawa', 'Terjual', 'Gratis', 'Kembali', 'Nilai Terjual (Rp)', 'Jml Transaksi', 'Total Transaksi (Rp)'],
+            'columns' => ['Sales', 'Kode', 'Stok Dibawa', 'Terjual', 'Gratis', 'Kembali', 'Nilai Terjual (Rp)', 'Jml Transaksi', 'Total Transaksi (Rp)', 'Trx Langsung Sales', 'Trx Input Admin', 'Total Input Admin (Rp)'],
             'rows' => $perfRows,
             'note' => 'Periode: '.$tblPeriod.'.',
         ];
@@ -352,10 +353,19 @@ class DashboardController extends Controller
             fn ($q, $branchId) => $q->whereHas('sales', fn ($qq) => $qq->where('branch_id', $branchId))
         )->select('sales_id', 'customer_id')->selectRaw('DATE(created_at) as call_day')->distinct()->get()->toBase();
 
+        // Transaksi Admin atas nama Sales (memuat produk EC) dihitung 1 Call Made + 1 EC pada
+        // toko-hari itu walau tanpa check-in. Visit tidak disentuh, jadi kuota mingguan aman.
+        $assistedCalls = $branchContext->applyVia(
+            app(EffectiveCallService::class)->assistedCallsQuery($dateFrom, $dateTo)
+                ->when($salesId, fn ($q) => $q->where('sales_id', $salesId)),
+            fn ($q, $branchId) => $q->whereHas('sales', fn ($qq) => $qq->where('branch_id', $branchId))
+        )->select('sales_id', 'customer_id')->selectRaw('DATE(created_at) as call_day')->distinct()->get()->toBase();
+
         $callKey = fn ($row) => $row->sales_id.'|'.$row->customer_id.'|'.$row->call_day;
         $includeClosed = (bool) config('kpi.call_made_includes_closed');
-        $openVisitKeys = $visitCalls->filter(fn ($row) => ! (int) $row->all_closed)->map($callKey)->unique()->values();
-        $visitKeys = $includeClosed ? $visitCalls->map($callKey)->unique()->values() : $openVisitKeys;
+        $assistedKeys = $assistedCalls->map($callKey)->unique()->values();
+        $openVisitKeys = $visitCalls->filter(fn ($row) => ! (int) $row->all_closed)->map($callKey)->merge($assistedKeys)->unique()->values();
+        $visitKeys = $includeClosed ? $visitCalls->map($callKey)->merge($assistedKeys)->unique()->values() : $openVisitKeys;
         $transactionKeys = $transactionCalls->map($callKey)->unique()->values();
         $ecKeys = $openVisitKeys->intersect($transactionKeys)->values();
         $ecCount = $ecKeys->count();
@@ -363,7 +373,7 @@ class DashboardController extends Controller
 
         $kpi = [
             'visit_total' => $visitKeys->count(),
-            'visit_stores' => $visitCalls->pluck('customer_id')->unique()->count(),
+            'visit_stores' => $visitCalls->pluck('customer_id')->merge($assistedCalls->pluck('customer_id'))->unique()->count(),
             'call_made' => $visitKeys->count(),
             'effective_call' => $ecCount,
             'ec_new' => $ecSplit['new'],
@@ -548,6 +558,17 @@ class DashboardController extends Controller
             ->get()
             ->keyBy('sales_id');
 
+        // Dari total di atas: transaksi yang diinput Admin atas nama Sales (bukan langsung oleh Sales).
+        $adminTrx = SalesTransaction::query()
+            ->whereIn('sales_id', $ids)
+            ->where('status', SalesTransaction::STATUS_COMPLETED)
+            ->where('source', SalesTransaction::SOURCE_ADMIN)
+            ->whereBetween('created_at', [$from, $to])
+            ->groupBy('sales_id')
+            ->selectRaw('sales_id, COUNT(*) as trx_count, SUM(total) as trx_total')
+            ->get()
+            ->keyBy('sales_id');
+
         // Rincian per PRODUK untuk tiap Sales (dibawa, terjual, nilai terjual).
         // 2 query agregat tambahan (group by sales_id, product_id) + 1 query
         // nama produk -- tetap bukan N+1.
@@ -648,6 +669,8 @@ class DashboardController extends Controller
                 ->sortBy('name')->values()->all(),
             'trx_count' => (int) ($trx[$s->id]->trx_count ?? 0),
             'trx_total' => (float) ($trx[$s->id]->trx_total ?? 0),
+            'admin_trx_count' => (int) ($adminTrx[$s->id]->trx_count ?? 0),
+            'admin_trx_total' => (float) ($adminTrx[$s->id]->trx_total ?? 0),
         ])->sortBy([['trx_total', 'desc'], ['name', 'asc']])->values();
 
         return [
@@ -663,6 +686,8 @@ class DashboardController extends Controller
                     ->sortBy('name')->values()->all(),
                 'trx_count' => $rows->sum('trx_count'),
                 'trx_total' => $rows->sum('trx_total'),
+                'admin_trx_count' => $rows->sum('admin_trx_count'),
+                'admin_trx_total' => $rows->sum('admin_trx_total'),
             ],
         ];
     }
@@ -711,18 +736,30 @@ class DashboardController extends Controller
             ->get()
             ->toBase();
 
+        // Transaksi Admin atas nama Sales (EC) dihitung sebagai call walau tanpa check-in.
+        $assisted = app(EffectiveCallService::class)->assistedCallsQuery($from, $to)
+            ->whereIn('sales_id', $ids)
+            ->select('sales_id', 'customer_id')
+            ->selectRaw('DATE(created_at) as call_day')
+            ->distinct()
+            ->get()
+            ->toBase();
+
         $callKey = fn ($r) => $r->customer_id.'|'.$r->call_day;
+        $assistedBySales = $assisted->groupBy('sales_id');
         $visitsBySales = $visits->groupBy('sales_id');
         $trxKeysBySales = $transactions->groupBy('sales_id')->map(fn ($g) => $g->map($callKey)->unique()->values());
 
         $ecService = app(EffectiveCallService::class);
         $firstDays = $ecService->firstOrderDays($transactions->pluck('customer_id')->all());
 
-        $rows = $salesRows->map(function (Sales $s) use ($visitsBySales, $trxKeysBySales, $callKey, $ecService, $firstDays) {
+        $rows = $salesRows->map(function (Sales $s) use ($visitsBySales, $assistedBySales, $trxKeysBySales, $callKey, $ecService, $firstDays) {
             $salesVisits = $visitsBySales[$s->id] ?? collect();
             $includeClosed = (bool) config('kpi.call_made_includes_closed');
-            $openCalls = $salesVisits->filter(fn ($r) => ! (int) $r->all_closed)->map($callKey)->unique()->values();
-            $calls = $includeClosed ? $salesVisits->map($callKey)->unique()->values() : $openCalls;
+            $assistedRows = $assistedBySales[$s->id] ?? collect();
+            $assistedKeys = $assistedRows->map($callKey)->unique()->values();
+            $openCalls = $salesVisits->filter(fn ($r) => ! (int) $r->all_closed)->map($callKey)->merge($assistedKeys)->unique()->values();
+            $calls = $includeClosed ? $salesVisits->map($callKey)->merge($assistedKeys)->unique()->values() : $openCalls;
             $totalCalls = $calls->count();
             $ecKeys = $openCalls->intersect($trxKeysBySales[$s->id] ?? collect())->values();
             $ec = $ecKeys->count();
@@ -738,7 +775,7 @@ class DashboardController extends Controller
                 'ec_repeat' => $ecSplit['repeat'],
                 'total_calls' => $totalCalls,
                 'ec_pct' => $totalCalls > 0 ? (int) round($ec / $totalCalls * 100) : 0,
-                'stores' => $salesVisits->pluck('customer_id')->unique()->count(),
+                'stores' => $salesVisits->pluck('customer_id')->merge($assistedRows->pluck('customer_id'))->unique()->count(),
             ];
         })->sortBy([['ec', 'desc'], ['total_calls', 'desc'], ['name', 'asc']])->values();
 

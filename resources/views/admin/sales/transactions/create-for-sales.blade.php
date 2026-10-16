@@ -3,7 +3,7 @@
         <div class="frm-head">
             <div>
                 <h1 class="frm-title">Input Transaksi atas Nama Sales</h1>
-                <p class="frm-sub">Untuk transaksi yang sudah dilakukan Sales tetapi belum tercatat. Transaksi tercatat sebagai milik <strong>Sales yang dipilih</strong>; Anda dicatat sebagai pengguna yang menginput. Stok Sales terpotong dan invoice terbit seperti transaksi biasa.</p>
+                <p class="frm-sub">Untuk transaksi yang sudah dilakukan Sales tetapi belum tercatat. Transaksi tercatat sebagai milik <strong>Sales yang dipilih</strong>; Anda dicatat sebagai pengguna yang menginput. Stok Sales terpotong dan invoice terbit seperti transaksi biasa. Pakai juga untuk pembelian tambahan outlet di minggu yang sudah dikunjungi: transaksi dihitung sebagai Call Made + EC Sales pada tanggalnya, <strong>tanpa menambah atau membuka kuota kunjungan mingguan</strong>. Sales dapat melihat dan mencetak struknya di aplikasi.</p>
             </div>
             <a href="{{ route('admin.sales.transactions.index') }}" class="adm-btn adm-btn-ghost">&larr; Kembali</a>
         </div>

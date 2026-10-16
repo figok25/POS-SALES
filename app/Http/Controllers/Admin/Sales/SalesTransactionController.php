@@ -457,21 +457,23 @@ class SalesTransactionController extends Controller
      */
     public function export(Request $request): StreamedResponse
     {
-        $items = $this->filteredQuery($request)->get();
+        $items = $this->filteredQuery($request)->with('creator')->get();
 
         $filename = 'laporan-transaksi-penjualan-'.now()->format('Ymd_His').'.csv';
 
         $callback = function () use ($items) {
             $out = fopen('php://output', 'w');
             fwrite($out, "\xEF\xBB\xBF");
-            fputcsv($out, ['Kode Transaksi', 'Tanggal', 'Depo', 'Sumber', 'Sales', 'Customer', 'Subtotal', 'Diskon', 'Pajak', 'Total', 'Status']);
+            fputcsv($out, ['Kode Transaksi', 'Tanggal', 'Depo', 'Sumber', 'Pelaksana', 'Sales', 'Customer', 'Subtotal', 'Diskon', 'Pajak', 'Total', 'Status']);
 
             foreach ($items as $t) {
                 fputcsv($out, [
                     $t->code,
                     $t->created_at->format('Y-m-d H:i'),
                     $t->branch->name ?? '-',
-                    $t->isDepoSale() ? 'Toko Depo' : 'Sales',
+                    $t->isDepoSale() ? 'Toko Depo' : ($t->isEnteredForSales() ? 'Input Admin untuk Sales' : 'Sales'),
+                    // Pelaksana = siapa yang benar-benar mengetik transaksi; Sales = pemilik penjualan (atribusi).
+                    $t->isCreatedByAdmin() ? ($t->creator->name ?? 'Admin') : ($t->sales->name ?? '-'),
                     $t->sales->name ?? 'Toko Depo',
                     $t->customer->name ?? '-',
                     $t->subtotal,

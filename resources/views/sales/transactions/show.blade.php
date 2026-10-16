@@ -8,6 +8,9 @@
     <div class="bg-white rounded-lg shadow p-4 space-y-2 text-sm mb-4">
         <div class="flex justify-between"><span class="text-gray-500">Customer</span><span>{{ $transaction->customer->name ?? '-' }}</span></div>
         <div class="flex justify-between"><span class="text-gray-500">Tanggal</span><span>{{ $transaction->created_at->format('d M Y H:i') }}</span></div>
+        @if ($transaction->isEnteredForSales())
+            <div class="flex justify-between"><span class="text-gray-500">Dicatat oleh</span><span>{{ $transaction->creator->name ?? 'Admin' }} (Admin)</span></div>
+        @endif
         @if ($transaction->invoice)
             <div class="flex justify-between"><span class="text-gray-500">Invoice</span><span>{{ $transaction->invoice->code }}</span></div>
             <div class="flex justify-between"><span class="text-gray-500">Status Bayar</span>

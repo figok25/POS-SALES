@@ -118,6 +118,17 @@ class KpiAchievementService
                 }
             });
 
+        // Transaksi Admin atas nama Sales (memuat produk EC) = 1 Call Made + 1 EC di toko-hari itu,
+        // walau tanpa check-in. Tabel Visit tidak disentuh sehingga kuota mingguan tetap.
+        app(EffectiveCallService::class)->assistedCallsQuery($startDate, $endDate)
+            ->whereIn('sales_id', $salesIds)
+            ->get(['id', 'sales_id', 'customer_id', 'created_at'])
+            ->each(function (SalesTransaction $trx) use (&$callMade, &$visitDays) {
+                $key = $trx->customer_id.'|'.$trx->created_at->toDateString();
+                $callMade[$trx->sales_id][$key] = true;
+                $visitDays[$trx->sales_id][$key] = true;
+            });
+
         // ---- Transaksi: EC, Volume, Produk KPI ----
         $ecSet = [];
         $volume = [];

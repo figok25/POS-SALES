@@ -74,6 +74,28 @@ class EffectiveCallService
     }
 
     /**
+     * Transaksi yang diinput Admin/Superadmin atas nama Sales (stok Sales terpotong)
+     * dan memenuhi syarat EC. Setiap toko-hari dari transaksi ini dihitung sebagai
+     * 1 Call Made + 1 EC untuk Sales tersebut, walau Sales tidak check-in lagi di hari
+     * itu (mis. toko menelepon minta tambahan barang). Data Visit tidak dibuat/diubah,
+     * jadi kuota kunjungan mingguan toko tidak terpengaruh. Toko-hari yang sudah punya
+     * kunjungan tidak terhitung dobel karena kuncinya digabung (union).
+     *
+     * @param  \DateTimeInterface  $from
+     * @param  \DateTimeInterface  $to
+     */
+    public function assistedCallsQuery($from, $to): Builder
+    {
+        return $this->onlyEffective(
+            SalesTransaction::query()
+                ->where('source', SalesTransaction::SOURCE_ADMIN)
+                ->whereNotNull('sales_id')
+                ->where('status', SalesTransaction::STATUS_COMPLETED)
+                ->whereBetween('created_at', [$from, $to])
+        );
+    }
+
+    /**
      * Hari (Y-m-d) transaksi selesai pertama tiap toko.
      *
      * @param  array<int, int|string>  $customerIds

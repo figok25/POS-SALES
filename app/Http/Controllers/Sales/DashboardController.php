@@ -22,14 +22,20 @@ class DashboardController extends Controller
         $sales = $this->currentSales();
         $today = now()->toDateString();
 
-        $kunjunganHariIni = Visit::where('sales_id', $sales->id)
-            ->whereDate('check_in_at', $today)
-            ->count();
+        // Toko yang transaksinya diinput Admin atas nama Sales hari ini (memuat produk EC)
+        // dihitung sebagai kunjungan + EC walau tanpa check-in (kuota mingguan tidak berubah).
+        $assistedCustomers = app(EffectiveCallService::class)
+            ->assistedCallsQuery(now()->startOfDay(), now()->endOfDay())
+            ->where('sales_id', $sales->id)
+            ->pluck('customer_id')->unique();
 
-        $tokoHariIni = Visit::where('sales_id', $sales->id)
+        $visitedToday = Visit::where('sales_id', $sales->id)
             ->whereDate('check_in_at', $today)
-            ->distinct('customer_id')
-            ->count('customer_id');
+            ->pluck('customer_id');
+
+        $kunjunganHariIni = $visitedToday->count() + $assistedCustomers->diff($visitedToday)->count();
+
+        $tokoHariIni = $visitedToday->unique()->merge($assistedCustomers)->unique()->count();
 
         $transaksiHariIni = SalesTransaction::where('sales_id', $sales->id)
             ->where('status', SalesTransaction::STATUS_COMPLETED)
@@ -46,7 +52,7 @@ class DashboardController extends Controller
         $openVisitCustomers = Visit::where('sales_id', $sales->id)
             ->whereDate('check_in_at', $today)
             ->where(fn ($q) => $q->whereNull('check_in_condition')->orWhere('check_in_condition', '!=', Visit::CONDITION_CLOSED))
-            ->pluck('customer_id')->unique();
+            ->pluck('customer_id')->merge($assistedCustomers)->unique();
 
         // Hanya transaksi yang memuat produk rokok yang dihitung EC (kopi saja bukan EC).
         $transactedCustomers = app(EffectiveCallService::class)->onlyEffective(

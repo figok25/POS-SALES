@@ -26,7 +26,7 @@
                     <span class="font-medium">{{ $item->code }}</span>
                     <span>Rp {{ number_format($item->total, 0, ',', '.') }}</span>
                 </div>
-                <p class="text-gray-500 text-xs mt-1">{{ $item->customer->name ?? '-' }} &middot; {{ $item->created_at->format('d M Y H:i') }}</p>
+                <p class="text-gray-500 text-xs mt-1">{{ $item->customer->name ?? '-' }} &middot; {{ $item->created_at->format('d M Y H:i') }}@if ($item->isEnteredForSales()) &middot; <span class="text-amber-700">Dicatat Admin</span>@endif</p>
             </a>
         @empty
             <p class="text-center text-gray-500 text-sm py-6">{{ $filterDate ? 'Tidak ada transaksi pada tanggal ini.' : 'Belum ada transaksi.' }}</p>
