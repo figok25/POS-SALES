@@ -295,8 +295,9 @@ class SalesTransactionRevisionService
     }
 
     /**
-     * Kurangi pembayaran yang BELUM masuk Settlement (terbaru dulu) sebesar $excess.
-     * Pembayaran yang sudah masuk Settlement tidak disentuh; bila tidak cukup -> ditolak.
+     * Kurangi pembayaran yang belum FINAL (terbaru dulu) sebesar $excess:
+     * pembayaran tanpa Settlement, atau yang Settlement-nya masih Draft, boleh disesuaikan.
+     * Pembayaran yang Settlement-nya sudah Applied tidak disentuh; bila tidak cukup -> ditolak.
      *
      * @return array<int, array{code:string, from:float, to:float}>
      */
@@ -304,7 +305,10 @@ class SalesTransactionRevisionService
     {
         $open = Payment::query()
             ->where('invoice_id', $invoice->id)
-            ->whereNull('settlement_id')
+            ->where(function ($q) {
+                $q->whereNull('settlement_id')
+                    ->orWhereHas('settlement', fn ($s) => $s->where('status', Settlement::STATUS_DRAFT));
+            })
             ->orderByDesc('id')
             ->lockForUpdate()
             ->get();
@@ -313,7 +317,7 @@ class SalesTransactionRevisionService
         if ($available + 0.01 < $excess) {
             throw ValidationException::withMessages([
                 'items' => sprintf(
-                    'Pembayaran tidak bisa disesuaikan otomatis: selisih Rp %s, tetapi pembayaran yang belum masuk Settlement hanya Rp %s. Pembayaran yang sudah diproses Settlement tidak boleh diubah.',
+                    'Pembayaran tidak bisa disesuaikan otomatis: selisih Rp %s, tetapi pembayaran yang masih bisa dikoreksi (belum masuk Settlement, atau Settlement-nya masih Draft) hanya Rp %s. Pembayaran yang Settlement-nya sudah Applied tidak boleh diubah.',
                     number_format($excess, 0, ',', '.'),
                     number_format($available, 0, ',', '.'),
                 ),

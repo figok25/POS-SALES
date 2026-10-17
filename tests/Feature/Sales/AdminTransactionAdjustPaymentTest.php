@@ -94,10 +94,10 @@ class AdminTransactionAdjustPaymentTest extends TestCase
         $this->assertSame('Harga salah', $log->after['reason']);
     }
 
-    public function test_settled_payment_is_never_touched(): void
+    public function test_applied_settlement_payment_is_never_touched(): void
     {
         [$admin, $trx, $product, $invoice] = $this->world();
-        [, $sales] = [null, $trx->sales];
+        $sales = $trx->sales;
         $stl = Settlement::create([
             'code' => 'STL-ADJ-1', 'sales_id' => $trx->sales_id, 'warehouse_id' => $this->makeWarehouse($sales->branch)->id,
             'settled_at' => now()->toDateString(), 'cash_expected' => 20000, 'cash_deposited' => 20000, 'cash_variance' => 0,
@@ -109,6 +109,25 @@ class AdminTransactionAdjustPaymentTest extends TestCase
 
         $this->assertEquals(20000, $settled->fresh()->amount);
         $this->assertEquals(20000, $trx->fresh()->total);
+    }
+
+    public function test_draft_settlement_payment_can_still_be_adjusted(): void
+    {
+        [$admin, $trx, $product, $invoice] = $this->world();
+        $sales = $trx->sales;
+        $stl = Settlement::create([
+            'code' => 'STL-ADJ-2', 'sales_id' => $trx->sales_id, 'warehouse_id' => $this->makeWarehouse($sales->branch)->id,
+            'settled_at' => now()->toDateString(), 'cash_expected' => 20000, 'cash_deposited' => 20000, 'cash_variance' => 0,
+            'status' => Settlement::STATUS_DRAFT,
+        ]);
+        $draftPayment = $this->pay($invoice, 'PAY-C2', 20000, $stl->id);
+
+        // total baru 14.600, terbayar 20.000 -> pembayaran dalam Settlement Draft boleh dikurangi.
+        $this->update($admin, $trx, $product, ['adjust_payment' => 1])->assertSessionHasNoErrors();
+
+        $this->assertEquals(14600, $trx->fresh()->total);
+        $this->assertEquals(14600, $draftPayment->fresh()->amount);
+        $this->assertEquals(14600, $invoice->fresh()->paid_amount);
     }
 
     public function test_edit_page_shows_option_when_payments_exist(): void
