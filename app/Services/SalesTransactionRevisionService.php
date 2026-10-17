@@ -8,6 +8,7 @@ use App\Models\DeliveryOrder;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\Product;
+use App\Models\Price;
 use App\Models\SalesTransaction;
 use App\Models\Settlement;
 use App\Models\Stock;
@@ -194,6 +195,17 @@ class SalesTransactionRevisionService
             }
         }
 
+        // Kategori harga (Retail / WS-Grosir; Depo juga Konsumen). Transaksi Tester tidak bisa diubah.
+        if (! empty($data['price_type']) && $data['price_type'] !== $locked->price_type) {
+            $allowed = $locked->isDepoSale() ? Price::types() : Price::salesTypes();
+
+            if ($locked->price_type === Price::TYPE_TESTER || ! array_key_exists($data['price_type'], $allowed)) {
+                throw ValidationException::withMessages(['price_type' => 'Kategori harga tidak valid untuk transaksi ini.']);
+            }
+
+            $locked->price_type = $data['price_type'];
+        }
+
         $locked->customer_id = $customerId;
         $locked->consumer_name = $consumerName;
         $locked->subtotal = $subtotal;
@@ -279,6 +291,7 @@ class SalesTransactionRevisionService
             'sales_id' => $trx->sales_id,
             'customer_id' => $trx->customer_id,
             'consumer_name' => $trx->consumer_name,
+            'price_type' => $trx->price_type,
             'date' => $trx->created_at?->toDateString(),
             'subtotal' => (float) $trx->subtotal,
             'discount' => (float) $trx->discount,

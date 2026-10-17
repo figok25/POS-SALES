@@ -56,6 +56,17 @@
                             </div>
                         @endif
 
+                        @if (! empty($priceTypes))
+                            <div class="frm-field">
+                                <label class="frm-label" for="trxPriceType">Kategori Harga</label>
+                                <select id="trxPriceType" name="price_type" class="frm-input is-select">
+                                    @foreach ($priceTypes as $ptValue => $ptLabel)
+                                        <option value="{{ $ptValue }}" @selected(old('price_type', $transaction->price_type) === $ptValue)>{{ $ptLabel }}</option>
+                                    @endforeach
+                                </select>
+                                <p class="frm-meta">Mengganti kategori mengisi ulang harga tiap baris dari harga master kategori itu (boleh disesuaikan lagi).</p>
+                            </div>
+                        @endif
                         <div class="frm-field">
                             <label class="frm-label" for="trxDiscount">Diskon (Rp)</label>
                             <input id="trxDiscount" type="number" step="0.01" min="0" name="discount" value="{{ old('discount', $qty($transaction->discount)) }}" class="frm-input">
@@ -137,6 +148,18 @@
             document.getElementById('items-body').appendChild(tr);
             rowIndex++;
             updateEmptyState();
+        }
+        const pricesByType = @json($pricesByType ?? []);
+        const priceTypeEl = document.getElementById('trxPriceType');
+        if (priceTypeEl) {
+            priceTypeEl.addEventListener('change', function () {
+                const map = pricesByType[priceTypeEl.value] || {};
+                document.querySelectorAll('#items-body tr').forEach(function (tr) {
+                    const productId = tr.querySelector('select[name$="[product_id]"]').value;
+                    const input = tr.querySelector('input[name$="[price]"]');
+                    if (productId && map[productId] !== undefined && input) input.value = map[productId];
+                });
+            });
         }
         prefill.forEach(l => addItemRow(l.product_id, l.quantity, l.price));
         updateEmptyState();

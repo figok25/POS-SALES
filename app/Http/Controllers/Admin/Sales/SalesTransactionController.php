@@ -287,6 +287,7 @@ class SalesTransactionController extends Controller
         $customers = collect();
         $stocks = collect();
         $prices = collect();
+        $pricesByType = [];
 
         if ($sales) {
             $customers = Customer::query()
@@ -309,9 +310,21 @@ class SalesTransactionController extends Controller
                 ->where('price_type', $sales->priceType())
                 ->orderBy('id')
                 ->pluck('amount', 'product_id');
+
+            // Harga untuk tiap kategori (Retail / WS-Grosir): Admin boleh memilih kategori harga.
+            foreach (array_keys(Price::salesTypes()) as $type) {
+                $pricesByType[$type] = Price::where('is_active', true)
+                    ->where('price_type', $type)
+                    ->orderBy('id')
+                    ->pluck('amount', 'product_id')
+                    ->map(fn ($a) => (float) $a)
+                    ->all();
+            }
         }
 
-        return view('admin.sales.transactions.create-for-sales', compact('salesList', 'sales', 'customers', 'stocks', 'prices'));
+        $priceTypes = Price::salesTypes();
+
+        return view('admin.sales.transactions.create-for-sales', compact('salesList', 'sales', 'customers', 'stocks', 'prices', 'pricesByType', 'priceTypes'));
     }
 
     public function storeForSales(Request $request, SalesTransactionService $service)
@@ -324,6 +337,7 @@ class SalesTransactionController extends Controller
             'notes' => ['nullable', 'string', 'max:1000'],
             'entry_reason' => ['required', 'string', 'min:3', 'max:500'],
             'allow_duplicate' => ['nullable', 'boolean'],
+            'price_type' => ['nullable', 'in:'.implode(',', array_keys(Price::salesTypes()))],
             'items' => ['required', 'array', 'min:1'],
             'items.*.product_id' => ['required', 'exists:products,id'],
             'items.*.quantity' => ['required', 'numeric', 'min:0.01'],
@@ -385,7 +399,21 @@ class SalesTransactionController extends Controller
             ->orderBy('name')
             ->get(['id', 'sku', 'name']);
 
-        return view('admin.sales.transactions.edit', compact('transaction', 'customers', 'products'));
+        // Kategori harga yang boleh dipilih (Tester tidak bisa diubah) + harga master tiap kategori.
+        $priceTypes = $transaction->price_type === Price::TYPE_TESTER
+            ? []
+            : ($transaction->isDepoSale() ? Price::types() : Price::salesTypes());
+        $pricesByType = [];
+        foreach (array_keys($priceTypes) as $type) {
+            $pricesByType[$type] = Price::where('is_active', true)
+                ->where('price_type', $type)
+                ->orderBy('id')
+                ->pluck('amount', 'product_id')
+                ->map(fn ($a) => (float) $a)
+                ->all();
+        }
+
+        return view('admin.sales.transactions.edit', compact('transaction', 'customers', 'products', 'priceTypes', 'pricesByType'));
     }
 
     public function update(SalesTransactionRevisionRequest $request, SalesTransaction $transaction, SalesTransactionRevisionService $service)

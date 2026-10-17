@@ -53,6 +53,14 @@
                                 <input id="efDate" type="date" name="transaction_date" required max="{{ now()->toDateString() }}" value="{{ old('transaction_date', now()->toDateString()) }}" class="frm-input">
                             </div>
                             <div class="frm-field">
+                                <label class="frm-label" for="efPriceType">Kategori Harga</label>
+                                <select id="efPriceType" name="price_type" class="frm-input is-select">
+                                    @foreach ($priceTypes as $ptValue => $ptLabel)
+                                        <option value="{{ $ptValue }}" @selected(old('price_type', $sales->priceType()) === $ptValue)>{{ $ptLabel }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="frm-field">
                                 <label class="frm-label" for="efDiscount">Diskon (Rp)</label>
                                 <input id="efDiscount" type="number" step="0.01" min="0" name="discount" value="{{ old('discount', 0) }}" class="frm-input">
                             </div>
@@ -77,7 +85,7 @@
                                     </table>
                                     <p class="frm-items-empty" id="items-empty" hidden>Belum ada item. Klik "Tambah Item".</p>
                                 </div>
-                                <p class="frm-meta">Harga terisi otomatis dari harga {{ $sales->typeLabel() }} dan boleh disesuaikan. Program Beli-Gratis yang aktif di Depo ini ikut diterapkan otomatis.</p>
+                                <p class="frm-meta">Harga terisi otomatis sesuai Kategori Harga yang dipilih (awalnya mengikuti jenis Sales: {{ $sales->typeLabel() }}) dan boleh disesuaikan. Program Beli-Gratis yang aktif di Depo ini ikut diterapkan otomatis.</p>
                             </div>
 
                             <div class="frm-field is-full">
@@ -101,18 +109,22 @@
                     $productData[] = [
                         'id' => $st->product_id,
                         'label' => $st->product->name . ' (' . $fmtQty($st->quantity) . ')',
-                        'price' => (float) ($prices[$st->product_id] ?? 0),
                     ];
                 }
             @endphp
             <script>
                 const products = @json($productData);
+                const pricesByType = @json($pricesByType);
+                function priceFor(productId) {
+                    const type = document.getElementById('efPriceType').value;
+                    return (pricesByType[type] && pricesByType[type][productId]) || 0;
+                }
                 const oldItems = @json(old('items'));
                 let rowIndex = 0;
 
                 function productOptions(selected = '') {
                     let html = '<option value="">- Pilih Produk -</option>';
-                    products.forEach(p => { html += `<option value="${p.id}" data-price="${p.price}" ${String(p.id) === String(selected) ? 'selected' : ''}>${p.label}</option>`; });
+                    products.forEach(p => { html += `<option value="${p.id}" data-price="${priceFor(p.id)}" ${String(p.id) === String(selected) ? 'selected' : ''}>${p.label}</option>`; });
                     return html;
                 }
                 function updateEmptyState() {
@@ -137,6 +149,18 @@
                     rowIndex++;
                     updateEmptyState();
                 }
+                // Ganti Kategori Harga: harga baris yang terisi otomatis ikut berganti;
+                // harga yang sudah diubah manual oleh Admin dibiarkan.
+                document.getElementById('efPriceType').addEventListener('change', function () {
+                    document.querySelectorAll('#items-body tr').forEach(function (tr) {
+                        var select = tr.querySelector('select[name$="[product_id]"]');
+                        var input = tr.querySelector('input[name$="[price]"]');
+                        Array.prototype.forEach.call(select.options, function (o) { if (o.value) o.dataset.price = priceFor(o.value); });
+                        if (select.value && input && (input.value === '' || input.dataset.auto === '1')) {
+                            input.value = priceFor(select.value); input.dataset.auto = '1';
+                        }
+                    });
+                });
                 if (oldItems) { Object.values(oldItems).forEach(l => addItemRow(l.product_id, l.quantity, l.price)); } else { addItemRow(); }
             </script>
         @endif

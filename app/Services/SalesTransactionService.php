@@ -80,6 +80,13 @@ class SalesTransactionService
         // Kategori harga mengikuti jenis Sales (Retail / WS-Grosir).
         $sales = Sales::findOrFail($salesId);
         $priceType = $sales->priceType();
+
+        // Input Admin atas nama Sales boleh memilih kategori harga (Retail / WS-Grosir);
+        // bila tidak dipilih, mengikuti jenis Sales.
+        if (! empty($data['admin_entry']) && ! empty($data['price_type']) && array_key_exists($data['price_type'], Price::salesTypes())) {
+            $priceType = $data['price_type'];
+        }
+
         $priceTypeLabel = Price::typeLabel($priceType);
 
         // Validasi Product & Price per baris (Blueprint #22 - Validate

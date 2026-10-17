@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests\Admin\Sales;
 
+use App\Models\Price;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 /**
  * Edit transaksi penjualan oleh Admin/Superadmin. Alasan koreksi wajib.
@@ -20,6 +22,7 @@ class SalesTransactionRevisionRequest extends FormRequest
             'customer_id' => ['nullable', 'exists:customers,id'],
             'consumer_name' => ['nullable', 'string', 'max:120'],
             'transaction_date' => ['nullable', 'date', 'before_or_equal:today'],
+            'price_type' => ['nullable', Rule::in(array_keys(Price::types()))],
             'discount' => ['nullable', 'numeric', 'min:0'],
             'notes' => ['nullable', 'string', 'max:1000'],
             'reason' => ['required', 'string', 'min:3', 'max:500'],
