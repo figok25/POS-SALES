@@ -25,6 +25,7 @@ class SalesTransactionRevisionRequest extends FormRequest
             'price_type' => ['nullable', Rule::in(array_keys(Price::types()))],
             'discount' => ['nullable', 'numeric', 'min:0'],
             'notes' => ['nullable', 'string', 'max:1000'],
+            'adjust_payment' => ['nullable', 'boolean'],
             'reason' => ['required', 'string', 'min:3', 'max:500'],
             'items' => ['nullable', 'array'],
             'items.*.product_id' => ['required', 'exists:products,id'],

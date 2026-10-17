@@ -26,7 +26,8 @@ use Illuminate\Validation\ValidationException;
  *   - Stok per produk (gabungan item bayar + gratis): naik = potong lagi, turun = kembalikan.
  *     Lokasi stok: Sales (transaksi Sales) atau Gudang Depo (penjualan Depo).
  *   - Invoice dihitung ulang (subtotal, diskon, total, item, status unpaid/partial/paid).
- *     Total baru tidak boleh lebih kecil dari pembayaran yang sudah masuk.
+ *     Total baru tidak boleh lebih kecil dari pembayaran yang sudah masuk, kecuali Admin memilih
+ *     "sesuaikan pembayaran" (pembayaran yang belum masuk Settlement dikurangi otomatis).
  *   - Delivery Order Draft disamakan dengan item baru; DO yang sudah dikirim tidak diubah (diberi peringatan).
  *   - Transaksi yang sudah masuk Settlement tetap bisa dikoreksi; Settlement-nya diberi peringatan agar dicek.
  * Barang gratis program: hanya qty-nya yang bisa diubah/dihapus (produk & program tetap).
@@ -138,14 +139,21 @@ class SalesTransactionRevisionService
         $oldTotal = round((float) $locked->total, 2);
 
         $paid = $invoice ? round((float) $invoice->paid_amount, 2) : 0.0;
+        $paymentAdjust = null;
         if ($invoice && $paid > $newTotal + 0.01) {
-            throw ValidationException::withMessages([
-                'items' => sprintf(
-                    'Total baru (Rp %s) lebih kecil dari pembayaran yang sudah masuk (Rp %s). Koreksi pembayaran terlebih dulu.',
-                    number_format($newTotal, 0, ',', '.'),
-                    number_format($paid, 0, ',', '.'),
-                ),
-            ]);
+            if (empty($data['adjust_payment'])) {
+                throw ValidationException::withMessages([
+                    'items' => sprintf(
+                        'Total baru (Rp %s) lebih kecil dari pembayaran yang sudah masuk (Rp %s). Centang "Sesuaikan pembayaran ke total baru" untuk mengurangi pembayaran otomatis.',
+                        number_format($newTotal, 0, ',', '.'),
+                        number_format($paid, 0, ',', '.'),
+                    ),
+                ]);
+            }
+
+            $paymentAdjust = $this->shrinkPayments($invoice, round($paid - $newTotal, 2), $newTotal, $paid);
+            $invoice->refresh();
+            $paid = round((float) $invoice->paid_amount, 2);
         }
 
         // ---- Stok: selisih per produk (bayar + gratis) ----
@@ -277,10 +285,64 @@ class SalesTransactionRevisionService
         $after['old_total'] = $oldTotal;
         $after['new_total'] = $newTotal;
         $after['warnings'] = $warnings;
+        if ($paymentAdjust) {
+            $after['payment_adjustment'] = $paymentAdjust;
+        }
 
         AuditLogger::log('revise', 'Sales Transaction', SalesTransaction::class, $locked->id, $before, $after);
 
         return ['stock_impact' => $impact, 'old_total' => $oldTotal, 'new_total' => $newTotal, 'warnings' => $warnings];
+    }
+
+    /**
+     * Kurangi pembayaran yang BELUM masuk Settlement (terbaru dulu) sebesar $excess.
+     * Pembayaran yang sudah masuk Settlement tidak disentuh; bila tidak cukup -> ditolak.
+     *
+     * @return array<int, array{code:string, from:float, to:float}>
+     */
+    private function shrinkPayments(Invoice $invoice, float $excess, float $newTotal, float $paid): array
+    {
+        $open = Payment::query()
+            ->where('invoice_id', $invoice->id)
+            ->whereNull('settlement_id')
+            ->orderByDesc('id')
+            ->lockForUpdate()
+            ->get();
+
+        $available = round((float) $open->sum('amount'), 2);
+        if ($available + 0.01 < $excess) {
+            throw ValidationException::withMessages([
+                'items' => sprintf(
+                    'Pembayaran tidak bisa disesuaikan otomatis: selisih Rp %s, tetapi pembayaran yang belum masuk Settlement hanya Rp %s. Pembayaran yang sudah diproses Settlement tidak boleh diubah.',
+                    number_format($excess, 0, ',', '.'),
+                    number_format($available, 0, ',', '.'),
+                ),
+            ]);
+        }
+
+        $remaining = $excess;
+        $changes = [];
+        foreach ($open as $payment) {
+            if ($remaining <= 0.005) {
+                break;
+            }
+            $from = round((float) $payment->amount, 2);
+            $cut = min($from, $remaining);
+            $to = round($from - $cut, 2);
+            $remaining = round($remaining - $cut, 2);
+
+            $changes[] = ['code' => $payment->code, 'from' => $from, 'to' => $to];
+
+            if ($to <= 0.005) {
+                $payment->delete();
+            } else {
+                $payment->update(['amount' => $to]);
+            }
+        }
+
+        $invoice->update(['paid_amount' => round($paid - $excess, 2)]);
+
+        return $changes;
     }
 
     private function snapshot(SalesTransaction $trx, ?Invoice $invoice): array

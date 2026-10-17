@@ -12,7 +12,7 @@
                 <h1 class="frm-title">Edit Transaksi {{ $transaction->code }}</h1>
                 <p class="frm-sub">
                     Stok ({{ $transaction->isDepoSale() ? 'Gudang Depo' : 'Stok Sales '.($transaction->sales->name ?? '') }}), invoice, dan piutang dihitung ulang dari <strong>selisih</strong> data lama dan baru.
-                    @if ($paid > 0) Pembayaran yang sudah masuk: <strong>Rp {{ number_format($paid, 0, ',', '.') }}</strong>. Total baru tidak boleh lebih kecil dari angka ini.@endif
+                    @if ($paid > 0) Pembayaran yang sudah masuk: <strong>Rp {{ number_format($paid, 0, ',', '.') }}</strong>. Bila total baru lebih kecil, centang "Sesuaikan pembayaran" di bawah.@endif
                 </p>
             </div>
             <a href="{{ route('admin.sales.transactions.show', $transaction) }}" class="adm-btn adm-btn-ghost">&larr; Kembali</a>
@@ -79,6 +79,15 @@
                             <label class="frm-label" for="trxReason">Alasan Koreksi <span class="frm-req">*</span></label>
                             <input id="trxReason" type="text" name="reason" required maxlength="500" value="{{ old('reason') }}" class="frm-input" placeholder="mis. Salah input qty, seharusnya 15 bukan 20">
                         </div>
+                        @if ($paid > 0)
+                            <div class="frm-field is-full">
+                                <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer;">
+                                    <input type="checkbox" name="adjust_payment" value="1" @checked(old('adjust_payment')) style="margin-top:3px;">
+                                    <span><strong>Sesuaikan pembayaran ke total baru</strong><br>
+                                        <small>Jika total baru lebih kecil dari pembayaran yang sudah masuk (Rp {{ number_format($paid, 0, ',', '.') }}), selisihnya dikurangkan dari pembayaran terbaru secara otomatis dan dicatat di audit log. Pembayaran yang sudah masuk Settlement tidak bisa diubah.</small></span>
+                                </label>
+                            </div>
+                        @endif
 
                         <div class="frm-field is-full frm-section">
                             <div class="frm-items-head">
