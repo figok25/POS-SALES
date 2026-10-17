@@ -130,6 +130,30 @@ class AdminTransactionAdjustPaymentTest extends TestCase
         $this->assertEquals(14600, $invoice->fresh()->paid_amount);
     }
 
+    public function test_draft_settlement_cash_expected_is_resynced_after_adjustment(): void
+    {
+        [$admin, $trx, $product, $invoice] = $this->world();
+        $sales = $trx->sales;
+        $stl = Settlement::create([
+            'code' => 'STL-ADJ-3', 'sales_id' => $trx->sales_id, 'warehouse_id' => $this->makeWarehouse($sales->branch)->id,
+            'settled_at' => now()->toDateString(), 'cash_expected' => 474000, 'cash_deposited' => 0, 'cash_variance' => -474000,
+            'status' => Settlement::STATUS_DRAFT,
+        ]);
+        // Payment lain yang tidak ikut dikoreksi, tetap dihitung di cash_expected.
+        Payment::create([
+            'code' => 'PAY-OTHER', 'invoice_id' => $invoice->id, 'amount' => 454000,
+            'method' => Payment::METHOD_CASH, 'paid_at' => now()->toDateString(), 'settlement_id' => $stl->id,
+        ]);
+        $draftPayment = $this->pay($invoice, 'PAY-C3', 20000, $stl->id);
+
+        $this->update($admin, $trx, $product, ['adjust_payment' => 1])->assertSessionHasNoErrors();
+
+        $this->assertEquals(14600, $draftPayment->fresh()->amount);
+        // 454.000 (payment lain) + 14.600 (payment yang dikoreksi) = 468.600
+        $this->assertEquals(468600, $stl->fresh()->cash_expected);
+        $this->assertEquals(0 - 468600, $stl->fresh()->cash_variance);
+    }
+
     public function test_edit_page_shows_option_when_payments_exist(): void
     {
         [$admin, $trx, , $invoice] = $this->world();

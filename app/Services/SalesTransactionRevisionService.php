@@ -326,6 +326,7 @@ class SalesTransactionRevisionService
 
         $remaining = $excess;
         $changes = [];
+        $touchedSettlementIds = [];
         foreach ($open as $payment) {
             if ($remaining <= 0.005) {
                 break;
@@ -337,6 +338,10 @@ class SalesTransactionRevisionService
 
             $changes[] = ['code' => $payment->code, 'from' => $from, 'to' => $to];
 
+            if ($payment->settlement_id) {
+                $touchedSettlementIds[$payment->settlement_id] = true;
+            }
+
             if ($to <= 0.005) {
                 $payment->delete();
             } else {
@@ -346,7 +351,32 @@ class SalesTransactionRevisionService
 
         $invoice->update(['paid_amount' => round($paid - $excess, 2)]);
 
+        // Settlement Draft yang payment-nya ikut dikurangi: cash_expected/variance
+        // adalah snapshot, harus dihitung ulang supaya tidak nyangkut di angka lama.
+        foreach (array_keys($touchedSettlementIds) as $settlementId) {
+            $this->resyncDraftSettlementCash((int) $settlementId);
+        }
+
         return $changes;
+    }
+
+    private function resyncDraftSettlementCash(int $settlementId): void
+    {
+        $settlement = Settlement::query()->whereKey($settlementId)->lockForUpdate()->first();
+
+        if (! $settlement || $settlement->status !== Settlement::STATUS_DRAFT) {
+            return;
+        }
+
+        $cashExpected = round((float) Payment::query()
+            ->where('settlement_id', $settlement->id)
+            ->where('method', Payment::METHOD_CASH)
+            ->sum('amount'), 2);
+
+        $settlement->update([
+            'cash_expected' => $cashExpected,
+            'cash_variance' => round((float) $settlement->cash_deposited - $cashExpected, 2),
+        ]);
     }
 
     private function snapshot(SalesTransaction $trx, ?Invoice $invoice): array
