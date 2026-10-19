@@ -13,8 +13,9 @@
 use App\Http\Controllers\Admin\Operations\LiveSalesController;
 use Illuminate\Support\Facades\Route;
 
-// Live Monitoring: KHUSUS Super Admin.
-Route::middleware(['permission:live-monitoring.view', 'role:super_admin'])->group(function () {
+// Live Monitoring: Admin boleh (scope Branch sendiri lewat BranchContext),
+// Super Admin boleh semua Depo - lihat LiveSalesController.
+Route::middleware('permission:live-monitoring.view')->group(function () {
     Route::get('live-sales', [LiveSalesController::class, 'liveSales'])->name('live-sales');
     Route::get('sales/{sales}/locations', [LiveSalesController::class, 'locations'])->name('sales.locations');
 });

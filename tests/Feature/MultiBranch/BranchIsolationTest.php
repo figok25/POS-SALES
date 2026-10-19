@@ -214,7 +214,7 @@ class BranchIsolationTest extends TestCase
     // 11-12: Live Monitoring & history endpoint (Scenario E).
     // ---------------------------------------------------------------
 
-    public function test_live_monitoring_is_closed_to_branch_admin_and_super_admin_can_filter_by_branch(): void
+    public function test_live_monitoring_scopes_branch_admin_to_own_branch_and_super_admin_can_filter_by_branch(): void
     {
         $branchA = $this->makeBranch('CBG-A', 'Cabang A');
         $branchB = $this->makeBranch('CBG-B', 'Cabang B');
@@ -232,8 +232,14 @@ class BranchIsolationTest extends TestCase
             'status' => SalesCurrentLocation::STATUS_ACTIVE,
         ]);
 
-        // Live Monitoring khusus Super Admin: Admin Depo ditolak.
-        $this->actingAs($this->makeAdminUser($branchA))->getJson(route('api.admin.live-sales'))->assertForbidden();
+        // Live Monitoring: Admin boleh, tapi dipaksa BranchContext ke Depo
+        // sendiri saja - tidak boleh lihat Sales Branch lain, dan
+        // ?branch_id= diabaikan total (bukan sumber otorisasi).
+        $onlyA = collect($this->actingAs($this->makeAdminUser($branchA))
+            ->getJson(route('api.admin.live-sales', ['branch_id' => $branchB->id]))
+            ->assertOk()->json('data'))->pluck('sales_id');
+        $this->assertTrue($onlyA->contains($salesA->id));
+        $this->assertFalse($onlyA->contains($salesB->id));
 
         $super = $this->makeSuperAdminUser();
 
@@ -241,9 +247,9 @@ class BranchIsolationTest extends TestCase
         $this->assertTrue($all->contains($salesA->id));
         $this->assertTrue($all->contains($salesB->id));
 
-        $onlyA = collect($this->actingAs($super)->getJson(route('api.admin.live-sales', ['branch' => $branchA->id]))->assertOk()->json('data'))->pluck('sales_id');
-        $this->assertTrue($onlyA->contains($salesA->id));
-        $this->assertFalse($onlyA->contains($salesB->id));
+        $superOnlyA = collect($this->actingAs($super)->getJson(route('api.admin.live-sales', ['branch' => $branchA->id]))->assertOk()->json('data'))->pluck('sales_id');
+        $this->assertTrue($superOnlyA->contains($salesA->id));
+        $this->assertFalse($superOnlyA->contains($salesB->id));
     }
 
     public function test_history_endpoint_rejects_sales_from_other_branch(): void

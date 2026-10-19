@@ -148,13 +148,9 @@
     // dikecualikan (tetap tampil) karena permission 'audit-log.view' memang
     // diberikan ke role admin juga (lihat RolePermissionSeeder).
     if (! auth()->user()->isSuperAdmin()) {
-        // Live Monitoring Sales khusus Super Admin.
-        foreach ($menu as $gi => $group) {
-            $menu[$gi]['items'] = array_values(array_filter(
-                $group['items'],
-                fn ($item) => $item[0] !== 'Live Monitoring Sales'
-            ));
-        }
+        // Live Monitoring Sales sekarang boleh diakses Admin juga (scope
+        // ke Branch miliknya sendiri lewat BranchContext) - tidak lagi
+        // disembunyikan di sini.
         $superAdminOnlyLabels = ['Users', 'Roles', 'Permissions', 'Settings'];
         foreach ($menu as $gi => $group) {
             if ($group['title'] !== 'System') {

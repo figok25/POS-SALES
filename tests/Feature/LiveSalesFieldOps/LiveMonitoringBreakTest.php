@@ -311,27 +311,46 @@ class LiveMonitoringBreakTest extends TestCase
         $this->assertNull(SalesBreak::openFor($sales->id));
     }
 
-    // ------------------------------------------------- hanya Super Admin
+    // ------------------------------------------------- Admin (Branch sendiri) & Super Admin
 
-    public function test_live_monitoring_is_super_admin_only(): void
+    public function test_live_monitoring_is_accessible_by_admin_and_super_admin(): void
     {
         [, $sales] = $this->onDutySales();
         $admin = $this->makeAdminUser();
 
-        $this->actingAs($admin)->get(route('admin.operations.live-monitoring.index'))->assertForbidden();
-        $this->actingAs($admin)->getJson(route('api.admin.live-sales'))->assertForbidden();
-        $this->actingAs($admin)->getJson(route('api.admin.sales.locations', $sales))->assertForbidden();
+        $this->actingAs($admin)->get(route('admin.operations.live-monitoring.index'))->assertOk();
+        $this->actingAs($admin)->getJson(route('api.admin.live-sales'))->assertOk();
+        $this->actingAs($admin)->getJson(route('api.admin.sales.locations', $sales))->assertOk();
 
         $super = $this->makeSuperAdminUser();
         $this->actingAs($super)->get(route('admin.operations.live-monitoring.index'))->assertOk();
         $this->actingAs($super)->getJson(route('api.admin.live-sales'))->assertOk();
     }
 
-    public function test_menu_item_visible_only_to_super_admin(): void
+    public function test_admin_cannot_see_live_sales_locations_from_another_branch(): void
+    {
+        $branchA = $this->makeBranch('CBG-LM-A', 'Depo LM A');
+        $branchB = $this->makeBranch('CBG-LM-B', 'Depo LM B');
+
+        [, $salesB] = $this->makeSalesUser($branchB);
+        $adminA = $this->makeAdminUser($branchA);
+
+        // branch_id di query string diabaikan - BranchContext memaksa ke Branch sendiri.
+        $this->actingAs($adminA)
+            ->getJson(route('api.admin.live-sales', ['branch_id' => $branchB->id]))
+            ->assertOk()
+            ->assertJsonMissing(['id' => $salesB->id]);
+
+        $this->actingAs($adminA)
+            ->getJson(route('api.admin.sales.locations', $salesB))
+            ->assertForbidden();
+    }
+
+    public function test_menu_item_visible_to_admin_and_super_admin(): void
     {
         $label = 'Live Monitoring Sales';
 
-        $this->actingAs($this->makeAdminUser())->get(route('admin.dashboard'))->assertOk()->assertDontSee($label);
+        $this->actingAs($this->makeAdminUser())->get(route('admin.dashboard'))->assertOk()->assertSee($label);
         $this->actingAs($this->makeSuperAdminUser())->get(route('admin.dashboard'))->assertOk()->assertSee($label);
     }
 

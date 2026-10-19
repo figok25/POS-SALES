@@ -12,8 +12,9 @@ use App\Support\BranchContext;
 use Illuminate\Http\Request;
 
 /**
- * KHUSUS SUPER ADMIN (route dikunci role:super_admin). Status efektif (diam/istirahat/dll)
- * diturunkan LiveMonitoringService.
+ * Bisa diakses Super Admin (semua Branch/Depo) maupun Admin (Branch-nya
+ * sendiri saja, dipaksa lewat BranchContext - lihat catatan keamanan di
+ * bawah). Status efektif (diam/istirahat/dll) diturunkan LiveMonitoringService.
  *
  * Live Sales Field Operations - Admin Live Monitoring (Blueprint #28,
  * #29, #38, Fase 2 & Fase 7):

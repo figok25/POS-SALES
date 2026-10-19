@@ -46,6 +46,10 @@ class RolePermissionSeeder extends Seeder
             // Reports & Dashboard
             'reports.view',
             'dashboard.admin.view',
+            // Live Monitoring Sales (Blueprint #28, #29): Admin boleh melihat
+            // Sales di Branch-nya sendiri; BranchContext tetap memaksa
+            // scope ke Branch miliknya (lihat LiveSalesController).
+            'live-monitoring.view',
             // Audit Log tetap boleh dilihat Admin (scope Branch sendiri -
             // lihat AuditLogController); yang TIDAK boleh adalah
             // User/Role/Permission/Settings (system.manage, di bawah).
@@ -76,8 +80,6 @@ class RolePermissionSeeder extends Seeder
         $superAdminOnlyPermissions = [
             'system.manage',
             'branch.manage',
-            // Live Monitoring Sales: hanya Super Admin.
-            'live-monitoring.view',
         ];
 
         $allPermissions = array_unique(array_merge($adminPermissions, $salesPermissions, $superAdminOnlyPermissions));
