@@ -42,6 +42,12 @@
             </div>
         @enderror
 
+        @error('confirm_code')
+            <div class="frm-alert is-error" role="alert">
+                <span class="frm-alert-text">{{ $message }}</span>
+            </div>
+        @enderror
+
         <div class="panel">
             {{-- Pencarian --}}
             <form method="GET" class="frm-toolbar" role="search">
@@ -145,6 +151,13 @@
                                                     data-url="{{ route('admin.master.branches.destroy', $item) }}"
                                                     data-name="{{ $item->name }}">
                                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+                                                </button>
+                                                <button type="button" class="frm-icon-btn is-danger" title="Hapus + Semua Data" aria-label="Hapus {{ $item->name }} beserta semua data"
+                                                    data-modal-purge
+                                                    data-url="{{ route('admin.master.branches.purge', $item) }}"
+                                                    data-name="{{ $item->name }}"
+                                                    data-code="{{ $item->code }}">
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><circle cx="18.5" cy="5.5" r="4" fill="currentColor" stroke="none"/></svg>
                                                 </button>
                                             </div>
                                         @else
@@ -263,12 +276,41 @@
         </form>
     </dialog>
 
+    {{-- ====================== Modal: konfirmasi hapus + SEMUA DATA ====================== --}}
+    <dialog class="frm-modal is-sm" id="purgeModal" aria-labelledby="purgeModalTitle">
+        <form method="POST" class="frm-modal-form" id="purgeForm">
+            @csrf
+            @method('DELETE')
+
+            <div class="frm-modal-body frm-confirm">
+                <div class="frm-confirm-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/></svg>
+                </div>
+                <h2 class="frm-modal-title" id="purgeModalTitle">Hapus <span data-purge-name></span> beserta SEMUA datanya?</h2>
+                <p class="frm-confirm-text">
+                    Ini menghapus Branch ini <strong>beserta seluruh data di dalamnya</strong>: Warehouse, Sales, Customer, stok, transaksi, invoice, pembayaran, kunjungan, settlement, dan riwayat lainnya. <strong>Tidak bisa dibatalkan.</strong>
+                </p>
+                <p class="frm-confirm-text">
+                    Ketik kode Branch <strong data-purge-code></strong> untuk konfirmasi:
+                </p>
+                <input type="text" name="confirm_code" class="frm-input" autocomplete="off" required placeholder="Ketik kode branch di sini">
+            </div>
+
+            <div class="frm-modal-foot">
+                <button type="button" class="adm-btn adm-btn-ghost" data-modal-close>Batal</button>
+                <button type="submit" class="adm-btn adm-btn-danger" data-submit disabled>Hapus Permanen</button>
+            </div>
+        </form>
+    </dialog>
+
     <script>
         (function () {
             var modal = document.getElementById('branchModal');
             var form = document.getElementById('branchForm');
             var delModal = document.getElementById('deleteModal');
             var delForm = document.getElementById('deleteForm');
+            var purgeModal = document.getElementById('purgeModal');
+            var purgeForm = document.getElementById('purgeForm');
             // dataset memakai camelCase: data-company-id -> companyId
             var fields = [
                 { el: 'company_id', key: 'companyId' },
@@ -307,7 +349,7 @@
             }
 
             document.addEventListener('click', function (e) {
-                var btn = e.target.closest('[data-modal-create], [data-modal-edit], [data-modal-delete], [data-modal-close], [data-alert-close]');
+                var btn = e.target.closest('[data-modal-create], [data-modal-edit], [data-modal-delete], [data-modal-purge], [data-modal-close], [data-alert-close]');
                 if (!btn) return;
 
                 if (btn.hasAttribute('data-modal-create')) {
@@ -324,11 +366,26 @@
                     delForm.action = btn.dataset.url;
                     delModal.querySelector('[data-delete-name]').textContent = btn.dataset.name;
                     delModal.showModal();
+                } else if (btn.hasAttribute('data-modal-purge')) {
+                    purgeForm.action = btn.dataset.url;
+                    purgeForm.dataset.code = btn.dataset.code;
+                    purgeModal.querySelector('[data-purge-name]').textContent = btn.dataset.name;
+                    purgeModal.querySelector('[data-purge-code]').textContent = btn.dataset.code;
+                    var input = purgeForm.elements['confirm_code'];
+                    input.value = '';
+                    purgeForm.querySelector('[data-submit]').disabled = true;
+                    purgeModal.showModal();
+                    setTimeout(function () { input.focus(); }, 0);
                 } else if (btn.hasAttribute('data-modal-close')) {
                     btn.closest('dialog').close();
                 } else if (btn.hasAttribute('data-alert-close')) {
                     btn.closest('[data-alert]').remove();
                 }
+            });
+
+            // Tombol "Hapus Permanen" hanya aktif setelah kode branch diketik persis.
+            purgeForm.elements['confirm_code'].addEventListener('input', function (e) {
+                purgeForm.querySelector('[data-submit]').disabled = e.target.value !== purgeForm.dataset.code;
             });
 
             // Konfirmasi hapus boleh ditutup lewat klik di luar; form input tidak (supaya isian tidak hilang tanpa sengaja).
@@ -337,9 +394,14 @@
             delModal.addEventListener('click', function (e) {
                 if (downOnBackdrop && e.target === delModal) delModal.close();
             });
+            var purgeDownOnBackdrop = false;
+            purgeModal.addEventListener('mousedown', function (e) { purgeDownOnBackdrop = e.target === purgeModal; });
+            purgeModal.addEventListener('click', function (e) {
+                if (purgeDownOnBackdrop && e.target === purgeModal) purgeModal.close();
+            });
 
             // Cegah kirim ganda
-            [form, delForm].forEach(function (f) {
+            [form, delForm, purgeForm].forEach(function (f) {
                 f.addEventListener('submit', function () {
                     var b = f.querySelector('[data-submit]');
                     b.disabled = true;
@@ -352,6 +414,8 @@
                 form.querySelector('[data-submit]').textContent = 'Simpan';
                 delForm.querySelector('[data-submit]').disabled = false;
                 delForm.querySelector('[data-submit]').textContent = 'Hapus';
+                purgeForm.querySelector('[data-submit]').disabled = purgeForm.elements['confirm_code'].value !== purgeForm.dataset.code;
+                purgeForm.querySelector('[data-submit]').textContent = 'Hapus Permanen';
             });
 
             // Buka lagi modal jika validasi server gagal

@@ -60,6 +60,7 @@ Route::middleware('permission:master-data.manage')->group(function () {
 Route::middleware(['permission:master-data.manage', 'role:super_admin'])->group(function () {
         Route::resource('companies', \App\Http\Controllers\Admin\Master\CompanyController::class)->parameters(['companies' => 'item'])->except(['show', 'index']);
         Route::resource('branches', \App\Http\Controllers\Admin\Master\BranchController::class)->parameters(['branches' => 'item'])->except(['show', 'index']);
+        Route::delete('branches/{item}/purge', [\App\Http\Controllers\Admin\Master\BranchController::class, 'purge'])->name('branches.purge');
         Route::resource('categories', \App\Http\Controllers\Admin\Master\CategoryController::class)->parameters(['categories' => 'item'])->except(['show', 'index']);
         Route::resource('units', \App\Http\Controllers\Admin\Master\UnitController::class)->parameters(['units' => 'item'])->except(['show', 'index']);
         Route::resource('products', \App\Http\Controllers\Admin\Master\ProductController::class)->parameters(['products' => 'item'])->except(['show', 'index']);

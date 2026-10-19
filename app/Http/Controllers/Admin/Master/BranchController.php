@@ -7,7 +7,10 @@ use App\Http\Requests\Admin\Master\BranchRequest;
 use App\Models\Branch;
 use App\Models\Company;
 use App\Services\AuditLogger;
+use App\Services\BranchDeletionService;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Phase 2 - Master Data: Branch (Blueprint #32, #42 Definition of Done).
@@ -56,10 +59,47 @@ class BranchController extends Controller
     public function destroy(Branch $item)
     {
         $before = $item->toArray();
-        $item->delete();
+
+        try {
+            $item->delete();
+        } catch (QueryException $e) {
+            return redirect()->route('admin.master.branches.index')->withErrors([
+                'delete' => "Branch \"{$item->name}\" tidak bisa dihapus karena masih ada data lain yang terhubung (Warehouse, Sales, Customer, transaksi, dsb). Gunakan \"Hapus + Semua Data\" bila Branch ini memang mau dihapus beserta seluruh isinya (mis. Branch percobaan/tes).",
+            ]);
+        }
 
         AuditLogger::log('delete', 'Master Data', Branch::class, $item->id, $before, null);
 
         return redirect()->route('admin.master.branches.index')->with('status', 'Branch berhasil dihapus.');
+    }
+
+    /**
+     * Hapus Branch beserta SELURUH data yang terikat padanya (Warehouse,
+     * Sales, Customer, stok, transaksi, dst). Dipakai untuk membuang Branch
+     * percobaan/tes. Wajib mengetik ulang kode Branch sebagai konfirmasi,
+     * dan hanya Super Admin yang boleh (dijaga oleh route group).
+     */
+    public function purge(Request $request, Branch $item, BranchDeletionService $service)
+    {
+        $data = $request->validate([
+            'confirm_code' => ['required', 'string'],
+        ]);
+
+        try {
+            $summary = $service->purge($item, $data['confirm_code']);
+        } catch (ValidationException $e) {
+            return back()->withErrors($e->errors())->with('purge_branch_id', $item->id);
+        }
+
+        return redirect()->route('admin.master.branches.index')->with(
+            'status',
+            sprintf(
+                'Branch berhasil dihapus beserta seluruh datanya (Sales %d, Customer %d, Warehouse %d, Transaksi %d).',
+                $summary['sales'],
+                $summary['customers'],
+                $summary['warehouses'],
+                $summary['sales_transactions'],
+            )
+        );
     }
 }
