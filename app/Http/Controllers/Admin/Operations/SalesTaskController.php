@@ -310,8 +310,19 @@ class SalesTaskController extends Controller
      * bekerja (start-work). Approval ini WAJIB dicatat di audit_logs
      * karena berarti Admin menyetujui Sales membawa stock yang berbeda
      * dari yang ditugaskan semula.
+     *
+     * PERBAIKAN (laporan "Stok Dibawa" vs "Kembali" tidak nyambung):
+     * sebelumnya approve ini HANYA mengubah status Task, quantity_verified
+     * yang diisi Sales cuma catatan di sales_task_stocks dan TIDAK PERNAH
+     * mengoreksi stock asli (tabel stocks, hasil pergerakan BKB). Akibatnya
+     * laporan "Stok Dibawa" (pakai quantity_verified) bisa lebih besar dari
+     * stock yang sungguhan ada pada Sales, sehingga retur (BTB/"Kembali")
+     * yang dibatasi stock asli jadi kelihatan "kurang". Sekarang approve
+     * ini SEKALIGUS mengoreksi Sales Stock ke angka yang disetujui lewat
+     * StockService::correctTo (tercatat di stock_movements sebagai
+     * stock_correction), supaya stock asli & laporan selalu konsisten.
      */
-    public function approveVariance(Request $request, SalesTask $salesTask)
+    public function approveVariance(Request $request, SalesTask $salesTask, StockService $stockService)
     {
         if (! BranchContext::current()->allows($salesTask->branch_id)) {
             abort(403, 'Anda tidak memiliki akses ke Task ini.');
@@ -325,18 +336,47 @@ class SalesTaskController extends Controller
             'approval_notes' => ['nullable', 'string'],
         ]);
 
-        $before = $salesTask->toArray();
+        try {
+            DB::transaction(function () use ($request, $salesTask, $stockService) {
+                $task = SalesTask::query()->whereKey($salesTask->id)->lockForUpdate()->firstOrFail();
 
-        $salesTask->update([
-            'status' => SalesTask::STATUS_READY_TO_WORK,
-            'notes' => trim(($salesTask->notes ? $salesTask->notes."\n" : '')
-                .'[Variance disetujui oleh '.(auth()->user()->name ?? 'Admin').' pada '.now()->format('d/m/Y H:i').']'
-                .($request->input('approval_notes') ? ' '.$request->input('approval_notes') : '')),
-        ]);
+                if ($task->status !== SalesTask::STATUS_STOCK_VARIANCE) {
+                    throw new \DomainException('Task ini tidak sedang menunggu approval selisih stock.');
+                }
 
-        AuditLogger::log('approve_variance', 'Operations', SalesTask::class, $salesTask->id, $before, $salesTask->fresh()->toArray());
+                $before = $task->load('taskStocks')->toArray();
 
-        return back()->with('status', 'Selisih stock disetujui. Task siap dikerjakan Sales (Ready to Work).');
+                // Koreksi Sales Stock ke angka yang disetujui untuk setiap
+                // baris yang ada selisihnya, supaya stock asli ikut berubah
+                // mengikuti hasil Verifikasi Stock yang disetujui Admin.
+                foreach ($task->taskStocks as $line) {
+                    if ($line->quantity_verified === null || $line->difference() === 0.0) {
+                        continue;
+                    }
+
+                    $stockService->correctTo(
+                        $line->product_id,
+                        Stock::LOCATION_SALES,
+                        $task->sales_id,
+                        (float) $line->quantity_verified,
+                        'Koreksi stock dari approval selisih Sales Task '.$task->code.' oleh '.(auth()->user()->name ?? 'Admin'),
+                    );
+                }
+
+                $task->update([
+                    'status' => SalesTask::STATUS_READY_TO_WORK,
+                    'notes' => trim(($task->notes ? $task->notes."\n" : '')
+                        .'[Variance disetujui oleh '.(auth()->user()->name ?? 'Admin').' pada '.now()->format('d/m/Y H:i').', stock dikoreksi mengikuti hasil verifikasi]'
+                        .($request->input('approval_notes') ? ' '.$request->input('approval_notes') : '')),
+                ]);
+
+                AuditLogger::log('approve_variance', 'Operations', SalesTask::class, $task->id, $before, $task->fresh('taskStocks')->toArray());
+            });
+        } catch (\InvalidArgumentException|\DomainException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('status', 'Selisih stock disetujui. Stock Sales sudah dikoreksi mengikuti hasil verifikasi, Task siap dikerjakan (Ready to Work).');
     }
 
     /**
