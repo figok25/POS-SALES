@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin\Operations;
 
+use App\Exceptions\InsufficientStockException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\Operations\SalesTaskRequest;
 use App\Models\BkbDistribusi;
@@ -12,6 +13,7 @@ use App\Models\SalesTaskDocument;
 use App\Models\SalesVisitPlan;
 use App\Models\Stock;
 use App\Services\AuditLogger;
+use App\Services\DistributionRevisionService;
 use App\Services\StockService;
 use App\Services\TrackingSessionService;
 use App\Support\BranchContext;
@@ -335,6 +337,75 @@ class SalesTaskController extends Controller
         AuditLogger::log('approve_variance', 'Operations', SalesTask::class, $salesTask->id, $before, $salesTask->fresh()->toArray());
 
         return back()->with('status', 'Selisih stock disetujui. Task siap dikerjakan Sales (Ready to Work).');
+    }
+
+    /**
+     * Batalkan Task yang SUDAH Applied/Released (dokumen & stock sudah
+     * dirilis ke Sales lewat apply()) tapi Sales ternyata tidak jadi
+     * berangkat/tidak masuk kerja. Beda dengan cancel() biasa (khusus
+     * Draft, stock belum pernah berpindah): aksi ini membatalkan Task
+     * SEKALIGUS mengembalikan stock dari BKB yang dipakai (Sales Stock ->
+     * Warehouse Stock lagi) lewat DistributionRevisionService::voidBkb(),
+     * persis jalur yang sama dipakai pembatalan BKB biasa.
+     *
+     * Tidak untuk Task Draft (pakai cancel(), stock belum bergerak) atau
+     * yang sudah Completed/Cancelled. Kalau Sales ternyata sudah sempat
+     * menjual sebagian barangnya, pengembalian stock akan GAGAL otomatis
+     * (Sales Stock tidak cukup untuk dikembalikan penuh) dan seluruh aksi
+     * ini dibatalkan (tidak ada perubahan setengah jalan) -- selesaikan
+     * dulu transaksi/Return Stock Sales secara normal, baru coba lagi.
+     */
+    public function voidApplied(Request $request, SalesTask $salesTask, DistributionRevisionService $revisionService)
+    {
+        if (! BranchContext::current()->allows($salesTask->branch_id)) {
+            abort(403, 'Anda tidak memiliki akses ke Task ini.');
+        }
+
+        if (in_array($salesTask->status, [SalesTask::STATUS_DRAFT, SalesTask::STATUS_COMPLETED, SalesTask::STATUS_CANCELLED], true)) {
+            return back()->with('error', 'Task berstatus ini tidak dapat dibatalkan lewat aksi ini.');
+        }
+
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'min:3', 'max:500'],
+        ]);
+
+        try {
+            DB::transaction(function () use ($salesTask, $data, $revisionService) {
+                $task = SalesTask::query()->whereKey($salesTask->id)->lockForUpdate()->firstOrFail();
+
+                if (in_array($task->status, [SalesTask::STATUS_DRAFT, SalesTask::STATUS_COMPLETED, SalesTask::STATUS_CANCELLED], true)) {
+                    throw new \DomainException('Task berstatus ini tidak dapat dibatalkan lewat aksi ini.');
+                }
+
+                $before = $task->load('bkbDistribusi')->toArray();
+
+                // Matikan tracking GPS yang otomatis menyala saat Apply --
+                // Sales tidak jadi berangkat, sesi aktifnya tidak relevan lagi.
+                $this->trackingService->stopForSales($task->sales_id);
+
+                $task->update([
+                    'status' => SalesTask::STATUS_CANCELLED,
+                    'cancelled_by' => auth()->id(),
+                    'cancelled_at' => now(),
+                    'notes' => trim(($task->notes ? $task->notes."\n" : '')
+                        .'[Dibatalkan setelah Applied, stock dikembalikan ke Warehouse] '.$data['reason']),
+                ]);
+
+                // Task sudah berstatus cancelled di atas, jadi guard pada
+                // DistributionRevisionService::void() (hanya blokir Sales Task
+                // yang MASIH aktif) sudah tidak menghalangi void BKB ini lagi.
+                $bkb = $task->bkbDistribusi;
+                if ($bkb && $bkb->isApplied()) {
+                    $revisionService->voidBkb($bkb, $data['reason']);
+                }
+
+                AuditLogger::log('cancel_applied', 'Operations', SalesTask::class, $task->id, $before, $task->fresh()->load('bkbDistribusi')->toArray());
+            });
+        } catch (InsufficientStockException|\DomainException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('status', 'Sales Task dibatalkan dan stock BKB berhasil dikembalikan ke Warehouse.');
     }
 
     /**

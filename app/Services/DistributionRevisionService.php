@@ -188,7 +188,15 @@ class DistributionRevisionService
                 throw new \DomainException('Hanya dokumen berstatus Applied yang dapat dibatalkan lewat koreksi stok.');
             }
 
-            if ($kind === 'bkb' && $locked->salesTask()->exists()) {
+            // Hanya blokir kalau Sales Task yang mengikat BKB ini MASIH aktif
+            // (belum dibatalkan/selesai). Begitu Sales Task-nya sendiri sudah
+            // berstatus cancelled/completed, BKB ini boleh di-void -- inilah
+            // yang dipakai SalesTaskController::voidApplied() untuk membatalkan
+            // Task + mengembalikan stock dalam satu transaksi (Task dibatalkan
+            // dulu, baru BKB-nya).
+            if ($kind === 'bkb' && $locked->salesTask()
+                ->whereNotIn('status', [SalesTask::STATUS_CANCELLED, SalesTask::STATUS_COMPLETED])
+                ->exists()) {
                 throw new \DomainException('BKB ini sudah dipakai Sales Task. Batalkan Sales Task-nya dulu sebelum membatalkan BKB.');
             }
 

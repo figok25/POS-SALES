@@ -3,6 +3,13 @@
         $canManage = \Illuminate\Support\Facades\Gate::allows('sales-task.manage');
         $isVariance = $salesTask->status === \App\Models\SalesTask::STATUS_STOCK_VARIANCE;
         $canReassign = in_array($salesTask->status, [\App\Models\SalesTask::STATUS_DRAFT, \App\Models\SalesTask::STATUS_DOCUMENT_AVAILABLE], true);
+        $canVoidApplied = in_array($salesTask->status, [
+            \App\Models\SalesTask::STATUS_DOCUMENT_AVAILABLE,
+            \App\Models\SalesTask::STATUS_STOCK_VERIFICATION,
+            \App\Models\SalesTask::STATUS_STOCK_VARIANCE,
+            \App\Models\SalesTask::STATUS_READY_TO_WORK,
+            \App\Models\SalesTask::STATUS_WORKING,
+        ], true);
 
         $statusMap = [
             'draft' => ['Draft', 'is-off'],
@@ -219,6 +226,32 @@
                         @endif
                     </div>
                 </section>
+            @endif
+
+            {{-- Batalkan Task yang sudah Applied (Sales tidak masuk) --}}
+            @if ($canManage && $canVoidApplied)
+                <form action="{{ route('admin.sales-tasks.void-applied', $salesTask) }}" method="POST" class="panel"
+                      onsubmit="return confirm('Batalkan Task ini dan kembalikan stock BKB ke Warehouse? Tindakan ini tidak dapat dibatalkan.')">
+                    @csrf
+                    <div class="panel-head">
+                        <h2 class="panel-title">Batalkan Task (Sales Tidak Masuk)</h2>
+                    </div>
+                    <div class="frm-panel-body">
+                        <p class="frm-hint">
+                            Dipakai kalau Task ini sudah di-Apply/Release (dokumen &amp; stock sudah dirilis ke Sales) tapi Sales
+                            ternyata tidak jadi berangkat/tidak masuk kerja. Task akan dibatalkan dan seluruh stock BKB
+                            <strong>{{ $salesTask->bkbDistribusi->code ?? '-' }}</strong> dikembalikan dari Sales ke Warehouse.
+                            Kalau Sales sudah sempat menjual sebagian barangnya, pengembalian ini akan ditolak otomatis.
+                        </p>
+                        <div class="frm-field">
+                            <label class="frm-label" for="void_applied_reason">Alasan <span class="frm-req">*</span></label>
+                            <textarea id="void_applied_reason" name="reason" required minlength="3" maxlength="500" rows="2" class="frm-input" placeholder="Contoh: Sales tidak masuk kerja, tugas dibatalkan"></textarea>
+                        </div>
+                    </div>
+                    <div class="frm-panel-foot">
+                        <button type="submit" class="adm-btn adm-btn-ghost is-danger adm-btn-sm">Batalkan &amp; Kembalikan Stock</button>
+                    </div>
+                </form>
             @endif
 
             {{-- Ganti Sales --}}

@@ -21,6 +21,9 @@ Route::middleware('permission:sales-task.manage')->group(function () {
     Route::post('/', [SalesTaskController::class, 'store'])->name('store');
     Route::post('{salesTask}/apply', [SalesTaskController::class, 'apply'])->name('apply');
     Route::post('{salesTask}/cancel', [SalesTaskController::class, 'cancel'])->name('cancel');
+    // Task yang sudah Applied/Released tapi Sales ternyata tidak masuk:
+    // batalkan + kembalikan stock BKB ke Warehouse dalam satu aksi.
+    Route::post('{salesTask}/void-applied', [SalesTaskController::class, 'voidApplied'])->name('void-applied');
     // PERBAIKAN AUDIT (item D - audit #13): approval selisih stock.
     Route::post('{salesTask}/approve-variance', [SalesTaskController::class, 'approveVariance'])->name('approve-variance');
     // Business Flow Update v3.1 (Blueprint #13.8, #14.4): edit penugasan,
