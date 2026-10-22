@@ -109,4 +109,32 @@ class HistoryDateFilterTest extends TestCase
         $this->actingAs($user)->get(route('sales.transactions.index'))->assertOk()->assertSee('Tidak ada transaksi pada tanggal ini');
         $this->actingAs($user)->get(route('sales.visits.index'))->assertOk()->assertSee('Tidak ada kunjungan pada tanggal ini');
     }
+
+    /**
+     * PERBAIKAN: transaksi yang sudah dibatalkan (mis. dihapus Super Admin
+     * dari Admin -> status jadi cancelled) tidak boleh lagi muncul di
+     * riwayat HP Sales -- sebelumnya tetap tampil tapi tidak bisa dicetak,
+     * bikin Sales bingung.
+     */
+    public function test_cancelled_transaction_is_hidden_from_sales_history(): void
+    {
+        [$user, $sales] = $this->makeSalesUser();
+        $customer = $this->makeCustomer($sales->id);
+
+        $active = $this->trx($sales, $customer, now(), 15000);
+        $cancelled = $this->trx($sales, $customer, now(), 9000);
+        $cancelled->update(['status' => SalesTransaction::STATUS_CANCELLED]);
+
+        $this->actingAs($user)->get(route('sales.transactions.index'))
+            ->assertOk()
+            ->assertSee($active->code)
+            ->assertDontSee($cancelled->code)
+            ->assertViewHas('summary', fn ($s) => $s['count'] === 1 && $s['total'] === 15000.0);
+
+        // Juga tersembunyi di tampilan "semua tanggal".
+        $this->actingAs($user)->get(route('sales.transactions.index', ['date' => 'all']))
+            ->assertOk()
+            ->assertSee($active->code)
+            ->assertDontSee($cancelled->code);
+    }
 }

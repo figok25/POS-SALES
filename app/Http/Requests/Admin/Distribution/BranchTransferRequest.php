@@ -35,11 +35,19 @@ class BranchTransferRequest extends FormRequest
      * Anti-IDOR (Multi Branch/Depo): Admin hanya boleh MENGIRIM dari
      * Warehouse Branch-nya sendiri - tidak boleh membuat dokumen yang
      * sumbernya Branch lain walau tahu ID warehouse-nya.
+     *
+     * PERBAIKAN: rule `different:to_warehouse_id` di atas HANYA mengecek ID
+     * Warehouse-nya beda, BUKAN Branch-nya. Kalau satu Depo punya lebih
+     * dari satu Warehouse, Admin bisa pilih from & to yang keduanya masih
+     * Warehouse Depo yang sama (mis. Blitar -> Blitar) dan tetap lolos --
+     * padahal itu bukan Branch Transfer sungguhan. Sekarang ditolak secara
+     * eksplisit: Warehouse asal & tujuan WAJIB beda Branch.
      */
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator) {
             $fromWarehouseId = $this->input('from_warehouse_id');
+            $toWarehouseId = $this->input('to_warehouse_id');
 
             if (! $fromWarehouseId) {
                 return;
@@ -49,6 +57,14 @@ class BranchTransferRequest extends FormRequest
 
             if ($warehouse && ! BranchContext::current()->allows($warehouse->branch_id)) {
                 $validator->errors()->add('from_warehouse_id', 'Warehouse asal harus berada di Branch Anda sendiri.');
+            }
+
+            if ($warehouse && $toWarehouseId) {
+                $toWarehouse = Warehouse::find($toWarehouseId);
+
+                if ($toWarehouse && $toWarehouse->branch_id === $warehouse->branch_id) {
+                    $validator->errors()->add('to_warehouse_id', 'Warehouse tujuan harus di Branch/Depo lain, bukan Branch yang sama dengan Warehouse asal.');
+                }
             }
         });
     }

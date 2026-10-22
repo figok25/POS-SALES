@@ -42,7 +42,13 @@ class TransactionController extends Controller
         // Riwayat difilter per hari (default hari ini); ?date=all = semua tanggal.
         $filterDate = $this->resolveFilterDate($request->query('date'));
 
+        // Transaksi yang sudah dibatalkan (mis. dihapus Super Admin) TIDAK
+        // ditampilkan di riwayat HP Sales -- biar tidak bingung lihat
+        // transaksi yang tidak bisa/tidak perlu dicetak lagi. Status hanya
+        // 'completed'/'cancelled' (lihat SalesTransaction), jadi filter
+        // completed di sini sudah cukup mengeluarkan yang cancelled.
         $base = SalesTransaction::where('sales_id', $sales->id)
+            ->where('status', SalesTransaction::STATUS_COMPLETED)
             ->when($filterDate, fn ($q) => $q->whereDate('created_at', $filterDate->toDateString()));
 
         $summary = [
