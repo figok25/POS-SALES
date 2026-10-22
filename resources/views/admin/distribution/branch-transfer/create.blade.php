@@ -20,7 +20,7 @@
                     <label class="block text-sm font-medium mb-1">Warehouse Asal (Cabang Asal) *</label>
                     <select name="from_warehouse_id" class="w-full border rounded px-3 py-2 text-sm">
                         <option value="">-- Pilih Warehouse --</option>
-                        @foreach ($warehouses as $w)
+                        @foreach ($fromWarehouses as $w)
                             <option value="{{ $w->id }}" @selected(old('from_warehouse_id') == $w->id)>{{ $w->name }} @if($w->branch) ({{ $w->branch->name }}) @endif</option>
                         @endforeach
                     </select>
@@ -29,7 +29,7 @@
                     <label class="block text-sm font-medium mb-1">Warehouse Tujuan (Cabang Tujuan) *</label>
                     <select name="to_warehouse_id" class="w-full border rounded px-3 py-2 text-sm">
                         <option value="">-- Pilih Warehouse --</option>
-                        @foreach ($warehouses as $w)
+                        @foreach ($toWarehouses as $w)
                             <option value="{{ $w->id }}" @selected(old('to_warehouse_id') == $w->id)>{{ $w->name }} @if($w->branch) ({{ $w->branch->name }}) @endif</option>
                         @endforeach
                     </select>

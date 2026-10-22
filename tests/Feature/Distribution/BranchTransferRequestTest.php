@@ -81,4 +81,43 @@ class BranchTransferRequestTest extends TestCase
 
         $this->assertSame(0, BranchTransfer::count());
     }
+
+    /**
+     * PERBAIKAN (form, bukan cuma validasi): dropdown "Warehouse Asal"
+     * sekarang dibatasi ke Branch Admin sendiri saja, dan dropdown
+     * "Warehouse Tujuan" tidak lagi menampilkan Branch sendiri -- supaya
+     * Admin tidak bisa memilih Blitar -> Blitar dari form sama sekali
+     * (sebelumnya baru ketahuan setelah submit lewat pesan error).
+     */
+    public function test_create_form_limits_source_warehouse_to_the_admins_own_branch(): void
+    {
+        $blitar = $this->makeBranch('CBG-BLITAR4', 'Depo Blitar');
+        $trenggalek = $this->makeBranch('CBG-TRENGGALEK4', 'Depo Trenggalek');
+        $gudangBlitar = $this->makeWarehouse($blitar);
+        $gudangTrenggalek = $this->makeWarehouse($trenggalek);
+        $admin = $this->makeAdminUser($blitar);
+
+        $response = $this->actingAs($admin)->get(route('admin.distribution.branch-transfer.create'))->assertOk();
+
+        // Warehouse Asal: HANYA Warehouse Branch sendiri (Blitar).
+        $response->assertViewHas('fromWarehouses', fn ($list) => $list->pluck('id')->all() === [$gudangBlitar->id]);
+        // Warehouse Tujuan: semua Branch LAIN, tapi BUKAN Branch sendiri.
+        $response->assertViewHas('toWarehouses', fn ($list) => $list->pluck('id')->all() === [$gudangTrenggalek->id]);
+    }
+
+    public function test_create_form_lets_super_admin_pick_any_branch_as_source(): void
+    {
+        $blitar = $this->makeBranch('CBG-BLITAR5', 'Depo Blitar');
+        $trenggalek = $this->makeBranch('CBG-TRENGGALEK5', 'Depo Trenggalek');
+        $gudangBlitar = $this->makeWarehouse($blitar);
+        $gudangTrenggalek = $this->makeWarehouse($trenggalek);
+        $superAdmin = $this->makeSuperAdminUser();
+
+        $response = $this->actingAs($superAdmin)->get(route('admin.distribution.branch-transfer.create'))->assertOk();
+
+        $response->assertViewHas('fromWarehouses', fn ($list) => $list->pluck('id')->sort()->values()->all()
+            === collect([$gudangBlitar->id, $gudangTrenggalek->id])->sort()->values()->all());
+        $response->assertViewHas('toWarehouses', fn ($list) => $list->pluck('id')->sort()->values()->all()
+            === collect([$gudangBlitar->id, $gudangTrenggalek->id])->sort()->values()->all());
+    }
 }

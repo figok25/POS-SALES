@@ -57,15 +57,31 @@ class BranchTransferController extends Controller
 
     public function create()
     {
-        // Warehouse TUJUAN sengaja tidak dibatasi Branch (inti Branch
-        // Transfer memang mengirim ke Branch lain) - pembatasan "from"
-        // (hanya boleh Warehouse Branch sendiri) ditegakkan di
-        // store()/BranchTransferRequest, bukan di sini, karena view yang
-        // sama dipakai untuk memilih from & to dari satu daftar warehouse.
-        $warehouses = Warehouse::with('branch')->orderBy('name')->get();
+        // PERBAIKAN: sebelumnya dropdown Warehouse Asal & Tujuan sama-sama
+        // menampilkan SEMUA Branch untuk siapa pun, aturan "asal harus
+        // Branch sendiri" baru ditegakkan belakangan di
+        // store()/BranchTransferRequest (setelah submit, bukan dicegah di
+        // form). Sekarang dropdown-nya sendiri sudah dibatasi sesuai peran:
+        //  - Admin Depo biasa : Warehouse Asal HANYA Warehouse Branch-nya
+        //    sendiri (Admin Blitar cuma bisa kirim dari Blitar), dan
+        //    Warehouse Tujuan TIDAK menampilkan Branch sendiri lagi (biar
+        //    tidak bisa pilih Blitar -> Blitar dari form).
+        //  - Super Admin : tetap bebas pilih Branch mana pun untuk Asal
+        //    MAUPUN Tujuan (dia mengawasi semua Depo).
+        $isSuperAdmin = (bool) auth()->user()?->isSuperAdmin();
+        $branchId = BranchContext::current()->branchId();
+
+        $fromWarehouses = $isSuperAdmin
+            ? Warehouse::with('branch')->orderBy('name')->get()
+            : Warehouse::with('branch')->where('branch_id', $branchId)->orderBy('name')->get();
+
+        $toWarehouses = $isSuperAdmin
+            ? Warehouse::with('branch')->orderBy('name')->get()
+            : Warehouse::with('branch')->where('branch_id', '!=', $branchId)->orderBy('name')->get();
+
         $products = Product::orderBy('name')->get();
 
-        return view('admin.distribution.branch-transfer.create', compact('warehouses', 'products'));
+        return view('admin.distribution.branch-transfer.create', compact('fromWarehouses', 'toWarehouses', 'products'));
     }
 
     public function store(BranchTransferRequest $request)
