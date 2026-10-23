@@ -13,6 +13,13 @@ class Price extends Model
     public const TYPE_RETAIL = 'retail';
     public const TYPE_WHOLESALE = 'wholesale';
     public const TYPE_CONSUMER = 'consumer';
+    /**
+     * Harga Distributor: kategori harga biasa (punya baris harga per produk
+     * di master, sama seperti Retail/WS/Konsumen), tapi KHUSUS transaksi
+     * Depo (kasir Admin) -- sengaja TIDAK dimasukkan ke salesTypes(), jadi
+     * tidak bisa dipilih sebagai "Jenis Sales" lapangan.
+     */
+    public const TYPE_DISTRIBUTOR = 'distributor';
     /** Tester: harga tetap Rp 0, khusus penjualan Depo (hanya memotong stok gudang Depo). */
     public const TYPE_TESTER = 'tester';
 
@@ -28,6 +35,7 @@ class Price extends Model
             self::TYPE_RETAIL => 'Retail',
             self::TYPE_WHOLESALE => 'WS / Grosir',
             self::TYPE_CONSUMER => 'Konsumen',
+            self::TYPE_DISTRIBUTOR => 'Distributor',
         ];
     }
 
