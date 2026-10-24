@@ -40,11 +40,13 @@ class CustomerController extends Controller
     public function index(Request $request)
     {
         $search = trim((string) $request->query('q', ''));
+        $filters = $this->resolveFilters($request);
 
         $items = BranchContext::current()->applyTo(
             Customer::query()->with('sales')
         )
             ->tap(fn (Builder $query) => $this->applySearch($query, $search))
+            ->tap(fn (Builder $query) => $this->applyFilters($query, $filters))
             ->orderByDesc('id')
             ->paginate(15)
             ->withQueryString();
@@ -52,13 +54,14 @@ class CustomerController extends Controller
         // Dipakai dropdown Sales di modal tambah/edit - Admin hanya boleh
         // menugaskan Customer ke Sales di Branch-nya sendiri (lihat juga
         // CustomerRequest::withValidator untuk validasi server-side-nya).
+        // Dipakai juga sebagai pilihan filter "Sales" pada daftar.
         $saless = BranchContext::current()->applyTo(Sales::query())->orderBy('name')->get(['id', 'name', 'branch_id']);
 
         // Dropdown Branch di modal: hanya dirender untuk Super Admin dalam
         // mode "Semua Depo". Admin biasa selalu terkunci ke Branch akunnya.
         $branchs = BranchContext::current()->applyTo(Branch::where('is_active', true), 'id')->orderBy('name')->get(['id', 'name']);
 
-        return view('admin.master.customers.index', compact('items', 'search', 'saless', 'branchs'));
+        return view('admin.master.customers.index', compact('items', 'search', 'saless', 'branchs', 'filters'));
     }
 
     /**
@@ -69,11 +72,13 @@ class CustomerController extends Controller
     public function export(Request $request): Response
     {
         $search = trim((string) $request->query('q', ''));
+        $filters = $this->resolveFilters($request);
 
         $items = BranchContext::current()->applyTo(
             Customer::query()->with(['sales', 'branch'])
         )
             ->tap(fn (Builder $query) => $this->applySearch($query, $search))
+            ->tap(fn (Builder $query) => $this->applyFilters($query, $filters))
             ->orderByDesc('id')
             ->get();
 
@@ -282,6 +287,45 @@ class CustomerController extends Controller
     private function applySearch(Builder $query, string $search): Builder
     {
         return \App\Support\Search::apply($query, $search, ['code', 'name']);
+    }
+
+    /**
+     * @return array{sales_id: string, status: string, tag_date: string}
+     */
+    private function resolveFilters(Request $request): array
+    {
+        return [
+            'sales_id' => trim((string) $request->query('sales_id', '')),
+            'status' => trim((string) $request->query('status', '')),
+            'tag_date' => trim((string) $request->query('tag_date', '')),
+        ];
+    }
+
+    /**
+     * Filter lengkap daftar Customer: Sales, status Aktif/Nonaktif, dan
+     * "tanggal tagging" -- tanggal baris Customer ini tercatat/dibuat
+     * (created_at), baik lewat approve Tagging Toko maupun input manual
+     * Admin lewat modal ini.
+     *
+     * @param  array{sales_id: string, status: string, tag_date: string}  $filters
+     */
+    private function applyFilters(Builder $query, array $filters): Builder
+    {
+        if ($filters['sales_id'] !== '') {
+            $query->where('sales_id', (int) $filters['sales_id']);
+        }
+
+        if ($filters['status'] === 'active') {
+            $query->where('is_active', true);
+        } elseif ($filters['status'] === 'inactive') {
+            $query->where('is_active', false);
+        }
+
+        if ($filters['tag_date'] !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $filters['tag_date'])) {
+            $query->whereDate('created_at', $filters['tag_date']);
+        }
+
+        return $query;
     }
 
     /**

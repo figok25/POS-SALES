@@ -6,6 +6,7 @@
         : route('admin.master.customers.store');
 
     $hasSearch = filled($search);
+    $hasAnyFilter = $hasSearch || $filters['sales_id'] !== '' || $filters['status'] !== '' || $filters['tag_date'] !== '';
 @endphp
 
 <x-admin-layout>
@@ -47,20 +48,42 @@
 
     {{-- ===== Daftar ===== --}}
     <div class="panel">
-        <form method="GET" action="{{ route('admin.master.customers.index') }}" class="frm-toolbar" role="search">
+        <form method="GET" action="{{ route('admin.master.customers.index') }}" class="frm-toolbar" role="search" style="flex-wrap:wrap;gap:.5rem;align-items:flex-end">
             <div class="frm-search">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
                 <input type="search" name="q" value="{{ $search }}" placeholder="Cari customer..." autocomplete="off" aria-label="Cari customer">
             </div>
+
+            <label style="display:flex;flex-direction:column;gap:.15rem;font-size:.75rem">Sales
+                <select name="sales_id" class="frm-input is-select is-filter" aria-label="Filter Sales">
+                    <option value="">Semua Sales</option>
+                    @foreach ($saless as $opt)
+                        <option value="{{ $opt->id }}" @selected($filters['sales_id'] === (string) $opt->id)>{{ $opt->name }}</option>
+                    @endforeach
+                </select>
+            </label>
+
+            <label style="display:flex;flex-direction:column;gap:.15rem;font-size:.75rem">Status
+                <select name="status" class="frm-input is-select is-filter" aria-label="Filter status">
+                    <option value="">Semua Status</option>
+                    <option value="active" @selected($filters['status'] === 'active')>Aktif</option>
+                    <option value="inactive" @selected($filters['status'] === 'inactive')>Nonaktif</option>
+                </select>
+            </label>
+
+            <label style="display:flex;flex-direction:column;gap:.15rem;font-size:.75rem">Tanggal Dibuat
+                <input type="date" name="tag_date" value="{{ $filters['tag_date'] }}" class="frm-input" aria-label="Filter tanggal dibuat">
+            </label>
+
             <div class="frm-toolbar-actions">
-                <button type="submit" class="adm-btn adm-btn-ghost adm-btn-sm">Cari</button>
-                @if ($hasSearch)
+                <button type="submit" class="adm-btn adm-btn-ghost adm-btn-sm">Terapkan</button>
+                @if ($hasAnyFilter)
                     <a href="{{ route('admin.master.customers.index') }}" class="adm-btn adm-btn-ghost adm-btn-sm">Reset</a>
                 @endif
             </div>
             <span class="frm-count">
-                @if ($hasSearch)
-                    {{ $items->total() }} hasil untuk “{{ $search }}”
+                @if ($hasAnyFilter)
+                    {{ $items->total() }} hasil
                 @else
                     {{ $items->total() }} customer
                 @endif
@@ -154,10 +177,10 @@
                 <div class="frm-empty-icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                 </div>
-                @if ($hasSearch)
+                @if ($hasAnyFilter)
                     <p class="frm-empty-title">Customer tidak ditemukan</p>
-                    <p class="frm-empty-text">Coba kata kunci lain atau hapus pencarian.</p>
-                    <a href="{{ route('admin.master.customers.index') }}" class="adm-btn adm-btn-ghost adm-btn-sm">Reset pencarian</a>
+                    <p class="frm-empty-text">Coba kata kunci atau filter lain.</p>
+                    <a href="{{ route('admin.master.customers.index') }}" class="adm-btn adm-btn-ghost adm-btn-sm">Reset filter</a>
                 @else
                     <p class="frm-empty-title">Belum ada customer</p>
                     <p class="frm-empty-text">Tambahkan customer pertama untuk memulai.</p>

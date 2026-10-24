@@ -5,6 +5,13 @@
         $selectedDay   = collect($weekDays)->firstWhere('isSelected', true);
         $selectedDate  = $selectedDay['date'] ?? null;
         $selectedLabel = $selectedDay['label'] ?? '';
+
+        // Navigasi minggu sebelumnya/selanjutnya: geser tanggal yang sedang
+        // dipilih persis 7 hari, supaya hari-dalam-minggu yang sama tetap
+        // terpilih di minggu tujuan (bukan selalu balik ke Senin).
+        $navBaseDate  = $selectedDate ?? $weekDays[0]['date'];
+        $prevWeekDate = $navBaseDate->copy()->subWeek();
+        $nextWeekDate = $navBaseDate->copy()->addWeek();
     @endphp
 
     {{-- Info: dibuka dari tautan Sales Task --}}
@@ -19,6 +26,27 @@
     @endif
 
     <div class="frm-stack">
+        {{-- Navigasi minggu + pilih tanggal bebas: SELALU tampil, independen
+             dari Sales yang bertugas pada tanggal terpilih -- supaya Admin
+             tidak terjebak kalau hari/minggu yang dituju kebetulan tidak
+             ada Sales dengan Rute Kanvas (lihat kondisi "Tidak ada Sales
+             yang bertugas" di bawah). --}}
+        <section class="panel">
+            <div class="frm-panel-body" style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
+                <a href="{{ route('admin.sales.route-map.index', array_filter(['sales_id' => $selectedSales?->id, 'date' => $prevWeekDate->toDateString()])) }}" class="adm-btn adm-btn-ghost adm-btn-sm">&laquo; Minggu Lalu</a>
+                <span class="frm-hint" style="margin:0">Minggu {{ $weekDays[0]['date']->format('d M') }} &ndash; {{ $weekDays[6]['date']->format('d M Y') }}</span>
+                <a href="{{ route('admin.sales.route-map.index', array_filter(['sales_id' => $selectedSales?->id, 'date' => $nextWeekDate->toDateString()])) }}" class="adm-btn adm-btn-ghost adm-btn-sm">Minggu Depan &raquo;</a>
+
+                <form method="GET" action="{{ route('admin.sales.route-map.index') }}" style="display:flex;align-items:center;gap:.4rem;margin-left:auto">
+                    @if ($selectedSales)
+                        <input type="hidden" name="sales_id" value="{{ $selectedSales->id }}">
+                    @endif
+                    <input type="date" name="date" value="{{ $selectedDate?->toDateString() }}" class="frm-input" aria-label="Pilih tanggal rute">
+                    <button type="submit" class="adm-btn adm-btn-ghost adm-btn-sm">Lihat tanggal ini</button>
+                </form>
+            </div>
+        </section>
+
         {{-- Pilih Sales --}}
         <section class="panel">
             <div class="frm-panel-body">
