@@ -159,17 +159,42 @@ class SalesTransactionService
                 throw ValidationException::withMessages(['transaction_date' => 'Tanggal transaksi tidak boleh di masa depan.']);
             }
 
-            // Cegah transaksi yang sama tercatat dua kali (Sales sudah mencatat, Admin mencatat lagi).
-            if (! ($data['allow_duplicate'] ?? false)) {
-                $this->assertNotDuplicate($salesId, $customer->id, $entryDate->toDateString(), $lines);
-            }
+            // Pengecekan duplikat (Cegah transaksi yang sama tercatat dua
+            // kali: Sales sudah mencatat, Admin mencatat lagi) DIPINDAH ke
+            // dalam DB::transaction di bawah, setelah Sales di-lock --
+            // supaya dua submit bersamaan (klik dobel/retry jaringan) tidak
+            // lolos cek berbarengan sebelum salah satu commit (race
+            // condition pada celah lama).
         }
+
+        $allowDuplicate = (bool) ($data['allow_duplicate'] ?? false);
 
         // Program Beli X Gratis Y: hitung barang gratis (dibatasi stok Sales).
         $freeLines = $this->promoService->freeLinesFor($salesId, $lines, $shells);
 
         try {
-            return DB::transaction(function () use ($salesId, $createdByUserId, $customer, $lines, $freeLines, $data, $priceType, $adminEntry, $discount, $entryDate) {
+            return DB::transaction(function () use ($salesId, $createdByUserId, $customer, $lines, $freeLines, $data, $priceType, $adminEntry, $discount, $entryDate, $allowDuplicate) {
+                // Kunci baris Sales: dua submit bersamaan untuk Sales yang
+                // sama diproses berurutan (bukan bersamaan) -- transaksi
+                // pertama commit/rollback dulu sebelum yang kedua lanjut,
+                // sehingga pengecekan duplikat di bawah melihat data final,
+                // bukan data yang belum commit dari request lain.
+                Sales::where('id', $salesId)->lockForUpdate()->first();
+
+                if ($adminEntry) {
+                    if (! $allowDuplicate) {
+                        $this->assertNotDuplicate($salesId, $customer->id, $entryDate->toDateString(), $lines);
+                    }
+                } else {
+                    // Transaksi normal dari Sales App tidak punya toggle
+                    // "Tetap simpan", jadi yang dicegah HANYA submit ganda
+                    // tak sengaja: transaksi identik yang baru tersimpan
+                    // beberapa detik terakhir. Jendela waktunya sengaja
+                    // sangat singkat supaya kunjungan ulang yang sah ke
+                    // Customer yang sama di hari yang sama tidak ikut ditolak.
+                    $this->assertNotRecentDuplicate($salesId, $customer->id, $lines);
+                }
+
                 $subtotal = round(array_sum(array_column($lines, 'subtotal')), 2);
 
                 $trx = SalesTransaction::create([
@@ -303,16 +328,14 @@ class SalesTransactionService
 
     /**
      * Transaksi yang sama = Sales + Customer + tanggal + komposisi barang (produk & qty) yang sama.
+     * Khusus input Admin (satu hari penuh). Lihat assertNotRecentDuplicate()
+     * untuk submit ganda tak sengaja pada jalur Sales App biasa.
      *
      * @param  array<int, array{product: \App\Models\Product, quantity: float}>  $lines
      */
     private function assertNotDuplicate(int $salesId, int $customerId, string $day, array $lines): void
     {
-        $signature = [];
-        foreach ($lines as $line) {
-            $signature[$line['product']->id] = round(($signature[$line['product']->id] ?? 0) + $line['quantity'], 2);
-        }
-        ksort($signature);
+        $signature = $this->signatureFromLines($lines);
 
         $existing = SalesTransaction::query()
             ->where('sales_id', $salesId)
@@ -323,17 +346,73 @@ class SalesTransactionService
             ->get();
 
         foreach ($existing as $trx) {
-            $other = [];
-            foreach ($trx->items->where('is_free', false) as $item) {
-                $other[$item->product_id] = round(($other[$item->product_id] ?? 0) + (float) $item->quantity, 2);
-            }
-            ksort($other);
-
-            if ($other === $signature) {
+            if ($this->signatureFromItems($trx->items) === $signature) {
                 throw ValidationException::withMessages([
                     'duplicate' => "Transaksi yang sama (Sales, Customer, tanggal, dan barang) sudah tercatat: {$trx->code}. Centang \"Tetap simpan\" bila ini memang transaksi yang berbeda.",
                 ]);
             }
         }
+    }
+
+    /**
+     * Submit ganda tak sengaja (klik dobel / retry koneksi jelek) pada
+     * jalur transaksi normal (Sales App, bukan input Admin): transaksi
+     * dengan Sales + Customer + komposisi barang yang sama persis yang
+     * baru tersimpan beberapa detik terakhir. Jendela waktunya sengaja
+     * sangat singkat (default 5 detik) -- BUKAN sepanjang hari seperti
+     * assertNotDuplicate() -- supaya kunjungan ulang yang sah ke Customer
+     * yang sama di hari yang sama tidak ikut ditolak.
+     *
+     * @param  array<int, array{product: \App\Models\Product, quantity: float}>  $lines
+     */
+    private function assertNotRecentDuplicate(int $salesId, int $customerId, array $lines, int $withinSeconds = 5): void
+    {
+        $signature = $this->signatureFromLines($lines);
+
+        $recent = SalesTransaction::query()
+            ->where('sales_id', $salesId)
+            ->where('customer_id', $customerId)
+            ->where('status', SalesTransaction::STATUS_COMPLETED)
+            ->where('created_at', '>=', now()->subSeconds($withinSeconds))
+            ->with('items')
+            ->get();
+
+        foreach ($recent as $trx) {
+            if ($this->signatureFromItems($trx->items) === $signature) {
+                throw ValidationException::withMessages([
+                    'duplicate' => "Transaksi dengan barang yang sama baru saja tersimpan ({$trx->code}). Kemungkinan submit ganda -- cek riwayat transaksi sebelum mengirim ulang.",
+                ]);
+            }
+        }
+    }
+
+    /**
+     * @param  array<int, array{product: \App\Models\Product, quantity: float}>  $lines
+     * @return array<int, float> product_id => quantity (diurutkan)
+     */
+    private function signatureFromLines(array $lines): array
+    {
+        $signature = [];
+        foreach ($lines as $line) {
+            $signature[$line['product']->id] = round(($signature[$line['product']->id] ?? 0) + $line['quantity'], 2);
+        }
+        ksort($signature);
+
+        return $signature;
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, \App\Models\SalesTransactionItem>  $items
+     * @return array<int, float> product_id => quantity (diurutkan, barang gratis tidak dihitung)
+     */
+    private function signatureFromItems($items): array
+    {
+        $signature = [];
+        foreach ($items->where('is_free', false) as $item) {
+            $signature[$item->product_id] = round(($signature[$item->product_id] ?? 0) + (float) $item->quantity, 2);
+        }
+        ksort($signature);
+
+        return $signature;
     }
 }

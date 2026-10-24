@@ -179,4 +179,62 @@ class SalesTransactionTest extends TestCase
             ],
         ]);
     }
+
+    /**
+     * Celah lama: submit ganda (klik dobel / retry koneksi) bisa lolos
+     * karena transaksi kedua baru dicek SETELAH transaksi pertama commit --
+     * sekarang keduanya identik dalam jendela singkat harus ditolak.
+     */
+    public function test_identical_transaction_submitted_again_within_seconds_is_rejected(): void
+    {
+        [$user, $sales] = $this->makeSalesUser();
+        $customer = $this->makeCustomer($sales->id);
+        $product = $this->makeProduct(15000);
+
+        app(StockService::class)->increase($product->id, Stock::LOCATION_SALES, $sales->id, 10, 'bkb_apply');
+
+        $payload = [
+            'customer_id' => $customer->id,
+            'items' => [['product_id' => $product->id, 'quantity' => 2]],
+        ];
+
+        app(SalesTransactionService::class)->create($sales->id, $user->id, $payload);
+
+        try {
+            app(SalesTransactionService::class)->create($sales->id, $user->id, $payload);
+            $this->fail('Submit ganda dalam beberapa detik seharusnya ditolak.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('duplicate', $e->errors());
+        }
+
+        // Hanya 1 transaksi yang benar-benar tersimpan, stok hanya berkurang sekali.
+        $this->assertDatabaseCount('sales_transactions', 1);
+        $this->assertEquals(8, app(StockService::class)->getQuantity($product->id, Stock::LOCATION_SALES, $sales->id));
+    }
+
+    /**
+     * Beda Customer atau beda barang bukan submit ganda -- harus tetap
+     * boleh walau terjadi dalam hitungan detik.
+     */
+    public function test_different_items_within_seconds_are_not_treated_as_duplicate(): void
+    {
+        [$user, $sales] = $this->makeSalesUser();
+        $customer = $this->makeCustomer($sales->id);
+        $product = $this->makeProduct(15000);
+
+        app(StockService::class)->increase($product->id, Stock::LOCATION_SALES, $sales->id, 10, 'bkb_apply');
+
+        app(SalesTransactionService::class)->create($sales->id, $user->id, [
+            'customer_id' => $customer->id,
+            'items' => [['product_id' => $product->id, 'quantity' => 2]],
+        ]);
+
+        $trx2 = app(SalesTransactionService::class)->create($sales->id, $user->id, [
+            'customer_id' => $customer->id,
+            'items' => [['product_id' => $product->id, 'quantity' => 3]],
+        ]);
+
+        $this->assertInstanceOf(SalesTransaction::class, $trx2);
+        $this->assertDatabaseCount('sales_transactions', 2);
+    }
 }
