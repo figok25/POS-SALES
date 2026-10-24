@@ -32,16 +32,18 @@
              ada Sales dengan Rute Kanvas (lihat kondisi "Tidak ada Sales
              yang bertugas" di bawah). --}}
         <section class="panel">
-            <div class="frm-panel-body" style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
-                <a href="{{ route('admin.sales.route-map.index', array_filter(['sales_id' => $selectedSales?->id, 'date' => $prevWeekDate->toDateString()])) }}" class="adm-btn adm-btn-ghost adm-btn-sm">&laquo; Minggu Lalu</a>
+            <div class="frm-toolbar">
+                <div class="frm-toolbar-actions">
+                    <a href="{{ route('admin.sales.route-map.index', array_filter(['sales_id' => $selectedSales?->id, 'date' => $prevWeekDate->toDateString()])) }}" class="adm-btn adm-btn-ghost adm-btn-sm">&laquo; Minggu Lalu</a>
+                    <a href="{{ route('admin.sales.route-map.index', array_filter(['sales_id' => $selectedSales?->id, 'date' => $nextWeekDate->toDateString()])) }}" class="adm-btn adm-btn-ghost adm-btn-sm">Minggu Depan &raquo;</a>
+                </div>
                 <span class="frm-hint" style="margin:0">Minggu {{ $weekDays[0]['date']->format('d M') }} &ndash; {{ $weekDays[6]['date']->format('d M Y') }}</span>
-                <a href="{{ route('admin.sales.route-map.index', array_filter(['sales_id' => $selectedSales?->id, 'date' => $nextWeekDate->toDateString()])) }}" class="adm-btn adm-btn-ghost adm-btn-sm">Minggu Depan &raquo;</a>
 
-                <form method="GET" action="{{ route('admin.sales.route-map.index') }}" style="display:flex;align-items:center;gap:.4rem;margin-left:auto">
+                <form method="GET" action="{{ route('admin.sales.route-map.index') }}" class="frm-toolbar-actions" style="margin-left:auto;align-items:center">
                     @if ($selectedSales)
                         <input type="hidden" name="sales_id" value="{{ $selectedSales->id }}">
                     @endif
-                    <input type="date" name="date" value="{{ $selectedDate?->toDateString() }}" class="frm-input" aria-label="Pilih tanggal rute">
+                    <input type="date" name="date" value="{{ $selectedDate?->toDateString() }}" class="frm-input is-filter" aria-label="Pilih tanggal rute">
                     <button type="submit" class="adm-btn adm-btn-ghost adm-btn-sm">Lihat tanggal ini</button>
                 </form>
             </div>

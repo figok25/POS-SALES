@@ -48,32 +48,35 @@
 
     {{-- ===== Daftar ===== --}}
     <div class="panel">
-        <form method="GET" action="{{ route('admin.master.customers.index') }}" class="frm-toolbar" role="search" style="flex-wrap:wrap;gap:.5rem;align-items:flex-end">
+        <form method="GET" action="{{ route('admin.master.customers.index') }}" class="frm-toolbar is-fields" role="search">
             <div class="frm-search">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
                 <input type="search" name="q" value="{{ $search }}" placeholder="Cari customer..." autocomplete="off" aria-label="Cari customer">
             </div>
 
-            <label style="display:flex;flex-direction:column;gap:.15rem;font-size:.75rem">Sales
-                <select name="sales_id" class="frm-input is-select is-filter" aria-label="Filter Sales">
+            <div class="frm-field">
+                <label class="frm-label" for="f-filter-sales">Sales</label>
+                <select id="f-filter-sales" name="sales_id" class="frm-input is-select is-filter" aria-label="Filter Sales">
                     <option value="">Semua Sales</option>
                     @foreach ($saless as $opt)
                         <option value="{{ $opt->id }}" @selected($filters['sales_id'] === (string) $opt->id)>{{ $opt->name }}</option>
                     @endforeach
                 </select>
-            </label>
+            </div>
 
-            <label style="display:flex;flex-direction:column;gap:.15rem;font-size:.75rem">Status
-                <select name="status" class="frm-input is-select is-filter" aria-label="Filter status">
+            <div class="frm-field">
+                <label class="frm-label" for="f-filter-status">Status</label>
+                <select id="f-filter-status" name="status" class="frm-input is-select is-filter" aria-label="Filter status">
                     <option value="">Semua Status</option>
                     <option value="active" @selected($filters['status'] === 'active')>Aktif</option>
                     <option value="inactive" @selected($filters['status'] === 'inactive')>Nonaktif</option>
                 </select>
-            </label>
+            </div>
 
-            <label style="display:flex;flex-direction:column;gap:.15rem;font-size:.75rem">Tanggal Dibuat
-                <input type="date" name="tag_date" value="{{ $filters['tag_date'] }}" class="frm-input" aria-label="Filter tanggal dibuat">
-            </label>
+            <div class="frm-field">
+                <label class="frm-label" for="f-filter-tag-date">Tanggal Dibuat</label>
+                <input type="date" id="f-filter-tag-date" name="tag_date" value="{{ $filters['tag_date'] }}" class="frm-input is-filter" aria-label="Filter tanggal dibuat">
+            </div>
 
             <div class="frm-toolbar-actions">
                 <button type="submit" class="adm-btn adm-btn-ghost adm-btn-sm">Terapkan</button>
