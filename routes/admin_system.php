@@ -36,6 +36,9 @@ Route::middleware(['role:super_admin', 'permission:system.manage'])->group(funct
 
 Route::middleware('permission:audit-log.view')->group(function () {
     Route::get('audit-log', [AuditLogController::class, 'index'])->name('audit-log.index');
+    // Route export HARUS di atas audit-log/{auditLog} supaya "export" tidak
+    // ditangkap sebagai parameter {auditLog} (route model binding).
+    Route::get('audit-log/export', [AuditLogController::class, 'export'])->name('audit-log.export');
     Route::get('audit-log/{auditLog}', [AuditLogController::class, 'show'])->name('audit-log.show');
 });
 

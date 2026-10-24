@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\AuditRestoreService;
 use App\Support\BranchContext;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * System - Audit Log (Blueprint #45, permission 'audit-log.view').
@@ -25,22 +26,13 @@ class AuditLogController extends Controller
 {
     public function index(Request $request)
     {
-        $module = $request->query('module');
-        $action = $request->query('action');
-        $userId = $request->filled('user_id') ? (int) $request->query('user_id') : null;
-        $dateFrom = $request->query('date_from');
-        $dateTo = $request->query('date_to');
+        [$module, $action, $userId, $dateFrom, $dateTo] = $this->filtersFromRequest($request);
 
         $branchContext = BranchContext::current();
         $scoped = fn () => $branchContext->applyTo(AuditLog::query());
 
-        $logs = $scoped()
+        $logs = $this->filteredQuery($request)
             ->with(['user', 'branch'])
-            ->when($module, fn ($q) => $q->where('module', $module))
-            ->when($action, fn ($q) => $q->where('action', $action))
-            ->when($userId, fn ($q) => $q->where('user_id', $userId))
-            ->when($dateFrom, fn ($q) => $q->whereDate('created_at', '>=', $dateFrom))
-            ->when($dateTo, fn ($q) => $q->whereDate('created_at', '<=', $dateTo))
             ->orderByDesc('created_at')
             ->paginate(30)
             ->withQueryString();
@@ -57,6 +49,76 @@ class AuditLogController extends Controller
             'logs', 'modules', 'actions', 'users', 'module', 'action', 'userId', 'dateFrom', 'dateTo',
             'branches', 'branchContext'
         ));
+    }
+
+    /**
+     * Unduh CSV Audit Log mengikuti filter yang sedang aktif di halaman
+     * index (Depo, Modul, Aksi, User, rentang tanggal) -- supaya Admin bisa
+     * simpan jejak suatu kejadian (mis. urutan Apply Settlement vs Apply
+     * BTB) sebagai bukti offline, tanpa batas pagination 30 baris/halaman.
+     */
+    public function export(Request $request): StreamedResponse
+    {
+        $logs = $this->filteredQuery($request)
+            ->with(['user', 'branch'])
+            ->orderByDesc('created_at')
+            ->get();
+
+        $filename = 'audit-log-'.now()->format('Ymd_His').'.csv';
+
+        $callback = function () use ($logs) {
+            $out = fopen('php://output', 'w');
+            fwrite($out, "\xEF\xBB\xBF");
+            fputcsv($out, ['Waktu', 'Depo', 'User', 'Modul', 'Aksi', 'Tipe Dokumen', 'ID Dokumen', 'IP', 'Sebelum', 'Sesudah']);
+
+            foreach ($logs as $log) {
+                fputcsv($out, [
+                    $log->created_at->format('Y-m-d H:i:s'),
+                    $log->branch->name ?? 'Global',
+                    $log->user->name ?? '(sistem)',
+                    $log->module ?? '-',
+                    $log->action,
+                    $log->document_type ? class_basename($log->document_type) : '-',
+                    $log->document_id ?? '-',
+                    $log->ip_address ?? '-',
+                    $log->before ? json_encode($log->before, JSON_UNESCAPED_UNICODE) : '',
+                    $log->after ? json_encode($log->after, JSON_UNESCAPED_UNICODE) : '',
+                ]);
+            }
+
+            fclose($out);
+        };
+
+        return response()->stream($callback, 200, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+        ]);
+    }
+
+    /**
+     * @return array{0: ?string, 1: ?string, 2: ?int, 3: ?string, 4: ?string}
+     */
+    private function filtersFromRequest(Request $request): array
+    {
+        return [
+            $request->query('module'),
+            $request->query('action'),
+            $request->filled('user_id') ? (int) $request->query('user_id') : null,
+            $request->query('date_from'),
+            $request->query('date_to'),
+        ];
+    }
+
+    private function filteredQuery(Request $request)
+    {
+        [$module, $action, $userId, $dateFrom, $dateTo] = $this->filtersFromRequest($request);
+
+        return BranchContext::current()->applyTo(AuditLog::query())
+            ->when($module, fn ($q) => $q->where('module', $module))
+            ->when($action, fn ($q) => $q->where('action', $action))
+            ->when($userId, fn ($q) => $q->where('user_id', $userId))
+            ->when($dateFrom, fn ($q) => $q->whereDate('created_at', '>=', $dateFrom))
+            ->when($dateTo, fn ($q) => $q->whereDate('created_at', '<=', $dateTo));
     }
 
     public function show(AuditLog $auditLog, AuditRestoreService $restore)
