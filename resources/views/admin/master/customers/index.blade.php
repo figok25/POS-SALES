@@ -94,10 +94,21 @@
         </form>
 
         @if ($items->count())
+            <form method="POST" action="{{ route('admin.master.customers.bulk-unassign') }}" id="bulkUnassignForm">
+                @csrf
+                <div class="frm-bulkbar" id="bulkBar" data-bulkbar>
+                    <span id="bulkCount">0 toko dipilih</span>
+                    <input type="text" name="reason" class="frm-input" placeholder="Alasan pelepasan (wajib diisi)..." maxlength="255" required>
+                    <button type="submit" class="adm-btn adm-btn-ghost adm-btn-sm">Lepas dari Sales (Unassign)</button>
+                    <button type="button" class="adm-btn adm-btn-ghost adm-btn-sm" id="bulkClear">Batal pilih</button>
+                </div>
+                <p class="frm-hint" style="margin:0 0 8px;">Tip: pakai filter Sales di atas supaya daftar hanya berisi toko satu sales, lalu "Pilih semua" untuk melepas sekaligus (mis. saat sales resign/keluar).</p>
+
             <div class="frm-table-wrap">
                 <table class="frm-table">
                     <thead>
                         <tr>
+                            <th class="frm-select-col"><input type="checkbox" class="frm-check" id="selectAllCustomers" aria-label="Pilih semua toko di halaman ini"></th>
                             <th>Kode</th>
                             <th>Nama</th>
                             <th>Sales</th>
@@ -109,6 +120,7 @@
                     <tbody>
                         @foreach ($items as $item)
                             <tr>
+                                <td class="frm-select-col"><input type="checkbox" class="frm-check row-select" name="ids[]" value="{{ $item->id }}" aria-label="Pilih {{ $item->name }}"></td>
                                 <td><span class="frm-code">{{ $item->code }}</span></td>
                                 <td>
                                     <a href="{{ route('admin.master.customers.show', $item) }}" class="frm-name">{{ $item->name }}</a>
@@ -175,6 +187,7 @@
             @if ($items->hasPages())
                 <div class="frm-pager">{{ $items->links() }}</div>
             @endif
+            </form>
         @else
             <div class="frm-empty">
                 <div class="frm-empty-icon">
@@ -486,6 +499,51 @@
                 submitBtn.disabled = false; submitBtn.textContent = 'Simpan';
                 delSubmit.disabled = false; delSubmit.textContent = 'Hapus';
             });
+
+            // --- Pilih banyak baris + bar "Lepas dari Sales" massal ---
+            const bulkForm = document.getElementById('bulkUnassignForm');
+            if (bulkForm) {
+                const bulkBar = document.getElementById('bulkBar');
+                const bulkCount = document.getElementById('bulkCount');
+                const selectAll = document.getElementById('selectAllCustomers');
+                const rowChecks = () => Array.from(bulkForm.querySelectorAll('.row-select'));
+                const bulkClear = document.getElementById('bulkClear');
+
+                function refreshBulkBar() {
+                    const checked = rowChecks().filter((c) => c.checked);
+                    bulkBar.classList.toggle('is-visible', checked.length > 0);
+                    bulkCount.textContent = checked.length + ' toko dipilih';
+                    if (selectAll) selectAll.checked = checked.length > 0 && checked.length === rowChecks().length;
+                }
+
+                bulkForm.addEventListener('change', (e) => {
+                    if (e.target.classList.contains('row-select')) refreshBulkBar();
+                });
+
+                if (selectAll) {
+                    selectAll.addEventListener('change', () => {
+                        rowChecks().forEach((c) => { c.checked = selectAll.checked; });
+                        refreshBulkBar();
+                    });
+                }
+
+                bulkClear?.addEventListener('click', () => {
+                    rowChecks().forEach((c) => { c.checked = false; });
+                    if (selectAll) selectAll.checked = false;
+                    refreshBulkBar();
+                });
+
+                bulkForm.addEventListener('submit', (e) => {
+                    const checked = rowChecks().filter((c) => c.checked);
+                    if (checked.length === 0) {
+                        e.preventDefault();
+                        return;
+                    }
+                    if (! confirm('Lepas ' + checked.length + ' toko terpilih dari sales-nya saat ini? Data toko & riwayat transaksi TIDAK dihapus, hanya kepemilikan sales-nya dikosongkan.')) {
+                        e.preventDefault();
+                    }
+                });
+            }
 
             // Notifikasi: tutup manual / otomatis.
             const alertEl = document.querySelector('[data-alert]');

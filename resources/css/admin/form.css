@@ -1208,3 +1208,22 @@ a.frm-board-item:focus-visible { outline: 2px solid var(--adm-blue); outline-off
     .frm-alert,
     .frm-head .adm-btn { display: none !important; }
 }
+
+/* Pilih banyak baris di tabel (mis. Customer) + bar aksi massal */
+.frm-select-col { width: 34px; padding-right: 0 !important; }
+
+.frm-bulkbar {
+    display: none;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 10px;
+    margin: 0 14px 10px;
+    background: var(--adm-hover);
+    border-radius: 10px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--adm-body);
+}
+.frm-bulkbar.is-visible { display: flex; }
+.frm-bulkbar input[type="text"] { flex: 1 1 220px; min-width: 0; height: 34px; font-weight: 400; }

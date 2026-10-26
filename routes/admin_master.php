@@ -44,6 +44,7 @@ Route::middleware('permission:master-data.manage')->group(function () {
         Route::get('sales/export', [\App\Http\Controllers\Admin\Master\SalesController::class, 'export'])->name('sales.export');
         Route::resource('sales', \App\Http\Controllers\Admin\Master\SalesController::class)->parameters(['sales' => 'item'])->except(['show']);
         Route::get('customers/export', [\App\Http\Controllers\Admin\Master\CustomerController::class, 'export'])->name('customers.export');
+        Route::post('customers/bulk-unassign', [\App\Http\Controllers\Admin\Master\CustomerController::class, 'bulkUnassign'])->name('customers.bulk-unassign');
         Route::resource('customers', \App\Http\Controllers\Admin\Master\CustomerController::class)->parameters(['customers' => 'item']);
         Route::resource('vehicles', \App\Http\Controllers\Admin\Master\VehicleController::class)->parameters(['vehicles' => 'item'])->except(['show']);
         Route::resource('suppliers', \App\Http\Controllers\Admin\Master\SupplierController::class)->parameters(['suppliers' => 'item'])->except(['show']);

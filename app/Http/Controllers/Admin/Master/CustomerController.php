@@ -203,6 +203,47 @@ class CustomerController extends Controller
         return redirect()->route('admin.master.customers.index')->with('status', 'Customer berhasil diperbarui.');
     }
 
+    /**
+     * Lepas (unassign) banyak Customer sekaligus dari Sales-nya saat ini --
+     * tanpa menghapus data Customer/riwayat transaksi sama sekali, hanya
+     * kolom sales_id yang dikosongkan lewat CustomerAssignmentService (sama
+     * seperti unassign satu-satu, tapi bisa pilih banyak baris sekaligus).
+     * Dipakai mis. saat Sales resign/keluar: toko-tokonya dilepas supaya
+     * bisa di-assign ulang ke Sales pengganti tanpa perlu tagging dari nol.
+     * Customer yang dipilih tapi memang belum punya sales dilewati saja
+     * (tidak dihitung, tidak membuat baris riwayat assignment baru).
+     */
+    public function bulkUnassign(Request $request)
+    {
+        $data = $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer'],
+            'reason' => ['required', 'string', 'max:255'],
+        ]);
+
+        // Anti-IDOR (Multi Branch/Depo): ID yang dikirim dari form difilter
+        // ulang lewat BranchContext, bukan dipercaya mentah -- Admin Branch
+        // A tidak boleh melepas Customer Branch B hanya karena tahu ID-nya.
+        $items = BranchContext::current()->applyTo(
+            Customer::query()->whereIn('id', $data['ids'])
+        )->get();
+
+        $count = 0;
+
+        DB::transaction(function () use ($items, $data, &$count) {
+            foreach ($items as $item) {
+                if ($item->sales_id) {
+                    $this->assignmentService->unassign($item, auth()->id(), $data['reason']);
+                    $count++;
+                }
+            }
+        });
+
+        return back()->with('status', $count > 0
+            ? "{$count} customer berhasil dilepas dari sales (unassign)."
+            : 'Tidak ada customer yang dilepas -- semua yang dipilih memang belum punya sales.');
+    }
+
     public function destroy(Customer $item)
     {
         if (! BranchContext::current()->allows($item->branch_id)) {
