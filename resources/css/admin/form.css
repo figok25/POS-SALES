@@ -732,6 +732,37 @@ html[data-theme="dark"] { --adm-warning: #f0b95c; --adm-warning-bg: rgba(240, 18
     .frm-vp-actions .adm-btn { flex: 1; }
 }
 
+/* Cari outlet + pilih banyak per hari (Visit Plan) */
+.frm-vp-toolbar { display: flex; flex-direction: column; gap: 6px; padding: 10px 10px 0; }
+.frm-vp-toolbar .frm-input { width: 100%; height: 36px; font-size: 13px; }
+
+.frm-vp-selectall { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--adm-muted); cursor: pointer; user-select: none; }
+.frm-vp-selectall .frm-check { width: 15px; height: 15px; }
+
+.frm-vp-bulk {
+    display: none;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 10px;
+    background: var(--adm-hover);
+    border-radius: 10px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--adm-body);
+}
+.frm-vp-bulk.is-visible { display: flex; }
+.frm-vp-bulk select { flex: 1 1 140px; min-width: 0; height: 34px; font-weight: 400; }
+
+.frm-vp-row { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; cursor: pointer; }
+
+/* Checkbox "pilih untuk dipindah": hanya relevan (dan terlihat) pada outlet
+   yang sedang tercentang/assigned di hari itu -- tidak ada gunanya memindahkan
+   outlet yang memang belum dijadwalkan. */
+.frm-vp-item .vp-select { flex-shrink: 0; opacity: .35; transition: opacity .15s; }
+.frm-vp-item .vp-select:checked { opacity: 1; }
+.frm-vp-item:not(.is-checked) .vp-select { visibility: hidden; pointer-events: none; }
+
 /* Halaman form sempit (satu kolom isian) */
 .frm-page.is-narrow { max-width: 100%x; }
 
