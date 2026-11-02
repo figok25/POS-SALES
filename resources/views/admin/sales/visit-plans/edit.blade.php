@@ -107,6 +107,10 @@
                                         @if (($dayPlansByCustomer[$customer->id]->source ?? null) === 'tagging')
                                             <span class="frm-tag" title="Otomatis ditambahkan dari Tagging Toko yang di-approve">dari tagging</span>
                                         @endif
+                                        @php($prevName = $previousSales[$customer->id] ?? null)
+                                        @if ($prevName && $prevName !== $sales->name)
+                                            <span class="frm-tag" title="Sebelumnya milik sales ini, lalu dipindahkan/digabung ke {{ $sales->name }}">↪ dari {{ $prevName }}</span>
+                                        @endif
                                     </label>
                                 </div>
                             @endforeach

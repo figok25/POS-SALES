@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\Master\CustomerRequest;
 use App\Models\Branch;
 use App\Models\Customer;
+use App\Models\CustomerAssignment;
 use App\Models\Sales;
+use App\Models\SalesVisitPlan;
 use App\Services\AuditLogger;
 use App\Services\CustomerAssignmentService;
 use App\Support\BranchContext;
@@ -42,11 +44,8 @@ class CustomerController extends Controller
         $search = trim((string) $request->query('q', ''));
         $filters = $this->resolveFilters($request);
 
-        $items = BranchContext::current()->applyTo(
-            Customer::query()->with('sales')
-        )
-            ->tap(fn (Builder $query) => $this->applySearch($query, $search))
-            ->tap(fn (Builder $query) => $this->applyFilters($query, $filters))
+        $items = $this->filteredQuery($search, $filters)
+            ->with('sales')
             ->orderByDesc('id')
             ->paginate(15)
             ->withQueryString();
@@ -61,7 +60,21 @@ class CustomerController extends Controller
         // mode "Semua Depo". Admin biasa selalu terkunci ke Branch akunnya.
         $branchs = BranchContext::current()->applyTo(Branch::where('is_active', true), 'id')->orderBy('name')->get(['id', 'name']);
 
-        return view('admin.master.customers.index', compact('items', 'search', 'saless', 'branchs', 'filters'));
+        // Penanda "↪ dari <sales lama>" (mis. toko bekas Sales yang resign
+        // lalu dipindahkan/digabung ke Sales lain) -- diambil dari riwayat
+        // Customer Assignment yang sudah ditutup (unassigned_at terisi)
+        // paling baru per Customer, supaya Admin tidak bingung toko mana
+        // yang "asli" sales ini dan mana yang titipan/pindahan.
+        $previousSales = $items->isEmpty() ? collect() : CustomerAssignment::query()
+            ->whereIn('customer_id', $items->pluck('id'))
+            ->whereNotNull('unassigned_at')
+            ->with('sales:id,name')
+            ->orderByDesc('unassigned_at')
+            ->get()
+            ->unique('customer_id')
+            ->mapWithKeys(fn ($a) => [$a->customer_id => $a->sales?->name]);
+
+        return view('admin.master.customers.index', compact('items', 'search', 'saless', 'branchs', 'filters', 'previousSales'));
     }
 
     /**
@@ -74,11 +87,8 @@ class CustomerController extends Controller
         $search = trim((string) $request->query('q', ''));
         $filters = $this->resolveFilters($request);
 
-        $items = BranchContext::current()->applyTo(
-            Customer::query()->with(['sales', 'branch'])
-        )
-            ->tap(fn (Builder $query) => $this->applySearch($query, $search))
-            ->tap(fn (Builder $query) => $this->applyFilters($query, $filters))
+        $items = $this->filteredQuery($search, $filters)
+            ->with(['sales', 'branch'])
             ->orderByDesc('id')
             ->get();
 
@@ -216,17 +226,21 @@ class CustomerController extends Controller
     public function bulkUnassign(Request $request)
     {
         $data = $request->validate([
-            'ids' => ['required', 'array', 'min:1'],
+            'select_all_filtered' => ['nullable', 'boolean'],
+            'ids' => ['required_unless:select_all_filtered,1', 'array'],
             'ids.*' => ['integer'],
             'reason' => ['required', 'string', 'max:255'],
         ]);
 
-        // Anti-IDOR (Multi Branch/Depo): ID yang dikirim dari form difilter
-        // ulang lewat BranchContext, bukan dipercaya mentah -- Admin Branch
-        // A tidak boleh melepas Customer Branch B hanya karena tahu ID-nya.
-        $items = BranchContext::current()->applyTo(
-            Customer::query()->whereIn('id', $data['ids'])
-        )->get();
+        // Anti-IDOR (Multi Branch/Depo) tetap berlaku lewat
+        // resolveBulkTargets() -- baik jalur "ids" manual maupun "pilih
+        // semua hasil filter" sama-sama di-scope BranchContext, Admin
+        // Branch A tidak bisa melepas Customer Branch B.
+        $items = $this->resolveBulkTargets($request);
+
+        if ($items->isEmpty()) {
+            return back()->with('status', 'Tidak ada customer yang cocok untuk dilepas.');
+        }
 
         $count = 0;
 
@@ -242,6 +256,92 @@ class CustomerController extends Controller
         return back()->with('status', $count > 0
             ? "{$count} customer berhasil dilepas dari sales (unassign)."
             : 'Tidak ada customer yang dilepas -- semua yang dipilih memang belum punya sales.');
+    }
+
+    /**
+     * Pindahkan banyak Customer sekaligus ke Sales lain -- kepemilikan
+     * (sales_id, lewat CustomerAssignmentService seperti biasa) DAN jadwal
+     * Visit Plan (hari kunjungan di sales_visit_plans) ikut dipindahkan
+     * dari sales lama ke sales tujuan (hari yang sama, masuk di urutan
+     * akhir rute hari itu). Dipakai mis. saat Sales resign dan toko2nya
+     * mau digabung sementara ke rute Sales lain, supaya nanti kalau ada
+     * Sales pengganti tinggal dipindahkan lagi (ulang proses yang sama)
+     * tanpa Admin perlu bolak-balik buka Visit Plan Editor manual.
+     */
+    public function bulkReassign(Request $request)
+    {
+        $data = $request->validate([
+            'select_all_filtered' => ['nullable', 'boolean'],
+            'ids' => ['required_unless:select_all_filtered,1', 'array'],
+            'ids.*' => ['integer'],
+            'target_sales_id' => ['required', 'integer'],
+            'reason' => ['required', 'string', 'max:255'],
+        ]);
+
+        $branchContext = BranchContext::current();
+
+        // Anti-IDOR: Sales tujuan juga wajib di dalam akses Branch Admin
+        // ini, bukan dipercaya mentah dari form.
+        $targetSales = $branchContext->applyTo(Sales::query())->find($data['target_sales_id']);
+
+        if (! $targetSales) {
+            return back()->withErrors(['target_sales_id' => 'Sales tujuan tidak valid atau di luar akses Anda.']);
+        }
+
+        $items = $this->resolveBulkTargets($request);
+
+        if ($items->isEmpty()) {
+            return back()->with('status', 'Tidak ada customer yang cocok untuk dipindahkan.');
+        }
+
+        $count = 0;
+        $movedPlans = 0;
+
+        DB::transaction(function () use ($items, $targetSales, $data, &$count, &$movedPlans) {
+            foreach ($items as $item) {
+                $oldSalesId = $item->sales_id;
+
+                if ((int) $oldSalesId === (int) $targetSales->id) {
+                    continue; // Sudah milik sales tujuan, tidak ada yang perlu dipindah.
+                }
+
+                $this->assignmentService->assign($item, $targetSales->id, auth()->id(), $data['reason']);
+                $count++;
+
+                if (! $oldSalesId) {
+                    continue; // Belum punya sales sebelumnya, jadi tidak ada rute lama untuk dipindah.
+                }
+
+                $oldPlans = SalesVisitPlan::where('sales_id', $oldSalesId)
+                    ->where('customer_id', $item->id)
+                    ->get();
+
+                foreach ($oldPlans as $plan) {
+                    $nextSequence = 1 + (int) SalesVisitPlan::where('sales_id', $targetSales->id)
+                        ->where('day_of_week', $plan->day_of_week)
+                        ->max('sequence');
+
+                    SalesVisitPlan::firstOrCreate(
+                        ['sales_id' => $targetSales->id, 'day_of_week' => $plan->day_of_week, 'customer_id' => $item->id],
+                        ['sequence' => $nextSequence, 'source' => 'manual'],
+                    );
+
+                    $plan->delete();
+                    $movedPlans++;
+                }
+            }
+        });
+
+        if ($count === 0) {
+            return back()->with('status', 'Tidak ada customer yang dipindahkan -- semua yang dipilih sudah milik sales tujuan.');
+        }
+
+        $message = "{$count} customer dipindahkan ke {$targetSales->name}.";
+        if ($movedPlans > 0) {
+            $message .= " {$movedPlans} jadwal rute ikut dipindahkan ke hari yang sama.";
+        }
+
+        return back()->with('status', $message);
     }
 
     public function destroy(Customer $item)
@@ -333,27 +433,72 @@ class CustomerController extends Controller
     /**
      * @return array{sales_id: string, status: string, tag_date: string}
      */
+    /**
+     * Query dasar Customer (sudah di-scope BranchContext) + pencarian +
+     * filter aktif -- dipakai bersama oleh index(), export(), dan aksi
+     * massal (bulkUnassign/bulkReassign) saat Admin memilih "Pilih semua
+     * hasil filter" supaya tidak terbatas satu halaman pagination saja.
+     */
+    /**
+     * Customer target aksi massal (bulkUnassign/bulkReassign): kalau
+     * Admin klik "Pilih semua hasil filter", ambil SEMUA baris yang cocok
+     * filter/pencarian yang sedang aktif (lintas halaman pagination),
+     * bukan cuma "ids" checkbox yang kebetulan tercentang di halaman saat
+     * itu. Kalau tidak, pakai "ids" seperti biasa (pilihan manual).
+     */
+    private function resolveBulkTargets(Request $request): \Illuminate\Support\Collection
+    {
+        if ($request->boolean('select_all_filtered')) {
+            $search = trim((string) $request->input('q', ''));
+            $filters = $this->resolveFilters($request);
+
+            return $this->filteredQuery($search, $filters)->get();
+        }
+
+        $ids = (array) $request->input('ids', []);
+
+        return BranchContext::current()->applyTo(Customer::query()->whereIn('id', $ids))->get();
+    }
+
+    private function filteredQuery(string $search, array $filters): Builder
+    {
+        return BranchContext::current()->applyTo(Customer::query())
+            ->tap(fn (Builder $query) => $this->applySearch($query, $search))
+            ->tap(fn (Builder $query) => $this->applyFilters($query, $filters));
+    }
+
     private function resolveFilters(Request $request): array
     {
         return [
-            'sales_id' => trim((string) $request->query('sales_id', '')),
-            'status' => trim((string) $request->query('status', '')),
-            'tag_date' => trim((string) $request->query('tag_date', '')),
+            // input() dipakai (bukan query()) supaya helper ini bisa dipakai
+            // ulang dari form POST aksi massal "Pilih semua hasil filter"
+            // (hidden fields), tidak cuma dari query string GET index/export.
+            'sales_id' => trim((string) $request->input('sales_id', '')),
+            'from_sales_id' => trim((string) $request->input('from_sales_id', '')),
+            'status' => trim((string) $request->input('status', '')),
+            'tag_date' => trim((string) $request->input('tag_date', '')),
         ];
     }
 
     /**
-     * Filter lengkap daftar Customer: Sales, status Aktif/Nonaktif, dan
-     * "tanggal tagging" -- tanggal baris Customer ini tercatat/dibuat
-     * (created_at), baik lewat approve Tagging Toko maupun input manual
-     * Admin lewat modal ini.
+     * Filter lengkap daftar Customer: Sales (pemilik saat ini), Asal Sales
+     * (pernah di-assign ke Sales ini sebelumnya -- berguna mencari toko
+     * "titipan"/pindahan setelah Sales lain resign, lihat badge "↪ dari ..."
+     * di tabel), status Aktif/Nonaktif, dan "tanggal tagging" -- tanggal
+     * baris Customer ini tercatat/dibuat (created_at), baik lewat approve
+     * Tagging Toko maupun input manual Admin lewat modal ini.
      *
-     * @param  array{sales_id: string, status: string, tag_date: string}  $filters
+     * @param  array{sales_id: string, from_sales_id: string, status: string, tag_date: string}  $filters
      */
     private function applyFilters(Builder $query, array $filters): Builder
     {
         if ($filters['sales_id'] !== '') {
             $query->where('sales_id', (int) $filters['sales_id']);
+        }
+
+        if ($filters['from_sales_id'] !== '') {
+            $fromSalesId = (int) $filters['from_sales_id'];
+            $query->whereHas('assignments', fn ($q) => $q->where('sales_id', $fromSalesId)->whereNotNull('unassigned_at'));
         }
 
         if ($filters['status'] === 'active') {

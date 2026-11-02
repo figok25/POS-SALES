@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin\Sales;
 
 use App\Http\Controllers\Controller;
+use App\Models\CustomerAssignment;
 use App\Models\Sales;
 use App\Models\SalesVisitPlan;
 use App\Support\BranchContext;
@@ -49,11 +50,24 @@ class VisitPlanController extends Controller
             ->get()
             ->groupBy('day_of_week');
 
+        // Penanda "↪ dari <sales lama>" -- sama seperti di Master Data >
+        // Customer, supaya Admin tidak bingung mana toko "asli" Sales ini
+        // dan mana yang titipan/pindahan dari Sales lain (mis. resign).
+        $previousSales = $customers->isEmpty() ? collect() : CustomerAssignment::query()
+            ->whereIn('customer_id', $customers->pluck('id'))
+            ->whereNotNull('unassigned_at')
+            ->with('sales:id,name')
+            ->orderByDesc('unassigned_at')
+            ->get()
+            ->unique('customer_id')
+            ->mapWithKeys(fn ($a) => [$a->customer_id => $a->sales?->name]);
+
         return view('admin.sales.visit-plans.edit', [
             'sales' => $sales,
             'customers' => $customers,
             'plans' => $plans,
             'days' => self::DAYS,
+            'previousSales' => $previousSales,
         ]);
     }
 

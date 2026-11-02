@@ -6,7 +6,7 @@
         : route('admin.master.customers.store');
 
     $hasSearch = filled($search);
-    $hasAnyFilter = $hasSearch || $filters['sales_id'] !== '' || $filters['status'] !== '' || $filters['tag_date'] !== '';
+    $hasAnyFilter = $hasSearch || $filters['sales_id'] !== '' || $filters['from_sales_id'] !== '' || $filters['status'] !== '' || $filters['tag_date'] !== '';
 @endphp
 
 <x-admin-layout>
@@ -65,6 +65,16 @@
             </div>
 
             <div class="frm-field">
+                <label class="frm-label" for="f-filter-from-sales">Asal Sales</label>
+                <select id="f-filter-from-sales" name="from_sales_id" class="frm-input is-select is-filter" aria-label="Filter asal sales (sebelum dipindahkan)">
+                    <option value="">Semua (asal apa pun)</option>
+                    @foreach ($saless as $opt)
+                        <option value="{{ $opt->id }}" @selected($filters['from_sales_id'] === (string) $opt->id)>{{ $opt->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div class="frm-field">
                 <label class="frm-label" for="f-filter-status">Status</label>
                 <select id="f-filter-status" name="status" class="frm-input is-select is-filter" aria-label="Filter status">
                     <option value="">Semua Status</option>
@@ -96,13 +106,34 @@
         @if ($items->count())
             <form method="POST" action="{{ route('admin.master.customers.bulk-unassign') }}" id="bulkUnassignForm">
                 @csrf
-                <div class="frm-bulkbar" id="bulkBar" data-bulkbar>
+                {{-- Dikirim ulang supaya "Pilih semua hasil filter" di backend
+                     (resolveBulkTargets) memakai filter/pencarian yang SAMA
+                     dengan yang sedang dilihat Admin di halaman ini. --}}
+                <input type="hidden" name="select_all_filtered" id="selectAllFilteredInput" value="0">
+                <input type="hidden" name="q" value="{{ $search }}">
+                <input type="hidden" name="sales_id" value="{{ $filters['sales_id'] }}">
+                <input type="hidden" name="from_sales_id" value="{{ $filters['from_sales_id'] }}">
+                <input type="hidden" name="status" value="{{ $filters['status'] }}">
+                <input type="hidden" name="tag_date" value="{{ $filters['tag_date'] }}">
+
+                <div class="frm-bulk-toolbar" id="bulkBar" data-bulkbar>
                     <span id="bulkCount">0 toko dipilih</span>
-                    <input type="text" name="reason" class="frm-input" placeholder="Alasan pelepasan (wajib diisi)..." maxlength="255" required>
+                    <select name="target_sales_id" class="frm-input is-select" id="bulkTargetSales">
+                        <option value="">Pindahkan ke sales...</option>
+                        @foreach ($saless as $opt)
+                            <option value="{{ $opt->id }}">{{ $opt->name }}</option>
+                        @endforeach
+                    </select>
+                    <input type="text" name="reason" class="frm-input" placeholder="Alasan (wajib diisi)..." maxlength="255" required>
+                    <button type="submit" class="adm-btn adm-btn-primary adm-btn-sm" formaction="{{ route('admin.master.customers.bulk-reassign') }}" data-action="reassign">Pindahkan ke Sales</button>
                     <button type="submit" class="adm-btn adm-btn-ghost adm-btn-sm">Lepas dari Sales (Unassign)</button>
                     <button type="button" class="adm-btn adm-btn-ghost adm-btn-sm" id="bulkClear">Batal pilih</button>
                 </div>
-                <p class="frm-hint" style="margin:0 0 8px;">Tip: pakai filter Sales di atas supaya daftar hanya berisi toko satu sales, lalu "Pilih semua" untuk melepas sekaligus (mis. saat sales resign/keluar).</p>
+                <p class="frm-hint" style="margin:0 0 8px;">Tip: pakai filter Sales/Asal Sales di atas supaya daftar hanya berisi toko yang relevan. "Pindahkan ke Sales" ikut memindahkan jadwal hari kunjungannya; "Lepas dari Sales" hanya mengosongkan kepemilikan (mis. saat sales resign/keluar).
+                    @if ($items->total() > $items->count())
+                        <button type="button" class="adm-btn adm-btn-ghost adm-btn-sm" id="selectAllFilteredBtn">Pilih semua {{ $items->total() }} toko hasil filter (bukan cuma {{ $items->count() }} di halaman ini)</button>
+                    @endif
+                </p>
 
             <div class="frm-table-wrap">
                 <table class="frm-table">
@@ -133,6 +164,10 @@
                                         {{ $item->sales->name }}
                                     @else
                                         <span class="frm-dash">—</span>
+                                    @endif
+                                    @php($prevName = $previousSales[$item->id] ?? null)
+                                    @if ($prevName && $prevName !== ($item->sales->name ?? null))
+                                        <br><span class="frm-tag" title="Sebelumnya milik sales ini, lalu dipindahkan/digabung ke sales saat ini">↪ dari {{ $prevName }}</span>
                                     @endif
                                 </td>
                                 <td>
@@ -508,38 +543,77 @@
                 const selectAll = document.getElementById('selectAllCustomers');
                 const rowChecks = () => Array.from(bulkForm.querySelectorAll('.row-select'));
                 const bulkClear = document.getElementById('bulkClear');
+                const selectAllFilteredInput = document.getElementById('selectAllFilteredInput');
+                const selectAllFilteredBtn = document.getElementById('selectAllFilteredBtn');
+                const totalFiltered = {{ $items->total() }};
 
                 function refreshBulkBar() {
                     const checked = rowChecks().filter((c) => c.checked);
-                    bulkBar.classList.toggle('is-visible', checked.length > 0);
-                    bulkCount.textContent = checked.length + ' toko dipilih';
+                    const isAllFiltered = selectAllFilteredInput.value === '1';
+                    bulkBar.classList.toggle('is-visible', checked.length > 0 || isAllFiltered);
+                    bulkCount.textContent = isAllFiltered
+                        ? (totalFiltered + ' toko dipilih (semua hasil filter)')
+                        : (checked.length + ' toko dipilih');
                     if (selectAll) selectAll.checked = checked.length > 0 && checked.length === rowChecks().length;
                 }
 
                 bulkForm.addEventListener('change', (e) => {
-                    if (e.target.classList.contains('row-select')) refreshBulkBar();
+                    if (e.target.classList.contains('row-select')) {
+                        // Toggle baris manual membatalkan mode "semua hasil filter".
+                        selectAllFilteredInput.value = '0';
+                        refreshBulkBar();
+                    }
                 });
 
                 if (selectAll) {
                     selectAll.addEventListener('change', () => {
+                        selectAllFilteredInput.value = '0';
                         rowChecks().forEach((c) => { c.checked = selectAll.checked; });
                         refreshBulkBar();
                     });
                 }
 
+                selectAllFilteredBtn?.addEventListener('click', () => {
+                    rowChecks().forEach((c) => { c.checked = true; });
+                    if (selectAll) selectAll.checked = true;
+                    selectAllFilteredInput.value = '1';
+                    refreshBulkBar();
+                });
+
                 bulkClear?.addEventListener('click', () => {
                     rowChecks().forEach((c) => { c.checked = false; });
                     if (selectAll) selectAll.checked = false;
+                    selectAllFilteredInput.value = '0';
                     refreshBulkBar();
                 });
 
                 bulkForm.addEventListener('submit', (e) => {
+                    const isAllFiltered = selectAllFilteredInput.value === '1';
                     const checked = rowChecks().filter((c) => c.checked);
-                    if (checked.length === 0) {
+                    const count = isAllFiltered ? totalFiltered : checked.length;
+
+                    if (count === 0) {
                         e.preventDefault();
                         return;
                     }
-                    if (! confirm('Lepas ' + checked.length + ' toko terpilih dari sales-nya saat ini? Data toko & riwayat transaksi TIDAK dihapus, hanya kepemilikan sales-nya dikosongkan.')) {
+
+                    const isReassign = e.submitter?.dataset.action === 'reassign';
+
+                    if (isReassign) {
+                        const targetSelect = document.getElementById('bulkTargetSales');
+                        if (! targetSelect.value) {
+                            e.preventDefault();
+                            alert('Pilih dulu sales tujuan di dropdown "Pindahkan ke sales...".');
+                            return;
+                        }
+                        const targetName = targetSelect.selectedOptions[0]?.textContent ?? 'sales terpilih';
+                        if (! confirm('Pindahkan ' + count + ' toko terpilih ke ' + targetName + '? Kepemilikan toko & jadwal hari kunjungan (Visit Plan) yang sama akan ikut dipindahkan.')) {
+                            e.preventDefault();
+                        }
+                        return;
+                    }
+
+                    if (! confirm('Lepas ' + count + ' toko terpilih dari sales-nya saat ini? Data toko & riwayat transaksi TIDAK dihapus, hanya kepemilikan sales-nya dikosongkan.')) {
                         e.preventDefault();
                     }
                 });

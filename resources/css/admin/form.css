@@ -1209,10 +1209,12 @@ a.frm-board-item:focus-visible { outline: 2px solid var(--adm-blue); outline-off
     .frm-head .adm-btn { display: none !important; }
 }
 
-/* Pilih banyak baris di tabel (mis. Customer) + bar aksi massal */
+/* Pilih banyak baris di tabel (mis. Customer) + bar aksi massal
+   (nama sengaja beda dari .frm-bulkbar di atas -- itu varian "selalu
+   tampil" untuk pola lain, ini varian "muncul saat ada baris dipilih"). */
 .frm-select-col { width: 34px; padding-right: 0 !important; }
 
-.frm-bulkbar {
+.frm-bulk-toolbar {
     display: none;
     align-items: center;
     flex-wrap: wrap;
@@ -1225,5 +1227,6 @@ a.frm-board-item:focus-visible { outline: 2px solid var(--adm-blue); outline-off
     font-weight: 600;
     color: var(--adm-body);
 }
-.frm-bulkbar.is-visible { display: flex; }
-.frm-bulkbar input[type="text"] { flex: 1 1 220px; min-width: 0; height: 34px; font-weight: 400; }
+.frm-bulk-toolbar.is-visible { display: flex; }
+.frm-bulk-toolbar input[type="text"] { flex: 1 1 220px; min-width: 0; height: 34px; font-weight: 400; }
+.frm-bulk-toolbar .frm-input.is-select { flex: 1 1 180px; min-width: 0; height: 34px; font-weight: 400; }
