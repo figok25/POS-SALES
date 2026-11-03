@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin\Sales;
 
 use App\Http\Controllers\Controller;
 use App\Models\CustomerAssignment;
+use App\Models\CustomerTagging;
 use App\Models\Sales;
 use App\Models\SalesVisitPlan;
 use App\Support\BranchContext;
@@ -62,12 +63,36 @@ class VisitPlanController extends Controller
             ->unique('customer_id')
             ->mapWithKeys(fn ($a) => [$a->customer_id => $a->sales?->name]);
 
+        // Penanda "hari tagging": toko pindahan/gabungan (mis. dari Sales yang
+        // resign) masuk ke Sales ini TANPA otomatis ikut jadwal hari mana pun
+        // (CustomerAssignmentService::assign() tidak menyentuh sales_visit_plans),
+        // jadi di semua hari tampil belum tercentang dan Admin tidak tahu harus
+        // dicentang di hari apa. Hari toko itu pertama kali DI-TAG di lapangan
+        // (customer_taggings.tagged_at -- sumber yang sama dengan yang dipakai
+        // CustomerTaggingService::autoAddToVisitPlan()) adalah petunjuk hari
+        // aslinya. Dipakai tagging approved paling awal per toko, karena itu
+        // yang membentuk jadwal aslinya (bukan re-tagging belakangan).
+        $taggingDays = $customers->isEmpty() ? collect() : CustomerTagging::query()
+            ->whereIn('customer_id', $customers->pluck('id'))
+            ->where('status', CustomerTagging::STATUS_APPROVED)
+            ->whereNotNull('tagged_at')
+            ->with('sales:id,name')
+            ->orderBy('tagged_at')
+            ->get()
+            ->unique('customer_id')
+            ->mapWithKeys(fn ($t) => [$t->customer_id => [
+                'day' => $t->tagged_at->dayOfWeekIso,
+                'date' => $t->tagged_at->format('d/m/Y'),
+                'by' => $t->sales?->name,
+            ]]);
+
         return view('admin.sales.visit-plans.edit', [
             'sales' => $sales,
             'customers' => $customers,
             'plans' => $plans,
             'days' => self::DAYS,
             'previousSales' => $previousSales,
+            'taggingDays' => $taggingDays,
         ]);
     }
 

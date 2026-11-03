@@ -7,6 +7,7 @@
                 Centang outlet yang dikunjungi pada hari tsb. Urutan kunjungan mengikuti urutan checkbox dicentang.
                 Outlet yang belum di-tag ke Sales ini tidak muncul di sini &mdash; atur dulu di
                 <a href="{{ route('admin.sales.customer-assignments.index') }}" class="panel-link">Customer Assignment</a>.
+                Untuk toko pindahan ("↪ dari ..."), penanda <strong>📍 hari tagging</strong> menunjukkan hari toko itu dulu pertama kali di-tag &mdash; centang di hari tersebut untuk mengembalikan jadwal aslinya.
             </p>
         </div>
         <a href="{{ route('admin.sales.visit-plans.index') }}" class="adm-btn adm-btn-ghost adm-btn-sm">
@@ -110,6 +111,19 @@
                                         @php($prevName = $previousSales[$customer->id] ?? null)
                                         @if ($prevName && $prevName !== $sales->name)
                                             <span class="frm-tag" title="Sebelumnya milik sales ini, lalu dipindahkan/digabung ke {{ $sales->name }}">↪ dari {{ $prevName }}</span>
+
+                                            {{-- Penanda hari tagging toko pindahan: di panel hari yang SAMA
+                                                 disorot (itu hari yang sebaiknya dicentang), di panel hari
+                                                 lain tampil redup sebagai pengingat. --}}
+                                            @php($tg = $taggingDays[$customer->id] ?? null)
+                                            @if ($tg)
+                                                @php($tgTitle = 'Toko ini pertama kali di-tag'.($tg['by'] ? ' oleh '.$tg['by'] : '').' pada hari '.$days[$tg['day']].', '.$tg['date'])
+                                                @if ($tg['day'] === $dayNum)
+                                                    <span class="frm-tag is-tagday" title="{{ $tgTitle }}">📍 hari tagging</span>
+                                                @else
+                                                    <span class="frm-tag is-tagday-other" title="{{ $tgTitle }}">tagging: {{ $days[$tg['day']] }}</span>
+                                                @endif
+                                            @endif
                                         @endif
                                     </label>
                                 </div>
