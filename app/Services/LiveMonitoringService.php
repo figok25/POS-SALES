@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\SalesBreak;
 use App\Models\SalesCurrentLocation;
 use App\Models\SalesLocationHistory;
+use App\Models\Visit;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -39,6 +40,17 @@ class LiveMonitoringService
             $usedBefore[$sid] = SalesBreak::closedSecondsToday((int) $sid, $b->started_at);
         }
 
+        // Kunjungan yang masih berjalan (sudah check-in, belum check-out) per Sales:
+        // dipakai untuk menampilkan nama toko, lama kunjungan, dan titik toko.
+        $visits = Visit::query()
+            ->where('status', Visit::STATUS_ONGOING)
+            ->whereIn('sales_id', $ids)
+            ->with('customer:id,name,latitude,longitude')
+            ->orderByDesc('check_in_at')
+            ->get()
+            ->unique('sales_id')
+            ->keyBy('sales_id');
+
         $history = SalesLocationHistory::query()
             ->whereIn('sales_id', $ids)
             ->where('recorded_at', '>=', $now->copy()->subMinutes(config('monitoring.history_window_minutes')))
@@ -47,11 +59,11 @@ class LiveMonitoringService
             ->groupBy('sales_id');
 
         return $locations->map(
-            fn (SalesCurrentLocation $loc) => $this->describe($loc, $breaks->get($loc->sales_id), $history->get($loc->sales_id, collect()), $now, $usedBefore[$loc->sales_id] ?? 0)
+            fn (SalesCurrentLocation $loc) => $this->describe($loc, $breaks->get($loc->sales_id), $history->get($loc->sales_id, collect()), $now, $usedBefore[$loc->sales_id] ?? 0, $visits->get($loc->sales_id))
         )->values()->all();
     }
 
-    public function describe(SalesCurrentLocation $loc, ?SalesBreak $break, Collection $points, Carbon $now, int $usedBeforeSeconds = 0): array
+    public function describe(SalesCurrentLocation $loc, ?SalesBreak $break, Collection $points, Carbon $now, int $usedBeforeSeconds = 0, ?Visit $visit = null): array
     {
         $out = $loc->toArray();
         $ageMinutes = $loc->last_seen_at ? ($now->getTimestamp() - $loc->last_seen_at->getTimestamp()) / 60 : PHP_INT_MAX;
@@ -83,7 +95,7 @@ class LiveMonitoringService
                 : SalesCurrentLocation::STATUS_ACTIVE;
         }
 
-        return $out + [
+        return $out + $this->describeVisit($loc, $visit, $now) + [
             'effective_status' => $effective,
             'idle_minutes' => $idleMinutes,
             'idle_alert' => $effective === SalesCurrentLocation::STATUS_IDLE,
@@ -93,6 +105,52 @@ class LiveMonitoringService
             'break_remaining_seconds' => $breakRemaining,
             'break_quota_minutes' => (int) floor(SalesBreak::quotaSeconds() / 60),
         ];
+    }
+
+    /**
+     * Info kunjungan yang sedang berjalan (check-in belum check-out): toko,
+     * lama kunjungan, titik toko, dan jarak Sales sekarang dari toko. Dipakai
+     * Admin untuk menangkap kasus Sales sudah pulang tapi lupa check-out
+     * (status tetap "Di Customer" padahal posisinya jauh dari toko).
+     *
+     * @return array<string, mixed>
+     */
+    private function describeVisit(SalesCurrentLocation $loc, ?Visit $visit, Carbon $now): array
+    {
+        $empty = [
+            'visit_customer_name' => null,
+            'visit_started_at' => null,
+            'visit_minutes' => null,
+            'visit_latitude' => null,
+            'visit_longitude' => null,
+            'visit_distance_meters' => null,
+            'visit_far_alert' => false,
+            'visit_long_alert' => false,
+        ];
+
+        if (! $visit) {
+            return $empty;
+        }
+
+        $storeLat = $visit->customer?->latitude ?? $visit->check_in_latitude;
+        $storeLng = $visit->customer?->longitude ?? $visit->check_in_longitude;
+        $minutes = $visit->check_in_at ? max(0, (int) floor(($now->getTimestamp() - $visit->check_in_at->getTimestamp()) / 60)) : null;
+
+        $distance = null;
+        if ($storeLat !== null && $storeLng !== null && $loc->latitude !== null && $loc->longitude !== null) {
+            $distance = (int) round($this->distanceMeters((float) $loc->latitude, (float) $loc->longitude, (float) $storeLat, (float) $storeLng));
+        }
+
+        return [
+            'visit_customer_name' => $visit->customer?->name,
+            'visit_started_at' => $visit->check_in_at?->toIso8601String(),
+            'visit_minutes' => $minutes,
+            'visit_latitude' => $storeLat !== null ? (float) $storeLat : null,
+            'visit_longitude' => $storeLng !== null ? (float) $storeLng : null,
+            'visit_distance_meters' => $distance,
+            'visit_far_alert' => $distance !== null && $distance > (int) config('monitoring.visit_far_meters'),
+            'visit_long_alert' => $minutes !== null && $minutes >= (int) config('monitoring.visit_long_minutes'),
+        ] + $empty;
     }
 
     /**

@@ -78,6 +78,7 @@
 
         let map;
         let markers = {};   // sales_id -> maplibregl.Marker (di-reuse, TIDAK dibuat ulang tiap poll)
+        let storeMarkers = {}; // sales_id -> titik toko yang sedang dikunjungi (check-in belum check-out)
         let trackLayerAdded = false;
         let pollTimer = null;
 
@@ -118,14 +119,44 @@
             return node;
         }
 
-        // Keterangan tambahan: lama diam / lama istirahat.
+        function formatDuration(minutes) {
+            if (minutes === null || minutes === undefined) return '-';
+            if (minutes < 60) return `${minutes} menit`;
+            const h = Math.floor(minutes / 60);
+            const m = minutes % 60;
+            return m === 0 ? `${h} jam` : `${h} jam ${m} menit`;
+        }
+
+        function formatDistance(meters) {
+            if (meters === null || meters === undefined) return '-';
+            return meters >= 1000 ? `${(meters / 1000).toFixed(1)} km` : `${meters} m`;
+        }
+
+        // Info kunjungan berjalan: nama toko, sudah berapa lama, dan peringatan
+        // bila posisi Sales sudah jauh dari toko (kemungkinan lupa check-out).
+        function visitText(item) {
+            if (!item.visit_customer_name && item.visit_minutes === null) return '';
+            let text = `${item.visit_customer_name || 'Toko'} · ${formatDuration(item.visit_minutes)}`;
+            if (item.visit_far_alert) text += ` · ⚠️ ${formatDistance(item.visit_distance_meters)} dari toko`;
+            else if (item.visit_long_alert) text += ' · ⏱️ kunjungan lama';
+            return text;
+        }
+
+        // Keterangan tambahan: lama diam / lama istirahat / toko yang sedang dikunjungi.
         function detailText(item) {
             const status = item.effective_status || item.status;
             if (status === 'idle') return `Diam ${item.idle_minutes} menit`;
             if (status === 'on_break') return (item.break_overdue
                 ? `🔴 Istirahat ${item.break_minutes ?? 0} menit - MELEWATI KUOTA`
                 : `Istirahat ${item.break_minutes ?? 0} menit (sisa kuota ${Math.ceil((item.break_remaining_seconds ?? 0) / 60)} menit)`);
-            return STATUS_LABEL[status] || status;
+            const visit = status === 'off_duty' ? '' : visitText(item);
+            if (status === 'at_customer' && visit) return `Di ${visit}`;
+            return (STATUS_LABEL[status] || status) + (visit ? ` · Check-in: ${visit}` : '');
+        }
+
+        function storeMapsUrl(item) {
+            return 'https://www.google.com/maps/search/?api=1&query='
+                + encodeURIComponent(item.visit_latitude + ',' + item.visit_longitude);
         }
 
         // Tautan Google Maps ke lokasi terakhir Sales (tanpa API key; di HP membuka aplikasi Maps).
@@ -145,6 +176,15 @@
             link.style.cssText = 'display:inline-block;margin-top:6px;font-size:12px;font-weight:600;color:#2563eb;text-decoration:none';
             box.appendChild(link);
 
+            if (item.visit_latitude !== null && item.visit_latitude !== undefined && item.visit_longitude !== null) {
+                const storeLink = el('a', null, `Buka titik toko${item.visit_customer_name ? ' (' + item.visit_customer_name + ')' : ''} ↗`);
+                storeLink.href = storeMapsUrl(item);
+                storeLink.target = '_blank';
+                storeLink.rel = 'noopener noreferrer';
+                storeLink.style.cssText = 'display:block;margin-top:4px;font-size:12px;font-weight:600;color:#2563eb;text-decoration:none';
+                box.appendChild(storeLink);
+            }
+
             return box;
         }
 
@@ -152,8 +192,9 @@
             const box = document.getElementById('idle-alert');
             const idle = items.filter((i) => i.idle_alert);
             const overdue = items.filter((i) => i.break_overdue);
+            const farVisit = items.filter((i) => i.visit_far_alert && (i.effective_status || i.status) !== 'off_duty');
             box.replaceChildren();
-            if (idle.length === 0 && overdue.length === 0) { box.hidden = true; return; }
+            if (idle.length === 0 && overdue.length === 0 && farVisit.length === 0) { box.hidden = true; return; }
 
             if (idle.length) {
                 const names = idle.map((i) => `${i.sales?.name || 'Sales #' + i.sales_id} (${i.idle_minutes} menit)`).join(', ');
@@ -162,6 +203,10 @@
             if (overdue.length) {
                 const names = overdue.map((i) => `${i.sales?.name || 'Sales #' + i.sales_id} (${i.break_minutes} menit)`).join(', ');
                 box.appendChild(el('div', null, `🔴 Istirahat melewati kuota (otomatis selesai sebentar lagi): ${names}`));
+            }
+            if (farVisit.length) {
+                const names = farVisit.map((i) => `${i.sales?.name || 'Sales #' + i.sales_id} (${i.visit_customer_name || 'toko'}, ${formatDistance(i.visit_distance_meters)} dari toko, ${formatDuration(i.visit_minutes)})`).join(', ');
+                box.appendChild(el('div', null, `📍 Masih check-in di toko tapi posisi sudah jauh (kemungkinan lupa check-out): ${names}`));
             }
             box.hidden = false;
         }
@@ -239,6 +284,25 @@
                     markers[salesId] = marker;
                 }
 
+                // Titik toko yang sedang dikunjungi (cincin biru kecil), supaya terlihat
+                // jelas jarak Sales dari toko tempat dia masih check-in.
+                const hasStore = item.visit_latitude !== null && item.visit_latitude !== undefined && item.visit_longitude !== null && status !== 'off_duty';
+                if (hasStore) {
+                    const sLng = parseFloat(item.visit_longitude);
+                    const sLat = parseFloat(item.visit_latitude);
+                    if (storeMarkers[salesId]) {
+                        storeMarkers[salesId].setLngLat([sLng, sLat]);
+                    } else {
+                        const sNode = el('div');
+                        sNode.title = item.visit_customer_name || 'Toko';
+                        sNode.style.cssText = 'width:14px;height:14px;border-radius:3px;background:#fff;border:3px solid #2563eb;box-shadow:0 0 0 1px #fff';
+                        storeMarkers[salesId] = new maplibregl.Marker({ element: sNode }).setLngLat([sLng, sLat]).addTo(map);
+                    }
+                } else if (storeMarkers[salesId]) {
+                    storeMarkers[salesId].remove();
+                    delete storeMarkers[salesId];
+                }
+
                 const row = el('button', 'frm-live-item');
                 row.type = 'button';
 
@@ -248,6 +312,7 @@
                 const main = el('span', 'row-main');
                 main.append(el('span', 'frm-name', name), el('span', 'row-sub', detailText(item)));
                 if (item.idle_alert) row.style.background = '#fef2f2';
+                else if (item.visit_far_alert && status !== 'off_duty') row.style.background = '#fff7ed';
 
                 row.append(dot, main, el('span', 'frm-meta', timeAgo(item.last_seen_at)));
                 row.addEventListener('click', () => {
@@ -264,6 +329,7 @@
                 if (!seenIds.has(Number(id))) {
                     markers[id].remove();
                     delete markers[id];
+                    if (storeMarkers[id]) { storeMarkers[id].remove(); delete storeMarkers[id]; }
                 }
             });
 

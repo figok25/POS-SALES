@@ -81,9 +81,9 @@ class SalesTransactionService
         $sales = Sales::findOrFail($salesId);
         $priceType = $sales->priceType();
 
-        // Input Admin atas nama Sales boleh memilih kategori harga (Retail / WS-Grosir);
+        // Input Admin atas nama Sales boleh memilih kategori harga (Retail / WS-Grosir / Promo);
         // bila tidak dipilih, mengikuti jenis Sales.
-        if (! empty($data['admin_entry']) && ! empty($data['price_type']) && array_key_exists($data['price_type'], Price::salesTypes())) {
+        if (! empty($data['admin_entry']) && ! empty($data['price_type']) && array_key_exists($data['price_type'], Price::adminSalesTypes())) {
             $priceType = $data['price_type'];
         }
 

@@ -20,6 +20,13 @@ class Price extends Model
      * tidak bisa dipilih sebagai "Jenis Sales" lapangan.
      */
     public const TYPE_DISTRIBUTOR = 'distributor';
+    /**
+     * Harga Promo: kategori harga biasa (punya baris harga per produk di
+     * master). Bisa dipilih Admin di kasir Depo serta saat input/edit/revisi
+     * transaksi Sales, tapi TIDAK menjadi "Jenis Sales" lapangan (lihat
+     * adminSalesTypes()).
+     */
+    public const TYPE_PROMO = 'promo';
     /** Tester: harga tetap Rp 0, khusus penjualan Depo (hanya memotong stok gudang Depo). */
     public const TYPE_TESTER = 'tester';
 
@@ -36,6 +43,7 @@ class Price extends Model
             self::TYPE_WHOLESALE => 'WS / Grosir',
             self::TYPE_CONSUMER => 'Konsumen',
             self::TYPE_DISTRIBUTOR => 'Distributor',
+            self::TYPE_PROMO => 'Promo',
         ];
     }
 
@@ -49,6 +57,16 @@ class Price extends Model
             self::TYPE_RETAIL => true,
             self::TYPE_WHOLESALE => true,
         ]);
+    }
+
+    /**
+     * Kategori harga yang boleh dipilih Admin pada transaksi Sales (input atas
+     * nama Sales, edit, revisi): jenis Sales + Promo. Sales di lapangan tetap
+     * hanya memakai salesTypes().
+     */
+    public static function adminSalesTypes(): array
+    {
+        return static::salesTypes() + array_intersect_key(static::types(), [self::TYPE_PROMO => true]);
     }
 
     /**

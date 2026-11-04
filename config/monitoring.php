@@ -12,6 +12,11 @@ return [
     'signal_lost_minutes' => (int) env('MONITORING_SIGNAL_LOST_MINUTES', 5),
     'offline_minutes' => (int) env('MONITORING_OFFLINE_MINUTES', 30),
 
+    // Kunjungan (check-in belum check-out): beri tanda bila Sales sudah lebih jauh dari
+    // radius ini dari toko (kemungkinan lupa check-out), atau kunjungan lebih lama dari menit ini.
+    'visit_far_meters' => (int) env('MONITORING_VISIT_FAR_METERS', 300),
+    'visit_long_minutes' => (int) env('MONITORING_VISIT_LONG_MINUTES', 60),
+
     // Kuota Istirahat per Sales per hari (boleh dipecah beberapa kali), hanya dalam jendela waktu.
     'break_quota_minutes' => (int) env('MONITORING_BREAK_QUOTA_MINUTES', 30),
     'break_window_start' => env('MONITORING_BREAK_WINDOW_START', '10:00'),

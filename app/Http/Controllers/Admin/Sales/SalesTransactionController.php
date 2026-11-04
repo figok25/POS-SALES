@@ -312,7 +312,7 @@ class SalesTransactionController extends Controller
                 ->pluck('amount', 'product_id');
 
             // Harga untuk tiap kategori (Retail / WS-Grosir): Admin boleh memilih kategori harga.
-            foreach (array_keys(Price::salesTypes()) as $type) {
+            foreach (array_keys(Price::adminSalesTypes()) as $type) {
                 $pricesByType[$type] = Price::where('is_active', true)
                     ->where('price_type', $type)
                     ->orderBy('id')
@@ -322,7 +322,7 @@ class SalesTransactionController extends Controller
             }
         }
 
-        $priceTypes = Price::salesTypes();
+        $priceTypes = Price::adminSalesTypes();
 
         return view('admin.sales.transactions.create-for-sales', compact('salesList', 'sales', 'customers', 'stocks', 'prices', 'pricesByType', 'priceTypes'));
     }
@@ -337,7 +337,7 @@ class SalesTransactionController extends Controller
             'notes' => ['nullable', 'string', 'max:1000'],
             'entry_reason' => ['required', 'string', 'min:3', 'max:500'],
             'allow_duplicate' => ['nullable', 'boolean'],
-            'price_type' => ['nullable', 'in:'.implode(',', array_keys(Price::salesTypes()))],
+            'price_type' => ['nullable', 'in:'.implode(',', array_keys(Price::adminSalesTypes()))],
             'items' => ['required', 'array', 'min:1'],
             'items.*.product_id' => ['required', 'exists:products,id'],
             'items.*.quantity' => ['required', 'numeric', 'min:0.01'],
@@ -402,7 +402,7 @@ class SalesTransactionController extends Controller
         // Kategori harga yang boleh dipilih (Tester tidak bisa diubah) + harga master tiap kategori.
         $priceTypes = $transaction->price_type === Price::TYPE_TESTER
             ? []
-            : ($transaction->isDepoSale() ? Price::types() : Price::salesTypes());
+            : ($transaction->isDepoSale() ? Price::types() : Price::adminSalesTypes());
         $pricesByType = [];
         foreach (array_keys($priceTypes) as $type) {
             $pricesByType[$type] = Price::where('is_active', true)

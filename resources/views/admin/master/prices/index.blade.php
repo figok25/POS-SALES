@@ -113,7 +113,7 @@
                                     </td>
                                     <td>{{ $item->name }}</td>
                                     <td>
-                                        <span class="frm-status {{ $item->price_type === 'wholesale' ? 'is-warn' : 'is-on' }}">{{ \App\Models\Price::typeLabel($item->price_type) }}</span>
+                                        <span class="frm-status {{ match ($item->price_type) { 'wholesale' => 'is-warn', 'promo' => 'is-info', default => 'is-on' } }}">{{ \App\Models\Price::typeLabel($item->price_type) }}</span>
                                     </td>
                                     <td><span class="frm-name">Rp {{ number_format($item->amount, 0, ',', '.') }}</span></td>
                                     <td class="frm-cell-status">
@@ -202,7 +202,7 @@
                             @endforeach
                         </select>
                         @error('price_type') <p class="frm-error">{{ $message }}</p> @enderror
-                        <p class="frm-hint">Retail dipakai Sales jenis Retail, WS / Grosir dipakai Sales jenis WS. Satu produk punya satu harga aktif per kategori.</p>
+                        <p class="frm-hint">Retail dipakai Sales jenis Retail, WS / Grosir dipakai Sales jenis WS. Promo dipilih Admin saat input/edit transaksi (bukan Jenis Sales). Satu produk punya satu harga aktif per kategori.</p>
                     </div>
 
                     <div class="frm-field">

@@ -205,7 +205,7 @@ class SalesTransactionRevisionService
 
         // Kategori harga (Retail / WS-Grosir; Depo juga Konsumen). Transaksi Tester tidak bisa diubah.
         if (! empty($data['price_type']) && $data['price_type'] !== $locked->price_type) {
-            $allowed = $locked->isDepoSale() ? Price::types() : Price::salesTypes();
+            $allowed = $locked->isDepoSale() ? Price::types() : Price::adminSalesTypes();
 
             if ($locked->price_type === Price::TYPE_TESTER || ! array_key_exists($data['price_type'], $allowed)) {
                 throw ValidationException::withMessages(['price_type' => 'Kategori harga tidak valid untuk transaksi ini.']);
