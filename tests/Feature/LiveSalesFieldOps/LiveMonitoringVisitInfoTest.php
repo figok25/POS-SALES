@@ -94,6 +94,7 @@ class LiveMonitoringVisitInfoTest extends TestCase
         $this->assertSame(25, $row['visit_minutes']);
         $this->assertEqualsWithDelta((float) $customer->latitude, $row['visit_latitude'], 0.000001);
         $this->assertEqualsWithDelta((float) $customer->longitude, $row['visit_longitude'], 0.000001);
+        $this->assertSame('at_customer', $row['effective_status']);
         $this->assertLessThan(50, $row['visit_distance_meters']);
         $this->assertFalse($row['visit_far_alert']);
         $this->assertFalse($row['visit_long_alert']);
@@ -106,9 +107,21 @@ class LiveMonitoringVisitInfoTest extends TestCase
 
         $row = $this->row($sales->id);
 
-        $this->assertSame('at_customer', $row['effective_status']);
+        $this->assertSame('far_from_store', $row['effective_status']);
         $this->assertGreaterThan(1500, $row['visit_distance_meters']);
         $this->assertTrue($row['visit_far_alert']);
+    }
+
+    public function test_far_visit_with_lost_signal_stays_signal_lost(): void
+    {
+        $sales = $this->onDutySales();
+        $this->ongoingVisit($sales, $this->customerAt($sales, 2000), 120);
+        SalesCurrentLocation::where('sales_id', $sales->id)->update(['last_seen_at' => now()->subMinutes(10)]);
+
+        $row = $this->row($sales->id);
+
+        $this->assertSame('signal_lost', $row['effective_status']);
+        $this->assertTrue($row['visit_far_alert']);   // peringatan tetap tampil
     }
 
     public function test_long_visit_triggers_long_alert_but_not_far_alert(): void

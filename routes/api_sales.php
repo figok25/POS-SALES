@@ -29,6 +29,8 @@ Route::middleware('permission:tracking.manage')->prefix('tracking')->name('track
     Route::post('start', [TrackingController::class, 'start'])->name('start');
     Route::post('stop', [TrackingController::class, 'stop'])->name('stop');
     Route::get('status', [TrackingController::class, 'status'])->name('status');
+    // Status HP (baterai/GPS/izin/jaringan) tanpa koordinat -- tetap bisa terkirim saat GPS mati.
+    Route::post('heartbeat', [TrackingController::class, 'heartbeat'])->name('heartbeat');
 });
 
 // Tombol Istirahat (tidak dihitung diam di Live Monitoring).

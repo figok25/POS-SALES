@@ -15,6 +15,7 @@ class SalesLocationHistory extends Model
     protected $fillable = [
         'sales_id', 'location_event_id', 'branch_id', 'tracking_session_id',
         'latitude', 'longitude', 'accuracy', 'recorded_at', 'received_at',
+        'battery_level', 'gps_enabled', 'network_type',
     ];
 
     protected function casts(): array

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\SalesBreak;
 use App\Models\SalesCurrentLocation;
+use App\Models\SalesDeviceEvent;
 use App\Models\SalesLocationHistory;
 use App\Models\Visit;
 use Illuminate\Support\Carbon;
@@ -17,11 +18,15 @@ use Illuminate\Support\Collection;
  *  offline     : tidak ada lokasi > offline_minutes
  *  signal_lost : tidak ada lokasi > signal_lost_minutes
  *  at_customer : sedang check-in di toko
+ *  far_from_store : check-in belum check-out, tapi posisi sudah jauh dari toko (kemungkinan lupa check-out)
  *  idle        : posisi tidak berpindah > idle_radius selama >= idle_minutes  (ALERT)
  *  active      : selain itu
  */
 class LiveMonitoringService
 {
+    /** Kunjungan masih berjalan tapi Sales sudah jauh dari toko (> monitoring.visit_far_meters). */
+    public const STATUS_FAR_FROM_STORE = 'far_from_store';
+
     /**
      * @param  Collection<int, SalesCurrentLocation>  $locations
      * @return array<int, array<string, mixed>>
@@ -51,6 +56,15 @@ class LiveMonitoringService
             ->unique('sales_id')
             ->keyBy('sales_id');
 
+        // Kejadian HP terbaru per Sales (GPS dimatikan, izin dicabut, ...), 12 jam terakhir.
+        $events = SalesDeviceEvent::query()
+            ->whereIn('sales_id', $ids)
+            ->where('occurred_at', '>=', $now->copy()->subHours(12))
+            ->orderByDesc('occurred_at')
+            ->get()
+            ->unique('sales_id')
+            ->keyBy('sales_id');
+
         $history = SalesLocationHistory::query()
             ->whereIn('sales_id', $ids)
             ->where('recorded_at', '>=', $now->copy()->subMinutes(config('monitoring.history_window_minutes')))
@@ -59,11 +73,11 @@ class LiveMonitoringService
             ->groupBy('sales_id');
 
         return $locations->map(
-            fn (SalesCurrentLocation $loc) => $this->describe($loc, $breaks->get($loc->sales_id), $history->get($loc->sales_id, collect()), $now, $usedBefore[$loc->sales_id] ?? 0, $visits->get($loc->sales_id))
+            fn (SalesCurrentLocation $loc) => $this->describe($loc, $breaks->get($loc->sales_id), $history->get($loc->sales_id, collect()), $now, $usedBefore[$loc->sales_id] ?? 0, $visits->get($loc->sales_id), $events->get($loc->sales_id))
         )->values()->all();
     }
 
-    public function describe(SalesCurrentLocation $loc, ?SalesBreak $break, Collection $points, Carbon $now, int $usedBeforeSeconds = 0, ?Visit $visit = null): array
+    public function describe(SalesCurrentLocation $loc, ?SalesBreak $break, Collection $points, Carbon $now, int $usedBeforeSeconds = 0, ?Visit $visit = null, ?SalesDeviceEvent $event = null): array
     {
         $out = $loc->toArray();
         $ageMinutes = $loc->last_seen_at ? ($now->getTimestamp() - $loc->last_seen_at->getTimestamp()) / 60 : PHP_INT_MAX;
@@ -95,7 +109,15 @@ class LiveMonitoringService
                 : SalesCurrentLocation::STATUS_ACTIVE;
         }
 
-        return $out + $this->describeVisit($loc, $visit, $now) + [
+        $visitInfo = $this->describeVisit($loc, $visit, $now);
+
+        // "Di Customer" hanya benar bila Sales memang masih dekat toko. Bila sudah jauh,
+        // tampilkan status sendiri supaya kasus lupa check-out langsung terlihat.
+        if ($effective === SalesCurrentLocation::STATUS_AT_CUSTOMER && $visitInfo['visit_far_alert']) {
+            $effective = self::STATUS_FAR_FROM_STORE;
+        }
+
+        return $out + $visitInfo + $this->describeDevice($loc, $effective, $event, $now) + [
             'effective_status' => $effective,
             'idle_minutes' => $idleMinutes,
             'idle_alert' => $effective === SalesCurrentLocation::STATUS_IDLE,
@@ -151,6 +173,66 @@ class LiveMonitoringService
             'visit_far_alert' => $distance !== null && $distance > (int) config('monitoring.visit_far_meters'),
             'visit_long_alert' => $minutes !== null && $minutes >= (int) config('monitoring.visit_long_minutes'),
         ] + $empty;
+    }
+
+    /**
+     * Status HP + dugaan alasan Sales hilang sinyal / offline.
+     *
+     * Dugaan ini HEURISTIK dari status HP yang terakhir dilaporkan aplikasi,
+     * bukan bukti. Bila aplikasi belum mengirim status HP sama sekali
+     * (versi lama), tidak ada dugaan (offline_reason = null).
+     *
+     * offline_reason: gps_off | permission_denied | battery_dead | app_alive_no_gps | no_contact | null
+     *
+     * @return array<string, mixed>
+     */
+    private function describeDevice(SalesCurrentLocation $loc, string $effective, ?SalesDeviceEvent $event, Carbon $now): array
+    {
+        $seen = $loc->device_seen_at;
+        $battery = $loc->battery_level;
+        $charging = (bool) $loc->is_charging;
+
+        $out = [
+            'device_battery_low' => $battery !== null && ! $charging && $battery <= (int) config('monitoring.battery_low_percent'),
+            'device_seen_minutes' => $seen ? max(0, (int) floor(($now->getTimestamp() - $seen->getTimestamp()) / 60)) : null,
+            'device_last_event' => $event?->event,
+            'device_last_event_label' => $event ? SalesDeviceEvent::label($event->event) : null,
+            'device_last_event_at' => $event?->occurred_at?->toIso8601String(),
+            'offline_reason' => null,
+            'offline_reason_label' => null,
+        ];
+
+        if (! in_array($effective, [SalesCurrentLocation::STATUS_SIGNAL_LOST, SalesCurrentLocation::STATUS_OFFLINE], true)) {
+            return $out;
+        }
+
+        // Aplikasi versi lama / belum pernah kirim status HP: tidak ada dasar menduga.
+        if (! $seen && ! $event) {
+            return $out;
+        }
+
+        $lastSeen = $loc->last_seen_at;
+        $freshMinutes = (int) config('monitoring.device_fresh_minutes');
+        $alive = $seen && $seen->greaterThan($lastSeen) && $out['device_seen_minutes'] <= $freshMinutes;
+        $recentEvent = fn (string $name) => $event && $event->event === $name && $event->occurred_at->greaterThanOrEqualTo($lastSeen->copy()->subMinutes(2));
+
+        if (($alive && $loc->gps_enabled === false) || $recentEvent(SalesDeviceEvent::GPS_OFF)) {
+            $reason = ['gps_off', 'GPS/lokasi dimatikan di HP'.($recentEvent(SalesDeviceEvent::GPS_OFF) ? ' (tercatat '.$event->occurred_at->format('H:i').')' : '')];
+        } elseif (($alive && $loc->location_permission === 'denied') || $recentEvent(SalesDeviceEvent::PERMISSION_DENIED)) {
+            $reason = ['permission_denied', 'Izin lokasi dicabut / ditolak'];
+        } elseif ($alive && $loc->location_permission === 'foreground') {
+            $reason = ['permission_denied', 'Izin lokasi hanya "saat aplikasi dibuka" (tidak jalan di latar belakang)'];
+        } elseif (! $alive && $battery !== null && ! $charging && $battery <= (int) config('monitoring.battery_dead_percent')) {
+            $reason = ['battery_dead', "Kemungkinan baterai habis (terakhir {$battery}%)"];
+        } elseif ($alive) {
+            $reason = ['app_alive_no_gps', 'HP & aplikasi aktif, tapi titik lokasi tidak terkirim (GPS belum dapat sinyal / dibatasi sistem)'];
+        } else {
+            $reason = ['no_contact', 'HP tidak terhubung sama sekali (mati, tanpa internet, atau aplikasi ditutup paksa)'];
+        }
+
+        [$out['offline_reason'], $out['offline_reason_label']] = $reason;
+
+        return $out;
     }
 
     /**

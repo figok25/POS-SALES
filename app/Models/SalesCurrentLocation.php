@@ -24,6 +24,8 @@ class SalesCurrentLocation extends Model
     protected $fillable = [
         'sales_id', 'branch_id', 'tracking_session_id',
         'latitude', 'longitude', 'accuracy', 'last_seen_at', 'status',
+        // Status HP (dikirim aplikasi bersama lokasi / lewat heartbeat).
+        'battery_level', 'is_charging', 'gps_enabled', 'location_permission', 'network_type', 'device_seen_at',
     ];
 
     protected function casts(): array
@@ -32,6 +34,9 @@ class SalesCurrentLocation extends Model
             'latitude' => 'decimal:7',
             'longitude' => 'decimal:7',
             'last_seen_at' => 'datetime',
+            'device_seen_at' => 'datetime',
+            'is_charging' => 'boolean',
+            'gps_enabled' => 'boolean',
         ];
     }
 

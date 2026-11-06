@@ -61,6 +61,7 @@
             idle: '#dc2626',         // merah (alert diam)
             on_break: '#8b5cf6',     // ungu
             at_customer: '#2563eb',  // biru
+            far_from_store: '#db2777', // pink (check-in belum selesai, posisi sudah jauh)
             signal_lost: '#f97316',  // oranye
             offline: '#9ca3af',      // abu terang
             off_duty: '#4b5563',     // abu gelap
@@ -71,6 +72,7 @@
             idle: 'Diam (Alert)',
             on_break: 'Istirahat',
             at_customer: 'Di Customer',
+            far_from_store: 'Jauh dari Toko',
             signal_lost: 'Sinyal Hilang',
             offline: 'Offline',
             off_duty: 'Selesai Kerja',
@@ -142,16 +144,30 @@
             return text;
         }
 
+        // Status HP: baterai rendah + dugaan alasan bila Sinyal Hilang / Offline.
+        function deviceText(item) {
+            const status = item.effective_status || item.status;
+            const parts = [];
+            if (item.battery_level !== null && item.battery_level !== undefined && (item.device_battery_low || ['signal_lost', 'offline'].includes(status))) {
+                parts.push(`🔋 ${item.battery_level}%${item.is_charging ? ' (mengisi)' : ''}`);
+            }
+            if (item.offline_reason_label) parts.push(`❓ Dugaan: ${item.offline_reason_label}`);
+            return parts.join(' · ');
+        }
+
         // Keterangan tambahan: lama diam / lama istirahat / toko yang sedang dikunjungi.
         function detailText(item) {
             const status = item.effective_status || item.status;
-            if (status === 'idle') return `Diam ${item.idle_minutes} menit`;
+            const dev = deviceText(item);
+            const withDev = (text) => (dev ? `${text} · ${dev}` : text);
+            if (status === 'idle') return withDev(`Diam ${item.idle_minutes} menit`);
             if (status === 'on_break') return (item.break_overdue
                 ? `🔴 Istirahat ${item.break_minutes ?? 0} menit - MELEWATI KUOTA`
                 : `Istirahat ${item.break_minutes ?? 0} menit (sisa kuota ${Math.ceil((item.break_remaining_seconds ?? 0) / 60)} menit)`);
             const visit = status === 'off_duty' ? '' : visitText(item);
-            if (status === 'at_customer' && visit) return `Di ${visit}`;
-            return (STATUS_LABEL[status] || status) + (visit ? ` · Check-in: ${visit}` : '');
+            if (status === 'at_customer' && visit) return withDev(`Di ${visit}`);
+            if (status === 'far_from_store' && visit) return withDev(`Masih check-in: ${visit} (lupa check-out?)`);
+            return withDev((STATUS_LABEL[status] || status) + (visit ? ` · Check-in: ${visit}` : ''));
         }
 
         function storeMapsUrl(item) {
@@ -312,7 +328,7 @@
                 const main = el('span', 'row-main');
                 main.append(el('span', 'frm-name', name), el('span', 'row-sub', detailText(item)));
                 if (item.idle_alert) row.style.background = '#fef2f2';
-                else if (item.visit_far_alert && status !== 'off_duty') row.style.background = '#fff7ed';
+                else if (item.visit_far_alert && status !== 'off_duty') row.style.background = '#fdf2f8';
 
                 row.append(dot, main, el('span', 'frm-meta', timeAgo(item.last_seen_at)));
                 row.addEventListener('click', () => {

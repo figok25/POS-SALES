@@ -24,6 +24,12 @@ return [
     // Setelah kuota habis: alert merah selama detik ini, lalu Istirahat otomatis selesai.
     'break_grace_seconds' => (int) env('MONITORING_BREAK_GRACE_SECONDS', 60),
 
+    // Status HP: heartbeat dianggap "masih hidup" bila lebih baru dari menit ini;
+    // baterai <= battery_low_percent ditandai; <= battery_dead_percent dianggap kemungkinan habis.
+    'device_fresh_minutes' => (int) env('MONITORING_DEVICE_FRESH_MINUTES', 10),
+    'battery_low_percent' => (int) env('MONITORING_BATTERY_LOW_PERCENT', 20),
+    'battery_dead_percent' => (int) env('MONITORING_BATTERY_DEAD_PERCENT', 5),
+
     // Riwayat lokasi yang dibaca untuk menghitung lama diam.
     'history_window_minutes' => 120,
 ];

@@ -10,6 +10,7 @@ use App\Http\Requests\Sales\TrackingStopRequest;
 use App\Models\SalesBreak;
 use App\Models\SalesCurrentLocation;
 use App\Models\SalesDevice;
+use App\Models\SalesDeviceEvent;
 use App\Models\SalesLocationHistory;
 use App\Models\SalesTask;
 use App\Models\SalesTrackingSession;
@@ -17,6 +18,8 @@ use App\Models\Visit;
 use App\Services\TrackingSessionService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 
 /**
  * Live Sales Field Operations - Tracking API (Blueprint #21, #22, #23,
@@ -25,6 +28,7 @@ use Illuminate\Support\Facades\DB;
  *   POST /api/sales/tracking/start
  *   POST /api/sales/tracking/stop
  *   POST /api/sales/location
+ *   POST /api/sales/tracking/heartbeat   (status HP tanpa koordinat)
  *   GET  /api/sales/tracking/status
  */
 class TrackingController extends Controller
@@ -246,7 +250,9 @@ class TrackingController extends Controller
             // supaya recorded_at selalu sebanding dengan received_at/created_at.
             $recordedAt = Carbon::parse($request->validated('recorded_at'))->setTimezone(config('app.timezone'));
 
-            DB::transaction(function () use ($request, $sales, $session, $recordedAt) {
+            $device = $this->deviceState($request);
+
+            DB::transaction(function () use ($request, $sales, $session, $recordedAt, $device) {
                 SalesLocationHistory::create([
                     'sales_id' => $sales->id,
                     'location_event_id' => $request->validated('location_event_id'),
@@ -257,7 +263,7 @@ class TrackingController extends Controller
                     'accuracy' => $request->validated('accuracy'),
                     'recorded_at' => $recordedAt,
                     'received_at' => now(),
-                ]);
+                ] + array_intersect_key($device, array_flip(['battery_level', 'gps_enabled', 'network_type'])));
 
                 // Heuristik status sederhana (Blueprint #27): AT_CUSTOMER bila
                 // sedang ada kunjungan aktif, selain itu ACTIVE. Threshold
@@ -282,7 +288,7 @@ class TrackingController extends Controller
                         'status' => $onBreak
                             ? SalesCurrentLocation::STATUS_ON_BREAK
                             : ($atCustomer ? SalesCurrentLocation::STATUS_AT_CUSTOMER : SalesCurrentLocation::STATUS_ACTIVE),
-                    ]
+                    ] + ($device !== [] ? $device + ['device_seen_at' => now()] : [])
                 );
             });
         }
@@ -292,5 +298,93 @@ class TrackingController extends Controller
             'success' => true,
             'server_received_at' => now()->toIso8601String(),
         ]);
+    }
+
+    /**
+     * Heartbeat status HP: baterai, GPS, izin lokasi, jaringan, dan (opsional)
+     * satu kejadian (mis. gps_off). TIDAK membawa koordinat dan TIDAK mengubah
+     * last_seen_at / status lokasi -- supaya "Sinyal Hilang" tetap dihitung dari
+     * titik GPS terakhir, sementara Admin bisa melihat alasan di balik hilangnya
+     * (GPS dimatikan, izin dicabut, baterai habis, dsb).
+     */
+    public function heartbeat(Request $request)
+    {
+        $sales = $this->currentSales();
+
+        $device = $this->deviceState($request);
+        $eventName = $request->input('event');
+        $eventName = is_string($eventName) && array_key_exists($eventName, SalesDeviceEvent::LABELS) ? $eventName : null;
+
+        $occurredAt = now();
+        if ($request->filled('occurred_at')) {
+            try {
+                $parsed = Carbon::parse($request->input('occurred_at'))->setTimezone(config('app.timezone'));
+                // Antrean offline boleh membawa waktu lampau; waktu masa depan diabaikan.
+                $occurredAt = $parsed->greaterThan(now()) ? now() : $parsed;
+            } catch (\Throwable) {
+                // waktu tidak terbaca -> pakai waktu server
+            }
+        }
+
+        $session = SalesTrackingSession::where('sales_id', $sales->id)
+            ->where('status', SalesTrackingSession::STATUS_ACTIVE)
+            ->latest('id')
+            ->first();
+
+        if ($device !== []) {
+            // Status terbaru menang: heartbeat lama dari antrean tidak menimpa yang lebih baru.
+            SalesCurrentLocation::where('sales_id', $sales->id)
+                ->where(fn ($q) => $q->whereNull('device_seen_at')->orWhere('device_seen_at', '<=', $occurredAt))
+                ->update($device + ['device_seen_at' => $occurredAt]);
+        }
+
+        if ($eventName) {
+            SalesDeviceEvent::create([
+                'sales_id' => $sales->id,
+                'branch_id' => $session?->branch_id ?? $sales->branch_id,
+                'tracking_session_id' => $session?->id,
+                'event' => $eventName,
+                'battery_level' => $device['battery_level'] ?? null,
+                'detail' => mb_substr((string) $request->input('detail', ''), 0, 255) ?: null,
+                'occurred_at' => $occurredAt,
+                'received_at' => now(),
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'server_received_at' => now()->toIso8601String(),
+        ]);
+    }
+
+    /**
+     * Ambil status HP dari request. Semua field opsional dan TIDAK PERNAH
+     * menggagalkan request: nilai yang tidak valid dibuang diam-diam, supaya
+     * titik lokasi dari aplikasi lama/aneh tetap tersimpan.
+     *
+     * @return array<string, mixed>
+     */
+    private function deviceState(Request $request): array
+    {
+        $rules = [
+            'battery_level' => ['integer', 'between:0,100'],
+            'is_charging' => ['boolean'],
+            'gps_enabled' => ['boolean'],
+            'location_permission' => ['in:always,foreground,denied'],
+            'network_type' => ['in:wifi,mobile,none'],
+        ];
+
+        $out = [];
+        foreach ($rules as $key => $rule) {
+            if (! $request->has($key) || $request->input($key) === null) {
+                continue;
+            }
+            if (Validator::make([$key => $request->input($key)], [$key => $rule])->passes()) {
+                $value = $request->input($key);
+                $out[$key] = in_array($key, ['is_charging', 'gps_enabled'], true) ? filter_var($value, FILTER_VALIDATE_BOOLEAN) : (is_numeric($value) ? (int) $value : $value);
+            }
+        }
+
+        return $out;
     }
 }
