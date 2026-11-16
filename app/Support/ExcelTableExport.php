@@ -201,6 +201,19 @@ class ExcelTableExport
                         DataType::TYPE_STRING
                     );
 
+                } elseif (is_string($value) && $value !== '' && ! is_numeric($value) && preg_match('/^[=+\-@\t\r]/', $value)) {
+
+                    /*
+                     * Cegah formula injection: teks dari pengguna (nama toko,
+                     * alamat, dll.) yang diawali = + - @ akan dijalankan Excel
+                     * sebagai rumus. Simpan sebagai teks biasa.
+                     */
+                    $sheet->setCellValueExplicit(
+                        $cellAddress,
+                        $value,
+                        DataType::TYPE_STRING
+                    );
+
                 } else {
 
                     $sheet->setCellValue(

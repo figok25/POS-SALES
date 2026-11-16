@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin\Master;
 
+use App\Http\Controllers\Admin\Sales\VisitPlanController;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\Master\CustomerRequest;
 use App\Models\Branch;
@@ -89,24 +90,67 @@ class CustomerController extends Controller
 
         $items = $this->filteredQuery($search, $filters)
             ->with(['sales', 'branch'])
+            ->withCount('visits')
+            ->withMax('visits', 'check_in_at')
             ->orderByDesc('id')
             ->get();
 
-        $rows = $items->map(fn ($c) => [
-            $c->code,
-            $c->name,
-            $c->address,
-            $c->phone,
-            $c->npwp,
-            $c->branch->name ?? '-',
-            $c->sales->name ?? '-',
-            $c->is_active ? 'Aktif' : 'Nonaktif',
-        ]);
+        $customerIds = $items->pluck('id');
+
+        // Hari kunjungan (Visit Plan): "Senin, Rabu" per Customer, satu query untuk semua baris.
+        $visitDays = SalesVisitPlan::query()
+            ->whereIn('customer_id', $customerIds)
+            ->orderBy('day_of_week')
+            ->get(['customer_id', 'day_of_week'])
+            ->groupBy('customer_id')
+            ->map(fn ($plans) => $plans->pluck('day_of_week')->unique()
+                ->map(fn ($d) => VisitPlanController::DAYS[$d] ?? $d)->implode(', '));
+
+        // Sales sebelumnya (riwayat assignment yang sudah ditutup), sama dengan badge "dari ..." di tabel.
+        $previousSales = CustomerAssignment::query()
+            ->whereIn('customer_id', $customerIds)
+            ->whereNotNull('unassigned_at')
+            ->with('sales:id,name')
+            ->orderByDesc('unassigned_at')
+            ->get()
+            ->unique('customer_id')
+            ->mapWithKeys(fn ($a) => [$a->customer_id => $a->sales?->name]);
+
+        $locationStatusLabels = ['verified' => 'Terverifikasi', 'unverified' => 'Belum terverifikasi', 'pending' => 'Menunggu'];
+
+        $rows = $items->map(function ($c) use ($visitDays, $previousSales, $locationStatusLabels) {
+            $hasLocation = $c->hasLocation();
+
+            return [
+                $c->code,
+                $c->name,
+                $c->address,
+                $c->phone,
+                $c->npwp,
+                $c->branch->name ?? '-',
+                $c->sales->name ?? '-',
+                $c->is_active ? 'Aktif' : 'Nonaktif',
+                $hasLocation ? (float) $c->latitude : '',
+                $hasLocation ? (float) $c->longitude : '',
+                $c->location_accuracy !== null ? (float) $c->location_accuracy : '',
+                $hasLocation ? ($locationStatusLabels[$c->location_status] ?? ($c->location_status ?: '-')) : 'Belum ada lokasi',
+                $hasLocation ? 'https://www.google.com/maps?q='.$c->latitude.','.$c->longitude : '',
+                $visitDays[$c->id] ?? '',
+                $previousSales[$c->id] ?? '',
+                (int) $c->visits_count,
+                $c->visits_max_check_in_at ? \Illuminate\Support\Carbon::parse($c->visits_max_check_in_at)->format('Y-m-d H:i') : '',
+                $c->created_at?->format('Y-m-d H:i') ?? '',
+            ];
+        });
 
         return ExcelTableExport::download(
             title: 'Laporan Data Customer',
             subtitle: ($search !== '' ? "Filter pencarian: \"{$search}\" | " : '').'Diunduh: '.now()->format('d M Y H:i').' | Total: '.$items->count().' customer',
-            columns: ['Kode', 'Nama', 'Alamat', 'Telepon', 'NPWP', 'Branch', 'Sales', 'Status'],
+            columns: [
+                'Kode', 'Nama', 'Alamat', 'Telepon', 'NPWP', 'Branch', 'Sales', 'Status',
+                'Latitude', 'Longitude', 'Akurasi Lokasi (m)', 'Status Lokasi', 'Link Google Maps',
+                'Hari Kunjungan', 'Sales Sebelumnya', 'Total Kunjungan', 'Kunjungan Terakhir', 'Dibuat',
+            ],
             rows: $rows,
             textColumns: [0, 3, 4], // Kode, Telepon, NPWP - jaga angka 0 di depan & angka panjang
             filenameBase: 'laporan-data-customer',
