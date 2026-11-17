@@ -521,6 +521,7 @@ class CustomerController extends Controller
             'from_sales_id' => trim((string) $request->input('from_sales_id', '')),
             'status' => trim((string) $request->input('status', '')),
             'tag_date' => trim((string) $request->input('tag_date', '')),
+            'address' => mb_substr(trim((string) $request->input('address', '')), 0, 100),
         ];
     }
 
@@ -553,6 +554,12 @@ class CustomerController extends Controller
 
         if ($filters['tag_date'] !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $filters['tag_date'])) {
             $query->whereDate('created_at', $filters['tag_date']);
+        }
+
+        // Filter alamat/daerah: tiap kata harus ada di alamat (urutan bebas, tidak
+        // peka huruf besar/kecil), mis. "sananwetan" atau "jl merdeka blitar".
+        if (($filters['address'] ?? '') !== '') {
+            \App\Support\Search::apply($query, $filters['address'], ['address']);
         }
 
         return $query;

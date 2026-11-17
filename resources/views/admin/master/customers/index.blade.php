@@ -6,7 +6,7 @@
         : route('admin.master.customers.store');
 
     $hasSearch = filled($search);
-    $hasAnyFilter = $hasSearch || $filters['sales_id'] !== '' || $filters['from_sales_id'] !== '' || $filters['status'] !== '' || $filters['tag_date'] !== '';
+    $hasAnyFilter = $hasSearch || $filters['sales_id'] !== '' || $filters['from_sales_id'] !== '' || $filters['status'] !== '' || $filters['tag_date'] !== '' || ($filters['address'] ?? '') !== '';
 @endphp
 
 <x-admin-layout>
@@ -88,6 +88,11 @@
                 <input type="date" id="f-filter-tag-date" name="tag_date" value="{{ $filters['tag_date'] }}" class="frm-input is-filter" aria-label="Filter tanggal dibuat">
             </div>
 
+            <div class="frm-field">
+                <label class="frm-label" for="f-filter-address">Alamat / Daerah</label>
+                <input type="search" id="f-filter-address" name="address" value="{{ $filters['address'] ?? '' }}" maxlength="100" placeholder="mis. Sananwetan" class="frm-input is-filter" autocomplete="off" aria-label="Filter alamat atau daerah">
+            </div>
+
             <div class="frm-toolbar-actions">
                 <button type="submit" class="adm-btn adm-btn-ghost adm-btn-sm">Terapkan</button>
                 @if ($hasAnyFilter)
@@ -115,6 +120,7 @@
                 <input type="hidden" name="from_sales_id" value="{{ $filters['from_sales_id'] }}">
                 <input type="hidden" name="status" value="{{ $filters['status'] }}">
                 <input type="hidden" name="tag_date" value="{{ $filters['tag_date'] }}">
+                <input type="hidden" name="address" value="{{ $filters['address'] ?? '' }}">
 
                 <div class="frm-bulk-toolbar" id="bulkBar" data-bulkbar>
                     <span id="bulkCount">0 toko dipilih</span>
